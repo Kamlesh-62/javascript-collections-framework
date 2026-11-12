@@ -4,6 +4,7 @@
 
 import { ClassCastError, NullElementError } from '../errors/errors'
 import { describeValue } from './checks'
+import { createWeakMap, getTime, weakMapGet, weakMapSet } from './intrinsics'
 
 /**
  * The key of the protocol by which an object states its own natural order.
@@ -32,15 +33,12 @@ type Kind = 'number' | 'string' | 'bigint' | 'boolean' | 'date' | 'protocol'
 
 type ProtocolMethod = (this: object, other: unknown) => unknown
 
-/** `Date.prototype.getTime`, captured when the module loads so later patches cannot replace it. */
-const getTime: (this: Date) => number = /*#__PURE__*/ (() => Date.prototype.getTime)()
-
 /**
  * Whether each object seen so far is a date. Telling a non-date apart costs a thrown exception, and
  * whether an object is a date never changes, so the answer is kept per object. A `WeakMap` neither
  * keeps the object alive nor adds anything to it.
  */
-const dateCache: WeakMap<object, boolean> = /*#__PURE__*/ new WeakMap()
+const dateCache: WeakMap<object, boolean> = /*#__PURE__*/ createWeakMap<object, boolean>()
 
 /**
  * Returns whether `value` is a date: the built-in `getTime` succeeds on it. True for dates from any
@@ -48,15 +46,15 @@ const dateCache: WeakMap<object, boolean> = /*#__PURE__*/ new WeakMap()
  * `Proxy` objects. Runs no user code.
  */
 function isDate(value: object): boolean {
-  let known = dateCache.get(value)
+  let known = weakMapGet(dateCache, value)
   if (known === undefined) {
     try {
-      getTime.call(value as Date)
+      getTime(value as Date)
       known = true
     } catch {
       known = false
     }
-    dateCache.set(value, known)
+    weakMapSet(dateCache, value, known)
   }
   return known
 }
@@ -155,7 +153,7 @@ export function compareNatural(a: unknown, b: unknown, where: string): -1 | 0 | 
       return compareNumbers(a as number, b as number)
     case 'date':
       // Invalid dates have a NaN time value, so they come last, as NaN does among numbers.
-      return compareNumbers(getTime.call(a as Date), getTime.call(b as Date))
+      return compareNumbers(getTime(a as Date), getTime(b as Date))
     case 'boolean':
       return a === b ? 0 : a ? 1 : -1
     default:

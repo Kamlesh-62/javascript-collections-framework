@@ -13,7 +13,7 @@ User documentation for `javascript-collections-framework`.
 
 - [Ordering](ordering.md) — natural order, comparators and their helpers, `compareSymbol` for your own types
 - Interfaces and implementations — _coming with the first collection_
-- Equality and hashing — _coming with the first collection_
+- [Equality and hashing](equality.md) — SameValueZero by default, the `key` option, equivalences, the `equalsSymbol`/`hashCodeSymbol` protocol
 - Iteration and modification during iteration — _coming with the first collection_
 
 ## Collections

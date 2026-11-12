@@ -30,3 +30,14 @@ export {
   reverseOrder,
   thenComparing,
 } from './functions/comparators'
+
+// Equality and hashing
+export type { Equatable, Equivalence, HashFunction, KeyOf } from './functions/equality'
+export {
+  equals,
+  equalsSymbol,
+  hashCode,
+  hashCodeSymbol,
+  sameValueZeroEquivalence,
+  valueEquivalence,
+} from './functions/equality'
