@@ -7,6 +7,7 @@ User documentation for `javascript-collections-framework`.
 ## Using the package
 
 - [Compatibility](compatibility.md) — supported runtimes, frameworks, TypeScript versions and ways to load the package
+- [Errors](errors.md) — the error classes, when each is thrown, catching, subclassing, and two copies of the package
 
 ## Concepts
 
