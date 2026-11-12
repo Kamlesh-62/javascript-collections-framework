@@ -18,3 +18,15 @@ export {
   NullElementError,
   UnsupportedOperationError,
 } from './errors/errors'
+
+// Comparators
+export type { Comparable, Comparator } from './functions/comparators'
+export {
+  compareSymbol,
+  comparing,
+  naturalOrder,
+  nullsFirst,
+  nullsLast,
+  reverseOrder,
+  thenComparing,
+} from './functions/comparators'
