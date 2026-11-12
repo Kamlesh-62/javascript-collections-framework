@@ -49,6 +49,44 @@ fallback. The build lowers syntax to ES2015 and `pnpm check:syntax` proves it.
   (`pnpm-workspace.yaml`). Do not relax these settings to make an install pass.
 - GitHub Actions are pinned to full commit SHAs. Dependabot proposes updates weekly.
 
+## Branches, commits and pull requests
+
+- **Branch** from an up-to-date `main` as `<type>/<short-description>`, for example
+  `feat/array-list` or `fix/tree-map-floor`. Keep branches short-lived and to one topic.
+  `main` only changes through pull requests.
+- **Commit messages** follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+  ```
+  <type>(<scope>): <subject>
+
+  <body: what changed and why, wrapped at 72 columns>
+
+  BREAKING CHANGE: <what breaks and how to migrate>   (only for breaking changes, with "!" in the header)
+  ```
+
+  | Type       | Use for                                     |
+  | ---------- | ------------------------------------------- |
+  | `feat`     | new behaviour users can see                 |
+  | `fix`      | a bug fix users can see                     |
+  | `perf`     | faster, same behaviour                      |
+  | `refactor` | internal change, same behaviour             |
+  | `docs`     | documentation only                          |
+  | `test`     | tests only                                  |
+  | `build`    | build setup, dependencies, package metadata |
+  | `ci`       | workflows and automation                    |
+  | `chore`    | anything else without user impact           |
+  | `revert`   | reverting an earlier commit                 |
+
+  The scope is optional, lowercase and kebab-case (`array-list`, `tree-map`, `deps`). The subject
+  is imperative ("add", not "added"), starts lowercase, has no trailing period, and the header
+  stays within 72 characters.
+- **One logical change per commit**, with its tests and docs. Do not mix formatting or
+  refactoring with behaviour changes.
+- **Pull requests** use the template; the title is a Conventional Commit header because it
+  becomes the squash-merge commit on `main`. CI checks the title and that a changeset is present
+  (`pnpm changeset --empty` when nothing is released).
+- Never rewrite `main` or other shared history; do not bypass hooks.
+
 ## Rules for changes
 
 - **Every public export** comes from `src/index.ts`, has TSDoc with an `@example`, and states its
@@ -56,5 +94,3 @@ fallback. The build lowers syntax to ES2015 and `pnpm check:syntax` proves it.
 - **Every public behaviour has a test** in `test/`.
 - **Docs change with the code.** A change to public behaviour updates `README.md` and the
   relevant page in `docs/` in the same pull request, and carries a changeset.
-- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/):
-  `feat(list): add ArrayList.removeIf`.
