@@ -6,6 +6,7 @@ import {
   type Comparator,
   compareSymbol,
   comparing,
+  equals,
   NullElementError,
   naturalOrder,
   nullsFirst,
@@ -182,6 +183,27 @@ describe('natural order of dates', () => {
     expect(sign(later, earlier)).toBe(-1)
     earlier.setTime(5) // dates are mutable; the current time value is used
     expect(sign(later, earlier)).toBe(1)
+  })
+
+  it('runs no replaced Function.prototype.call while recognising dates [002 S1-AC5]', () => {
+    const originalCall = Function.prototype.call
+    let hijacked = 0
+    // biome-ignore lint/suspicious/noExplicitAny: replacing a built-in is the case under test
+    ;(Function.prototype as any).call = function (
+      this: (...a: unknown[]) => unknown,
+      ...args: unknown[]
+    ) {
+      hijacked++
+      return Reflect.apply(this, args[0], args.slice(1))
+    }
+    let result: number
+    try {
+      result = sign(new Date(1), new Date(2))
+    } finally {
+      Function.prototype.call = originalCall
+    }
+    expect(result).toBe(-1)
+    expect(hijacked).toBe(0)
   })
 
   it('compares a date by time even when it implements the protocol [002 S1-AC12]', () => {
@@ -547,15 +569,12 @@ describe('natural order is a total order', () => {
     }
   })
 
-  it('returns 0 for primitives exactly when they are equal by SameValueZero [002 S3-AC3]', () => {
-    // On primitives the library's equality is SameValueZero (NaN equals NaN; -0 equals 0).
-    const sameValueZero = (a: unknown, b: unknown) =>
-      a === b || (Number.isNaN(a) && Number.isNaN(b))
+  it('returns 0 for primitives exactly when the library equals says they are equal [002 S3-AC3]', () => {
     for (const kind of ['number', 'string', 'bigint', 'boolean']) {
       const values = byKind[kind] as unknown[]
       for (const a of values) {
         for (const b of values) {
-          expect(compare(a, b) === 0, `${kind} seed ${SEED}`).toBe(sameValueZero(a, b))
+          expect(compare(a, b) === 0, `${kind} seed ${SEED}`).toBe(equals(a, b))
         }
       }
     }
