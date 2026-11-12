@@ -7,4 +7,14 @@
  * @packageDocumentation
  */
 
-export {}
+// Errors
+export {
+  ClassCastError,
+  ConcurrentModificationError,
+  IllegalArgumentError,
+  IllegalStateError,
+  IndexOutOfBoundsError,
+  NoSuchElementError,
+  NullElementError,
+  UnsupportedOperationError,
+} from './errors/errors'
