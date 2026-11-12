@@ -1,0 +1,8 @@
+# Supply-chain hardening for installs. See SECURITY.md.
+minimumReleaseAge: 4320 # minutes (3 days): never install a version younger than this
+minimumReleaseAgeExclude: [] # only for an urgent security patch, then remove
+trustPolicy: no-downgrade # refuse a version with weaker provenance than its predecessor
+blockExoticSubdeps: true # no git or tarball dependencies anywhere in the tree
+strictDepBuilds: true # an install script not listed below fails the install
+allowBuilds: {}
+saveExact: true

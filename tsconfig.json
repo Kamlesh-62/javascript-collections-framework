@@ -1,0 +1,22 @@
+{
+  // src/ is type-checked against the published floors: ES2015 syntax, ES2016 runtime APIs,
+  // and no platform globals ("types": []). See CONTRIBUTING.md — Compatibility.
+  "compilerOptions": {
+    "target": "ES2015",
+    "lib": ["ES2016"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src"]
+}

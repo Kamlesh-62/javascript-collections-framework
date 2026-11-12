@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "declaration": false,
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": [".", "../src", "../scripts/*.mjs", "../scripts/*.cjs"]
+}

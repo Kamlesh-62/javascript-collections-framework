@@ -1,0 +1,117 @@
+{
+  "name": "javascript-collections-framework",
+  "version": "0.0.0",
+  "description": "A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and deques with shared interfaces, sorted and navigable collections, and documented complexity.",
+  "keywords": [
+    "collections",
+    "data-structures",
+    "list",
+    "set",
+    "map",
+    "queue",
+    "deque",
+    "treemap",
+    "linkedlist",
+    "priority-queue",
+    "typescript",
+    "sorted-map",
+    "data-structure"
+  ],
+  "license": "MIT",
+  "author": "Kamlesh Prajapati",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kamlesh-62/javascript-collections-framework.git"
+  },
+  "bugs": "https://github.com/Kamlesh-62/javascript-collections-framework/issues",
+  "homepage": "https://github.com/Kamlesh-62/javascript-collections-framework#readme",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "unpkg": "./dist/index.iife.js",
+  "jsdelivr": "./dist/index.iife.js",
+  "exports": {
+    ".": {
+      "module": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "node": {
+        "module-sync": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "require": {
+          "types": "./dist/index.d.cts",
+          "default": "./dist/index.cjs"
+        }
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit && tsc -p test",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check:package": "publint --strict && attw --pack .",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:syntax && pnpm check:package && pnpm test:smoke",
+    "changeset": "changeset",
+    "prepublishOnly": "pnpm check",
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@biomejs/biome": "2.6.6",
+    "@changesets/cli": "3.0.3",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.1.0",
+    "acorn": "8.19.0",
+    "publint": "0.3.25",
+    "tsdown": "0.23.7",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  },
+  "packageManager": "pnpm@11.28.9+sha512.35421cea2720eca3f5ad722b67e8ef18f4d3cd4745ed2fcfeb0dc288d4e9437fad3870d91ee6e83f268f0f6f7e0f62723317b19617bb45ee4333172ef51159f8",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.18.0"
+    }
+  }
+}
