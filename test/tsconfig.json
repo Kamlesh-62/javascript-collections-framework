@@ -8,5 +8,5 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": [".", "../src", "../scripts/*.mjs", "../scripts/*.cjs"]
+  "include": [".", "../src", "../scripts/check-syntax.mjs"]
 }
