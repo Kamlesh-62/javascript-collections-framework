@@ -11,6 +11,7 @@ User documentation for `javascript-collections-framework`.
 
 ## Concepts
 
+- [Ordering](ordering.md) — natural order, comparators and their helpers, `compareSymbol` for your own types
 - Interfaces and implementations — _coming with the first collection_
 - Equality and hashing — _coming with the first collection_
 - Iteration and modification during iteration — _coming with the first collection_
