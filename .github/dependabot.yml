@@ -13,6 +13,10 @@ updates:
       dev-minor-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 has no compiler API until 7.1; the build and the source-rule tests need it.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
