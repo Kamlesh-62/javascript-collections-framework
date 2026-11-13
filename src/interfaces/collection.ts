@@ -39,7 +39,8 @@ export interface Cursor<E> {
    *
    * Time: as the implementation documents.
    *
-   * @throws IllegalStateError when called before `next()`, or twice without a `next()` between.
+   * @throws IllegalStateError when called before `next()`, or twice without a `next()` between
+   *   (on a list cursor, `previous()` counts as a move too).
    * @throws UnsupportedOperationError when the collection cannot be changed (a read-only view).
    * @throws ConcurrentModificationError when a fail-fast collection was changed other than through
    *   this cursor.

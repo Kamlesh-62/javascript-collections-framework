@@ -40,11 +40,16 @@ Or without a build step:
         integrity="sha384-…" crossorigin="anonymous"></script>
 ```
 
+## Available collections
+
+| Family | Implementations              |
+| ------ | ---------------------------- |
+| Lists  | [`ArrayList`](docs/lists.md) |
+
 ## Planned collections
 
 | Family            | Implementations                             |
 | ----------------- | ------------------------------------------- |
-| Lists             | `ArrayList`, `LinkedList`                   |
 | Sets              | `HashSet`, `LinkedHashSet`, `TreeSet`       |
 | Maps              | `HashMap`, `LinkedHashMap`, `TreeMap`       |
 | Queues and deques | `ArrayDeque`, `LinkedList`, `PriorityQueue` |

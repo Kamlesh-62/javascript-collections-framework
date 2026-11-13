@@ -134,3 +134,38 @@ export function checkRange(from: unknown, to: unknown, size: number, where: stri
     )
   }
 }
+
+/**
+ * Returns whether `value` can be iterated with `for…of`: not `null` or `undefined`, and with a
+ * callable `Symbol.iterator`. Reading `Symbol.iterator` may run a getter or `Proxy` trap.
+ *
+ * Time: O(1) plus that read.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is iterable.
+ * @internal
+ */
+export function isIterable(value: unknown): value is Iterable<unknown> {
+  return (
+    value !== null &&
+    value !== undefined &&
+    typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function'
+  )
+}
+
+/**
+ * Throws `TypeError` unless `value` is a function.
+ *
+ * Time: O(1).
+ *
+ * @param value - The argument given by the caller.
+ * @param where - `<Class>.<method>`, for the message.
+ * @param what - The parameter's name, for the message.
+ * @throws TypeError when `value` is not a function.
+ * @internal
+ */
+export function requireFunction(value: unknown, where: string, what: string): void {
+  if (typeof value !== 'function') {
+    throw new TypeError(`${where}: ${what} is not a function`)
+  }
+}

@@ -7,6 +7,8 @@
  * @packageDocumentation
  */
 
+// Collections
+export { ArrayList } from './collections/array-list'
 // Errors
 export {
   ClassCastError,
@@ -18,7 +20,6 @@ export {
   NullElementError,
   UnsupportedOperationError,
 } from './errors/errors'
-
 // Comparators
 export type { Comparable, Comparator } from './functions/comparators'
 export {
@@ -30,7 +31,6 @@ export {
   reverseOrder,
   thenComparing,
 } from './functions/comparators'
-
 // Equality and hashing
 export type { Equatable, Equivalence, HashFunction, KeyOf } from './functions/equality'
 export {
@@ -41,6 +41,13 @@ export {
   sameValueZeroEquivalence,
   valueEquivalence,
 } from './functions/equality'
-export { isCollection } from './functions/guards'
-// Collections
+// Guards and collection interfaces
+export { isCollection, isList, isSequencedCollection } from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
+export type {
+  List,
+  ListCursor,
+  ReadonlyList,
+  ReadonlySequencedCollection,
+  SequencedCollection,
+} from './interfaces/list'

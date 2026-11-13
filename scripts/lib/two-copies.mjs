@@ -4,14 +4,28 @@
 
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
-/** Guards whose subject the package cannot create yet, with the reason printed instead. */
-export const WAITING = {
-  isCollection: 'no exported collection to check across copies',
+/** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
+export const MINIMUM_CLASSES = 9
+export const REQUIRED_GUARDS = ['isCollection', 'isSequencedCollection', 'isList']
+
+/**
+ * Values made by one copy that every guard of the other copy must accept: an `ArrayList`, one of
+ * its sub-lists and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function lists(copy) {
+  const ArrayList = /** @type {new (elements?: Iterable<unknown>) => any} */ (copy.ArrayList)
+  const list = new ArrayList([1, 2, 3])
+  return [list, list.subList(0, 2), list.reversed()]
 }
 
-/** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 8
-export const REQUIRED_GUARDS = ['isCollection']
+/** Guard name → the values from a copy that the other copy's guard must accept. */
+export const SAMPLES = {
+  isCollection: lists,
+  isSequencedCollection: lists,
+  isList: lists,
+}
 
 /** @typedef {Record<string, unknown>} Namespace */
 /** @typedef {new (...args: unknown[]) => object} Constructor */
@@ -59,10 +73,10 @@ export function guards(copy) {
  * Runs the checks on copies `a` and `b` of the package.
  * @param {Namespace} a
  * @param {Namespace} b
- * @param {Record<string, (copy: Namespace) => unknown>} [samples] guard name → a value from a copy
+ * @param {Record<string, (copy: Namespace) => unknown[]>} [samples] guard name → values from a copy
  * @returns {{ ok: boolean, lines: string[], failures: string[] }}
  */
-export function checkTwoCopies(a, b, samples = {}) {
+export function checkTwoCopies(a, b, samples = SAMPLES) {
   /** @type {string[]} */
   const lines = []
   /** @type {string[]} */
@@ -117,14 +131,23 @@ export function checkTwoCopies(a, b, samples = {}) {
     expect(guardA(brandedValue(1, subject)), `${name}: a same-major value is refused`)
     expect(!guardA(brandedValue(2, subject)), `${name}: a major-2 value is accepted (copy A)`)
     expect(!guardB(brandedValue(2, subject)), `${name}: a major-2 value is accepted (copy B)`)
-    const sample = samples[name]
+    const sample = Object.hasOwn(samples, name) ? samples[name] : undefined
     if (sample !== undefined) {
-      expect(guardB(sample(a)), `${name}: copy B refuses a value from copy A`)
-      expect(guardA(sample(b)), `${name}: copy A refuses a value from copy B`)
+      /** @type {[unknown[], unknown[]]} */
+      let values
+      try {
+        values = [sample(a), sample(b)]
+      } catch (error) {
+        failures.push(`${name}: could not build sample values (${String(error)})`)
+        continue
+      }
+      for (const value of values[0]) {
+        expect(guardB(value), `${name}: copy B refuses a value from copy A (${String(value)})`)
+      }
+      for (const value of values[1]) {
+        expect(guardA(value), `${name}: copy A refuses a value from copy B (${String(value)})`)
+      }
       lines.push(`${name}: recognised across copies; major 2 refused`)
-    } else if (Object.hasOwn(WAITING, name)) {
-      const reason = WAITING[/** @type {keyof typeof WAITING} */ (name)]
-      lines.push(`${name}: major 2 refused; cross-copy ${reason}`)
     } else {
       failures.push(`${name}: no sample value to check across copies — add one`)
     }

@@ -1,16 +1,21 @@
-/**
- * Brands: runtime identity for the library's public types.
- *
- * Interfaces vanish at runtime and `instanceof` fails across two copies of a package, so each
- * public class carries a brand — a getter on its prototype keyed by
- * `Symbol.for('javascript-collections-framework/<major>/<Name>')` that returns `true`. Two copies
- * of the same major version share the key and recognise each other's instances. A brand only
- * means "usable through the public API"; it is not a security boundary, and code that reads
- * another object's internal state must use a module-local check instead.
- *
- * @internal
- * @packageDocumentation
- */
+// Brands: runtime identity for the library's public types.
+//
+// Interfaces vanish at runtime and `instanceof` fails across two copies of a package, so each
+// public class carries a brand — a getter on its prototype keyed by
+// `Symbol.for('javascript-collections-framework/<major>/<Name>')` that returns `true`. Two copies
+// of the same major version share the key and recognise each other's instances. A brand only
+// means "usable through the public API"; it is not a security boundary, and code that reads
+// another object's internal state must use a module-local check instead.
+
+// The brand of every sequenced collection, view and read-only wrapper.
+export const SEQUENCED_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/SequencedCollection',
+)
+
+// The brand of every list, list view and read-only list.
+export const LIST_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/List',
+)
 
 /**
  * Returns whether `value` carries `brand` with the value `true`.

@@ -18,4 +18,6 @@ User documentation for `javascript-collections-framework`.
 
 ## Collections
 
-_None released yet._ See the planned list in the [README](../README.md#planned-collections).
+- [Lists and `ArrayList`](lists.md) — indexed lists, `insert` vs `add`, sorting, list cursors, `subList` and `reversed` views, differences from `Array`
+
+Still to come: see the planned list in the [README](../README.md#planned-collections).

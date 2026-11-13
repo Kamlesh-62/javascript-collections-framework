@@ -4,6 +4,7 @@
 
 import { expect } from 'vitest'
 import { type Collection, type Cursor, NoSuchElementError } from '../../src/index'
+import type { List } from '../../src/interfaces/list'
 import { integer, pick, seeded } from './random'
 
 export interface ReferenceModelOptions {
@@ -126,4 +127,125 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
     }
   }
   expect(c.toArray(), `reference model seed ${options.seed} final`).toEqual(live ? [...set] : array)
+}
+
+/**
+ * Seeded reference model for lists: applies the same random positional operations to a list and
+ * to a native array and compares every result. `make` builds an empty list (an `ArrayList` or a
+ * view over one).
+ */
+export function runListReferenceModel(options: {
+  seed: number
+  steps: number
+  make: () => List<number>
+}): void {
+  const random = seeded(options.seed)
+  const list = options.make()
+  const array: number[] = []
+  const ops = [
+    'add',
+    'addFirst',
+    'insert',
+    'insertAll',
+    'set',
+    'removeAt',
+    'delete',
+    'removeLast',
+    'get',
+    'indexOf',
+    'removeIf',
+    'subClear',
+    'sort',
+    'check',
+  ]
+  for (let step = 0; step < options.steps; step++) {
+    const at = `list reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const v = integer(random, 0, 9)
+    const n = array.length
+    switch (op) {
+      case 'add':
+        list.add(v)
+        array.push(v)
+        break
+      case 'addFirst':
+        list.addFirst(v)
+        array.unshift(v)
+        break
+      case 'insert': {
+        const i = integer(random, 0, n)
+        list.insert(i, v)
+        array.splice(i, 0, v)
+        break
+      }
+      case 'insertAll': {
+        const i = integer(random, 0, n)
+        const items = [v, v + 1]
+        expect(list.insertAll(i, items), at).toBe(true)
+        array.splice(i, 0, ...items)
+        break
+      }
+      case 'set':
+        if (n === 0) break
+        {
+          const i = integer(random, 0, n - 1)
+          expect(list.set(i, v), at).toBe(array[i])
+          array[i] = v
+        }
+        break
+      case 'removeAt':
+        if (n === 0) break
+        {
+          const i = integer(random, 0, n - 1)
+          expect(list.removeAt(i), at).toBe(array.splice(i, 1)[0])
+        }
+        break
+      case 'delete': {
+        const i = array.indexOf(v)
+        expect(list.delete(v), at).toBe(i >= 0)
+        if (i >= 0) array.splice(i, 1)
+        break
+      }
+      case 'removeLast':
+        if (n === 0) expect(() => list.removeLast(), at).toThrow(NoSuchElementError)
+        else expect(list.removeLast(), at).toBe(array.pop())
+        break
+      case 'get':
+        if (n > 0) {
+          const i = integer(random, 0, n - 1)
+          expect(list.get(i), at).toBe(array[i])
+        }
+        break
+      case 'indexOf':
+        expect(list.indexOf(v), at).toBe(array.indexOf(v))
+        expect(list.lastIndexOf(v), at).toBe(array.lastIndexOf(v))
+        break
+      case 'removeIf': {
+        const keep = array.filter((e) => e !== v)
+        expect(
+          list.removeIf((e) => e === v),
+          at,
+        ).toBe(keep.length !== n)
+        array.length = 0
+        array.push(...keep)
+        break
+      }
+      case 'subClear': {
+        const from = integer(random, 0, n)
+        const to = integer(random, from, n)
+        list.subList(from, to).clear()
+        array.splice(from, to - from)
+        break
+      }
+      case 'sort':
+        list.sort()
+        array.sort((a, b) => a - b)
+        break
+      case 'check':
+        expect(list.toArray(), at).toEqual(array)
+        expect(list.size, at).toBe(array.length)
+        break
+    }
+  }
+  expect(list.toArray(), `list reference model seed ${options.seed} final`).toEqual(array)
 }
