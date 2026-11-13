@@ -10,6 +10,7 @@
  */
 
 import { IllegalArgumentError, IndexOutOfBoundsError } from '../errors/errors'
+import { charCodeAt, jsonStringify, stringSlice, toText } from './intrinsics'
 
 /** The longest rendering of a string, symbol or bigint in a message, in UTF-16 code units. */
 const MAX_RENDERED = 40
@@ -18,13 +19,15 @@ const MAX_RENDERED = 40
 function cut(text: string): string {
   if (text.length <= MAX_RENDERED) return text
   let end = MAX_RENDERED
-  const last = text.charCodeAt(end - 1)
+  const last = charCodeAt(text, end - 1)
   if (last >= 0xd800 && last <= 0xdbff) end -= 1
-  return text.slice(0, end)
+  return stringSlice(text, 0, end)
 }
 
 /**
- * Renders a value for an error message without running user code.
+ * Renders a value for an error message without running user code, including built-ins replaced
+ * after the library loaded (it uses the copies in `intrinsics.ts` and the language's own string
+ * conversion of primitives).
  *
  * Objects and functions are described by `typeof` only (no `toString`, getter, `Symbol.toStringTag`
  * or `Proxy` trap runs). Strings are cut to 40 code units without splitting a surrogate pair and
@@ -42,14 +45,14 @@ function cut(text: string): string {
 export function describeValue(value: unknown): string {
   switch (typeof value) {
     case 'string':
-      return JSON.stringify(cut(value))
+      return jsonStringify(cut(value))
     case 'number':
     case 'boolean':
-      return String(value)
+      return `${value}`
     case 'bigint':
-      return `${cut(String(value))}n`
+      return `${cut(`${value}`)}n`
     case 'symbol':
-      return cut(String(value))
+      return cut(toText(value))
     case 'undefined':
       return 'undefined'
     case 'object':

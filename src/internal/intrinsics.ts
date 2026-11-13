@@ -29,6 +29,13 @@ declare const BigInt:
 export const charCodeAt: (self: string, index: number) => number = /*#__PURE__*/ (() =>
   uncurry(String.prototype.charCodeAt))()
 
+/** `String.prototype.slice(string, start, end)`. @internal */
+export const stringSlice: (self: string, start?: number, end?: number) => string =
+  /*#__PURE__*/ (() => uncurry(String.prototype.slice))()
+
+/** `JSON.stringify`, for quoting and escaping text in messages. @internal */
+export const jsonStringify: (value: string) => string = /*#__PURE__*/ (() => JSON.stringify)()
+
 /** `Date.prototype.getTime(date)`; throws for a value that is not a date. @internal */
 export const getTime: (self: Date) => number = /*#__PURE__*/ (() =>
   uncurry(Date.prototype.getTime))()

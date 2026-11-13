@@ -168,6 +168,54 @@ describe('describeValue', () => {
     expect(describeValue(null)).toBe('null')
     expect(describeValue(undefined)).toBe('undefined')
   })
+
+  it('does not call built-ins replaced after the library loaded [001 S3-AC6]', () => {
+    const calls: string[] = []
+    let rendered: string[] = []
+    let observed: string[] = []
+    const originals = {
+      slice: String.prototype.slice,
+      charCodeAt: String.prototype.charCodeAt,
+      stringify: JSON.stringify,
+      String: globalThis.String,
+      numberToString: Number.prototype.toString,
+      bigintToString: BigInt.prototype.toString,
+      symbolToString: Symbol.prototype.toString,
+    }
+    const spy = (name: string, original: (...args: never[]) => unknown) =>
+      function (this: unknown, ...args: never[]) {
+        calls.push(name)
+        return Reflect.apply(original, this, args)
+      }
+    try {
+      String.prototype.slice = spy('slice', originals.slice) as never
+      String.prototype.charCodeAt = spy('charCodeAt', originals.charCodeAt) as never
+      JSON.stringify = spy('JSON.stringify', originals.stringify) as never
+      globalThis.String = spy('String', originals.String) as never
+      Number.prototype.toString = spy('Number#toString', originals.numberToString) as never
+      BigInt.prototype.toString = spy('BigInt#toString', originals.bigintToString) as never
+      Symbol.prototype.toString = spy('Symbol#toString', originals.symbolToString) as never
+      rendered = [
+        describeValue(`${'y'.repeat(39)}😀`),
+        describeValue(42),
+        describeValue(false),
+        describeValue(7n),
+        describeValue(Symbol('k')),
+      ]
+      observed = calls.slice()
+    } finally {
+      String.prototype.slice = originals.slice
+      String.prototype.charCodeAt = originals.charCodeAt
+      JSON.stringify = originals.stringify
+      globalThis.String = originals.String
+      Number.prototype.toString = originals.numberToString
+      BigInt.prototype.toString = originals.bigintToString
+      Symbol.prototype.toString = originals.symbolToString
+    }
+    // Asserted after the built-ins are restored, so the test runner never runs the replacements.
+    expect(observed).toEqual([])
+    expect(rendered).toEqual([JSON.stringify('y'.repeat(39)), '42', 'false', '7n', 'Symbol(k)'])
+  })
 })
 
 describe('isIterable', () => {
