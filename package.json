@@ -89,11 +89,17 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "check:package": "publint --strict && attw --pack .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:syntax && pnpm check:package && pnpm test:smoke",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:syntax && pnpm check:package && pnpm test:smoke && pnpm api:check && pnpm size:check && pnpm test:copies && pnpm test:consumers",
     "changeset": "changeset",
     "prepublishOnly": "pnpm check",
     "check:syntax": "node scripts/check-syntax.mjs",
-    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs"
+    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs",
+    "api:check": "node scripts/api-report.mjs check",
+    "api:update": "node scripts/api-report.mjs update",
+    "size:check": "node scripts/size-report.mjs check",
+    "size:update": "node scripts/size-report.mjs update",
+    "test:copies": "node scripts/two-copies.mjs",
+    "test:consumers": "node scripts/old-typescript.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
@@ -105,6 +111,10 @@
     "publint": "0.3.25",
     "tsdown": "0.23.7",
     "typescript": "6.0.3",
+    "typescript-5.0": "npm:typescript@5.0.4",
+    "typescript-5.4": "npm:typescript@5.4.5",
+    "typescript-5.9": "npm:typescript@5.9.3",
+    "typescript-7.0": "npm:typescript@7.0.2",
     "vitest": "5.1.0"
   },
   "packageManager": "pnpm@11.28.9+sha512.35421cea2720eca3f5ad722b67e8ef18f4d3cd4745ed2fcfeb0dc288d4e9437fad3870d91ee6e83f268f0f6f7e0f62723317b19617bb45ee4333172ef51159f8",

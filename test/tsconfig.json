@@ -8,5 +8,15 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": [".", "../src", "../scripts/check-syntax.mjs"]
+  "include": [
+    ".",
+    "../src",
+    "../scripts/check-syntax.mjs",
+    "../scripts/lib",
+    "../scripts/api-report.mjs",
+    "../scripts/size-report.mjs",
+    "../scripts/two-copies.mjs",
+    "../scripts/old-typescript.mjs"
+  ],
+  "exclude": ["consumers"]
 }

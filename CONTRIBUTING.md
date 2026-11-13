@@ -29,7 +29,8 @@ proxies. `test/package.test.ts` enforces these on the syntax tree:
 
 - relative imports only; no dependencies; no platform globals (`process`, `window`, `globalThis`, …);
 - no `#private` fields (they throw inside Vue/MobX proxies and are lowered to slow WeakMaps) —
-  use TypeScript `private`/`protected` and mark internals `@internal`;
+  use TypeScript `private`; a member or type that reaches the published declarations never carries
+  `@internal` (the API report fails on the tag), and public classes have no `protected` members;
 - no static blocks, no static field initializers and no generator functions (iterators are
   hand-written classes);
 - no object spread or object rest (they compile to large helpers at ES2015);
@@ -86,6 +87,22 @@ fallback. The build lowers syntax to ES2015 and `pnpm check:syntax` proves it.
   becomes the squash-merge commit on `main`. CI checks the title and that a changeset is present
   (`pnpm changeset --empty` when nothing is released).
 - Never rewrite `main` or other shared history; do not bypass hooks.
+
+## Reports of the public surface
+
+Two committed reports record what the package exposes, and `pnpm check` (after `pnpm build`)
+compares the build with them:
+
+- `api/javascript-collections-framework.api.d.ts` — the public type surface. A difference fails
+  `pnpm api:check` with a diff. When the change is intended, run `pnpm api:update`, commit the
+  report, and add a changeset whose bump matches the change (see [versioning](docs/versioning.md)).
+- `api/javascript-collections-framework.size.json` — the minified and gzipped bytes of the whole
+  package and of each export imported alone. A difference fails `pnpm size:check`; run
+  `pnpm size:update` and commit it, so the pull request shows what the change costs.
+
+`pnpm test:copies` checks that two loaded copies of the build recognise each other's values, and
+`pnpm test:consumers` type-checks a program using every export with each supported TypeScript
+version.
 
 ## Rules for changes
 
