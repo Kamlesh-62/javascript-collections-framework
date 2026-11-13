@@ -1,7 +1,7 @@
 {
   "entries": [
-    { "name": "*", "minified": 25436, "gzip": 7282 },
-    { "name": "ArrayList", "minified": 23036, "gzip": 6628 },
+    { "name": "*", "minified": 25449, "gzip": 7295 },
+    { "name": "ArrayList", "minified": 23049, "gzip": 6640 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
     { "name": "IllegalArgumentError", "minified": 682, "gzip": 408 },
@@ -11,20 +11,20 @@
     { "name": "NullElementError", "minified": 669, "gzip": 401 },
     { "name": "UnsupportedOperationError", "minified": 696, "gzip": 409 },
     { "name": "compareSymbol", "minified": 90, "gzip": 101 },
-    { "name": "comparing", "minified": 2930, "gzip": 1183 },
-    { "name": "equals", "minified": 929, "gzip": 513 },
+    { "name": "comparing", "minified": 2985, "gzip": 1206 },
+    { "name": "equals", "minified": 1020, "gzip": 547 },
     { "name": "equalsSymbol", "minified": 88, "gzip": 100 },
-    { "name": "hashCode", "minified": 2559, "gzip": 1190 },
+    { "name": "hashCode", "minified": 2566, "gzip": 1194 },
     { "name": "hashCodeSymbol", "minified": 92, "gzip": 102 },
     { "name": "isCollection", "minified": 209, "gzip": 169 },
     { "name": "isList", "minified": 197, "gzip": 168 },
     { "name": "isSequencedCollection", "minified": 227, "gzip": 176 },
-    { "name": "naturalOrder", "minified": 2758, "gzip": 1123 },
-    { "name": "nullsFirst", "minified": 2982, "gzip": 1200 },
-    { "name": "nullsLast", "minified": 2979, "gzip": 1198 },
-    { "name": "reverseOrder", "minified": 2909, "gzip": 1176 },
+    { "name": "naturalOrder", "minified": 2813, "gzip": 1145 },
+    { "name": "nullsFirst", "minified": 3037, "gzip": 1221 },
+    { "name": "nullsLast", "minified": 3034, "gzip": 1220 },
+    { "name": "reverseOrder", "minified": 2964, "gzip": 1198 },
     { "name": "sameValueZeroEquivalence", "minified": 1471, "gzip": 809 },
     { "name": "thenComparing", "minified": 293, "gzip": 212 },
-    { "name": "valueEquivalence", "minified": 2991, "gzip": 1332 }
+    { "name": "valueEquivalence", "minified": 2998, "gzip": 1335 }
   ]
 }
