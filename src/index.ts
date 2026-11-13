@@ -41,3 +41,6 @@ export {
   sameValueZeroEquivalence,
   valueEquivalence,
 } from './functions/equality'
+export { isCollection } from './functions/guards'
+// Collections
+export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
