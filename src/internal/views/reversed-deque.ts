@@ -1,0 +1,71 @@
+// The reversed view of a deque: its front is the source's back. Every operation maps straight onto
+// the source (always the engine, because reversing the view returns the source), so views never
+// nest. It shares the source's change counter and never goes stale.
+
+import type { Deque } from '../../interfaces/queue'
+import { AbstractDeque } from '../skeletons/abstract-deque'
+
+/**
+ * A live view of a deque in reverse order.
+ *
+ * @internal
+ */
+export class ReversedDeque<E> extends AbstractDeque<E> {
+  private readonly source: AbstractDeque<E>
+
+  constructor(source: AbstractDeque<E>) {
+    super(source.changeCounter)
+    this.source = source
+  }
+
+  get [Symbol.toStringTag](): string {
+    return 'ReversedDeque'
+  }
+
+  get size(): number {
+    return this.source.size
+  }
+
+  getAt(index: number): E {
+    return this.source.getAt(this.source.size - 1 - index)
+  }
+
+  insertFront(element: E, where: string): void {
+    this.source.insertBack(element, where)
+  }
+
+  insertBack(element: E, where: string): void {
+    this.source.insertFront(element, where)
+  }
+
+  takeFront(): E {
+    return this.source.takeBack()
+  }
+
+  takeBack(): E {
+    return this.source.takeFront()
+  }
+
+  removeAtIndex(index: number): E {
+    return this.source.removeAtIndex(this.source.size - 1 - index)
+  }
+
+  compact(flags: readonly boolean[]): void {
+    const size = this.source.size
+    const mirrored: boolean[] = []
+    for (let i = 0; i < size; i++) mirrored.push(flags[size - 1 - i] === true)
+    this.source.compact(mirrored)
+  }
+
+  clearAll(): void {
+    this.source.clearAll()
+  }
+
+  ensureRoom(count: number, where: string): void {
+    this.source.ensureRoom(count, where)
+  }
+
+  reversed(): Deque<E> {
+    return this.source.owner
+  }
+}

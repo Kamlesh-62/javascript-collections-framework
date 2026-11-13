@@ -7,18 +7,23 @@ import type {
   Comparable,
   Comparator,
   Cursor,
+  Deque,
   Equatable,
   Equivalence,
   HashFunction,
   KeyOf,
   List,
   ListCursor,
+  Queue,
   ReadonlyCollection,
+  ReadonlyDeque,
   ReadonlyList,
+  ReadonlyQueue,
   ReadonlySequencedCollection,
   SequencedCollection,
 } from 'javascript-collections-framework'
 import {
+  ArrayDeque,
   ArrayList,
   ClassCastError,
   ConcurrentModificationError,
@@ -32,7 +37,9 @@ import {
   IllegalStateError,
   IndexOutOfBoundsError,
   isCollection,
+  isDeque,
   isList,
+  isQueue,
   isSequencedCollection,
   NoSuchElementError,
   NullElementError,
@@ -125,4 +132,15 @@ export function edit(list: List<number>): void {
 export function firstOf(value: unknown): unknown {
   if (isList(value) && !value.isEmpty()) return value.get(0)
   return isSequencedCollection(value) && !value.isEmpty() ? value.getFirst() : undefined
+}
+
+export const jobs: Queue<string> = new ArrayDeque<string>(['a']).add('b')
+export const nextJob: string | undefined = jobs.poll()
+export const waiting: ReadonlyQueue<string> = jobs
+export const stack: Deque<number> = ArrayDeque.from([1, 2], (n) => n * 10).push(30)
+export const top: number | undefined = stack.pop()
+export const backwardsStack: ReadonlyDeque<number> = stack.reversed()
+export function lastOf(value: unknown): unknown {
+  if (isDeque(value)) return value.peekLast()
+  return isQueue(value) ? value.peek() : undefined
 }

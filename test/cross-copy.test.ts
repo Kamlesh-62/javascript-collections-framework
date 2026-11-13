@@ -47,9 +47,15 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const result = checkTwoCopies(a, b)
     expect(result.failures).toEqual([])
-    expect(brandedClasses(a)).toEqual([...NAMES, 'ArrayList'].sort())
-    expect(guards(a)).toEqual(['isCollection', 'isList', 'isSequencedCollection'])
-    expect(result.lines.at(-1)).toBe('two copies: 9 classes, 3 guards — ok')
+    expect(brandedClasses(a)).toEqual([...NAMES, 'ArrayDeque', 'ArrayList'].sort())
+    expect(guards(a)).toEqual([
+      'isCollection',
+      'isDeque',
+      'isList',
+      'isQueue',
+      'isSequencedCollection',
+    ])
+    expect(result.lines.at(-1)).toBe('two copies: 10 classes, 5 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -73,7 +79,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 8 classes recognised across copies; expected at least 9')
+    expect(failures).toContain('found 9 classes recognised across copies; expected at least 10')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -145,5 +151,60 @@ describe('lists across two copies', () => {
       expect(value instanceof B).toBe(false)
     }
     expect(brandedValue(2, 'ArrayList') instanceof A).toBe(false)
+  })
+})
+
+describe('deques across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type DequeClass = new (elements?: Iterable<unknown>) => { reversed(): unknown }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isQueue and isDeque accept deques and their views and refuse everything else [008 S7-AC1]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const ArrayDeque = theirs.ArrayDeque as DequeClass
+      const ArrayList = theirs.ArrayList as new (elements?: Iterable<unknown>) => unknown
+      const deque = new ArrayDeque([1, 2])
+      for (const guard of ['isQueue', 'isDeque', 'isCollection', 'isSequencedCollection']) {
+        const check = mine[guard] as (value: unknown) => boolean
+        for (const value of [deque, deque.reversed()]) expect(check(value), guard).toBe(true)
+      }
+      const isList = mine.isList as (value: unknown) => boolean
+      expect(isList(deque)).toBe(false)
+      for (const guard of ['isQueue', 'isDeque']) {
+        const check = mine[guard] as (value: unknown) => boolean
+        for (const value of [[1], new ArrayList([1]), new Set(), new Map(), {}, null, undefined]) {
+          expect(check(value), `${guard} ${String(value)}`).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('instanceof ArrayDeque holds across copies and not for the reversed view [008 S7-AC2]', async () => {
+    const [a, b] = await load()
+    const A = a.ArrayDeque as DequeClass
+    const B = b.ArrayDeque as DequeClass
+    expect(new A() instanceof B).toBe(true)
+    expect(new B() instanceof A).toBe(true)
+    expect(new A([1]).reversed() instanceof B).toBe(false)
+    expect(brandedValue(2, 'ArrayDeque') instanceof A).toBe(false)
+  })
+
+  it('the two-copy check covers isQueue, isDeque and ArrayDeque with the deque and its view [008 S7-AC3]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('isQueue: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('isDeque: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('ArrayDeque: recognised across copies; major 2 refused')
   })
 })

@@ -9,7 +9,7 @@
  * @packageDocumentation
  */
 
-import { IllegalArgumentError, IndexOutOfBoundsError } from '../errors/errors'
+import { IllegalArgumentError, IndexOutOfBoundsError, NullElementError } from '../errors/errors'
 import { charCodeAt, jsonStringify, stringSlice, toText } from './intrinsics'
 
 /** The longest rendering of a string, symbol or bigint in a message, in UTF-16 code units. */
@@ -170,5 +170,24 @@ export function isIterable(value: unknown): value is Iterable<unknown> {
 export function requireFunction(value: unknown, where: string, what: string): void {
   if (typeof value !== 'function') {
     throw new TypeError(`${where}: ${what} is not a function`)
+  }
+}
+
+/**
+ * Throws `NullElementError` when `value` is `null` or `undefined`, for collections that reject
+ * them as elements.
+ *
+ * Time: O(1).
+ *
+ * @param value - The element given by the caller.
+ * @param where - `<Class>.<method>`, for the message.
+ * @throws NullElementError when `value` is `null` or `undefined`.
+ * @internal
+ */
+export function requireElement(value: unknown, where: string): void {
+  if (value === null || value === undefined) {
+    throw new NullElementError(
+      `${where}: ${value === null ? 'null' : 'undefined'} is not allowed as an element`,
+    )
   }
 }

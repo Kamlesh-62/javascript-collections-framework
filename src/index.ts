@@ -8,6 +8,7 @@
  */
 
 // Collections
+export { ArrayDeque } from './collections/array-deque'
 export { ArrayList } from './collections/array-list'
 // Errors
 export {
@@ -42,7 +43,13 @@ export {
   valueEquivalence,
 } from './functions/equality'
 // Guards and collection interfaces
-export { isCollection, isList, isSequencedCollection } from './functions/guards'
+export {
+  isCollection,
+  isDeque,
+  isList,
+  isQueue,
+  isSequencedCollection,
+} from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
 export type {
   List,
@@ -51,3 +58,4 @@ export type {
   ReadonlySequencedCollection,
   SequencedCollection,
 } from './interfaces/list'
+export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'

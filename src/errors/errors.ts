@@ -218,7 +218,7 @@ const NULL_ELEMENT_ERROR_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
  * @example
  * ```ts
  * try {
- *   throw new NullElementError('Queue.offer: undefined is not allowed as an element')
+ *   throw new NullElementError('ArrayDeque.add: undefined is not allowed as an element')
  * } catch (error) {
  *   if (error instanceof NullElementError) {
  *     // handle it

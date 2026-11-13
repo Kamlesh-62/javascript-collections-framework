@@ -20,4 +20,6 @@ User documentation for `javascript-collections-framework`.
 
 - [Lists and `ArrayList`](lists.md) — indexed lists, `insert` vs `add`, sorting, list cursors, `subList` and `reversed` views, differences from `Array`
 
+- [Queues, deques and `ArrayDeque`](deques.md) — first in first out, stacks with `push`/`pop`, both ends, the reversed view, `null` rejection, differences from `Array`
+
 Still to come: see the planned list in the [README](../README.md#planned-collections).

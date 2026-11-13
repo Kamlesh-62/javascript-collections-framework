@@ -5,8 +5,14 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 9
-export const REQUIRED_GUARDS = ['isCollection', 'isSequencedCollection', 'isList']
+export const MINIMUM_CLASSES = 10
+export const REQUIRED_GUARDS = [
+  'isCollection',
+  'isSequencedCollection',
+  'isList',
+  'isQueue',
+  'isDeque',
+]
 
 /**
  * Values made by one copy that every guard of the other copy must accept: an `ArrayList`, one of
@@ -20,11 +26,24 @@ function lists(copy) {
   return [list, list.subList(0, 2), list.reversed()]
 }
 
+/**
+ * An `ArrayDeque` made by one copy and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function deques(copy) {
+  const ArrayDeque = /** @type {new (elements?: Iterable<unknown>) => any} */ (copy.ArrayDeque)
+  const deque = new ArrayDeque([1, 2, 3])
+  return [deque, deque.reversed()]
+}
+
 /** Guard name → the values from a copy that the other copy's guard must accept. */
 export const SAMPLES = {
-  isCollection: lists,
-  isSequencedCollection: lists,
+  isCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...deques(copy)],
+  isSequencedCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...deques(copy)],
   isList: lists,
+  isQueue: deques,
+  isDeque: deques,
 }
 
 /** @typedef {Record<string, unknown>} Namespace */

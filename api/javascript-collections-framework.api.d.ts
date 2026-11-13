@@ -1,4 +1,52 @@
+declare const ARRAY_DEQUE_BRAND: unique symbol;
 declare const ARRAY_LIST_BRAND: unique symbol;
+declare class ArrayDeque<E> implements Deque<E> {
+    private readonly engine;
+    constructor(elements?: Iterable<E> | null);
+    static from<T>(elements: Iterable<T>): ArrayDeque<T>;
+    static from<T, U>(elements: Iterable<T>, mapFn: (element: T, index: number) => U, thisArg?: unknown): ArrayDeque<U>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [ARRAY_DEQUE_BRAND](): true;
+    get [DEQUE_BRAND](): true;
+    get [QUEUE_BRAND](): true;
+    get [SEQUENCED_COLLECTION_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    add(element: E): this;
+    push(element: E): this;
+    addLast(element: E): this;
+    addFirst(element: E): this;
+    addAll(elements: Iterable<E>): boolean;
+    poll(): E | undefined;
+    pop(): E | undefined;
+    removeFirst(): E;
+    removeLast(): E;
+    peek(): E | undefined;
+    peekLast(): E | undefined;
+    getFirst(): E;
+    getLast(): E;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    toArray(): E[];
+    forEach(action: (element: E) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    reversed(): Deque<E>;
+    copy(): ArrayDeque<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
 declare class ArrayList<E> implements List<E> {
     private readonly engine;
     constructor(elements?: Iterable<E> | null);
@@ -82,6 +130,12 @@ interface Cursor<E> {
     next(): E;
     remove(): void;
 }
+declare const DEQUE_BRAND: unique symbol;
+interface Deque<E> extends Queue<E>, SequencedCollection<E>, ReadonlyDeque<E> {
+    push(element: E): this;
+    pop(): E | undefined;
+    reversed(): Deque<E>;
+}
 interface Equatable {
     [equalsSymbol](other: unknown): boolean;
     [hashCodeSymbol](hash: HashFunction): number;
@@ -144,6 +198,10 @@ declare class NullElementError extends TypeError {
     get [NULL_ELEMENT_ERROR_BRAND](): true;
     static [Symbol.hasInstance](value: unknown): boolean;
 }
+declare const QUEUE_BRAND: unique symbol;
+interface Queue<E> extends Collection<E>, ReadonlyQueue<E> {
+    poll(): E | undefined;
+}
 interface ReadonlyCollection<E> extends Iterable<E> {
     readonly size: number;
     readonly revision: number;
@@ -159,6 +217,10 @@ interface ReadonlyCollection<E> extends Iterable<E> {
     toString(): string;
     toJSON(): E[];
 }
+interface ReadonlyDeque<E> extends ReadonlyQueue<E>, ReadonlySequencedCollection<E> {
+    peekLast(): E | undefined;
+    reversed(): ReadonlyDeque<E>;
+}
 interface ReadonlyList<E> extends ReadonlySequencedCollection<E> {
     get(index: number): E;
     indexOf(element: E): number;
@@ -167,6 +229,9 @@ interface ReadonlyList<E> extends ReadonlySequencedCollection<E> {
     subList(from: number, to: number): ReadonlyList<E>;
     reversed(): ReadonlyList<E>;
     forEach(action: (element: E, index: number, list: ReadonlyList<E>) => void, thisArg?: unknown): void;
+}
+interface ReadonlyQueue<E> extends ReadonlyCollection<E> {
+    peek(): E | undefined;
 }
 interface ReadonlySequencedCollection<E> extends ReadonlyCollection<E> {
     getFirst(): E;
@@ -194,7 +259,9 @@ declare const equalsSymbol: unique symbol;
 declare function hashCode(value: unknown): number;
 declare const hashCodeSymbol: unique symbol;
 declare function isCollection(value: unknown): value is ReadonlyCollection<unknown>;
+declare function isDeque(value: unknown): value is ReadonlyDeque<unknown>;
 declare function isList(value: unknown): value is ReadonlyList<unknown>;
+declare function isQueue(value: unknown): value is ReadonlyQueue<unknown>;
 declare function isSequencedCollection(value: unknown): value is ReadonlySequencedCollection<unknown>;
 declare function naturalOrder<T>(): Comparator<T>;
 declare function nullsFirst<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
@@ -203,5 +270,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, NoSuchElementError, NullElementError, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isList, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { Collection, Comparable, Comparator, Cursor, Equatable, Equivalence, HashFunction, KeyOf, List, ListCursor, ReadonlyCollection, ReadonlyList, ReadonlySequencedCollection, SequencedCollection };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, NoSuchElementError, NullElementError, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, List, ListCursor, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };
