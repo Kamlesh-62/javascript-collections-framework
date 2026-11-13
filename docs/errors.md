@@ -75,13 +75,14 @@ spread or `JSON.stringify`.
 
 An application can end up loading this package twice — an ES module and a CommonJS build, or two
 nested installs. Errors created by one copy are still recognised by `instanceof` in the other, as
-long as both copies have the same major version:
+long as both copies have the same major version (every `0.x` release counts as major `1`; see
+[versioning](versioning.md#before-10)):
 
 ```ts
 // error thrown by copy A, checked against the class from copy B
 error instanceof IndexOutOfBoundsError // true
 ```
 
-This works through a hidden marker on each class. The marker is a recognition mechanism, not a
+This works through a marker (a brand) on each class. The marker is a recognition mechanism, not a
 security boundary: an object can claim to be an instance by carrying the marker, so never use
 `instanceof` on these classes to decide whether untrusted data can be trusted.

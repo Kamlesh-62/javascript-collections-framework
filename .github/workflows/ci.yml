@@ -39,6 +39,10 @@ jobs:
       - run: pnpm check:syntax
       - run: pnpm check:package
       - run: pnpm test:smoke
+      - run: pnpm test:copies
+      - name: API report, size report and old TypeScript consumers
+        if: matrix.node == 24
+        run: pnpm api:check && pnpm size:check && pnpm test:consumers
 
   windows:
     name: Check (Windows)
@@ -58,6 +62,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm test:smoke
+      - run: pnpm size:check
 
   runtimes:
     name: Built package loads on Node 18/20, Bun, Deno

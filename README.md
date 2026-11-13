@@ -54,7 +54,8 @@ The table lists what is planned, not what is available. Each entry moves to the
 
 ## Documentation
 
-See [`docs/`](docs/README.md).
+See [`docs/`](docs/README.md). What each release may change is in
+[versioning](docs/versioning.md).
 
 ## Security
 

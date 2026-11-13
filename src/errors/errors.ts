@@ -43,7 +43,10 @@ export class IndexOutOfBoundsError extends RangeError {
     initError(this, 'IndexOutOfBoundsError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [INDEX_OUT_OF_BOUNDS_ERROR_BRAND](): true {
     return true
   }
@@ -103,7 +106,10 @@ export class IllegalArgumentError extends RangeError {
     initError(this, 'IllegalArgumentError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [ILLEGAL_ARGUMENT_ERROR_BRAND](): true {
     return true
   }
@@ -163,7 +169,10 @@ export class UnsupportedOperationError extends TypeError {
     initError(this, 'UnsupportedOperationError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [UNSUPPORTED_OPERATION_ERROR_BRAND](): true {
     return true
   }
@@ -228,7 +237,10 @@ export class NullElementError extends TypeError {
     initError(this, 'NullElementError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [NULL_ELEMENT_ERROR_BRAND](): true {
     return true
   }
@@ -288,7 +300,10 @@ export class ClassCastError extends TypeError {
     initError(this, 'ClassCastError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [CLASS_CAST_ERROR_BRAND](): true {
     return true
   }
@@ -348,7 +363,10 @@ export class NoSuchElementError extends Error {
     initError(this, 'NoSuchElementError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [NO_SUCH_ELEMENT_ERROR_BRAND](): true {
     return true
   }
@@ -408,7 +426,10 @@ export class IllegalStateError extends Error {
     initError(this, 'IllegalStateError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [ILLEGAL_STATE_ERROR_BRAND](): true {
     return true
   }
@@ -469,7 +490,10 @@ export class ConcurrentModificationError extends Error {
     initError(this, 'ConcurrentModificationError', new.target)
   }
 
-  /** @internal */
+  /**
+   * Marks instances of this class so `instanceof` recognises them across copies of the package.
+   * Its key is not exported, so the getter is not called directly. Time: O(1).
+   */
   get [CONCURRENT_MODIFICATION_ERROR_BRAND](): true {
     return true
   }
