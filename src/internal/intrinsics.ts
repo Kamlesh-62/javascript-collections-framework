@@ -82,3 +82,21 @@ export const weakMapGet: <K extends object, V>(self: WeakMap<K, V>, key: K) => V
 /** `WeakMap.prototype.set(map, key, value)`. @internal */
 export const weakMapSet: <K extends object, V>(self: WeakMap<K, V>, key: K, value: V) => unknown =
   /*#__PURE__*/ (() => uncurry(WeakMap.prototype.set))() as never
+
+/** A new `WeakSet`, built with the constructor captured at load. @internal */
+export const createWeakSet: <T extends object>() => WeakSet<T> = /*#__PURE__*/ (() => {
+  const Weak = WeakSet
+  return <T extends object>() => new Weak<T>()
+})()
+
+/** `WeakSet.prototype.has(set, value)`. @internal */
+export const weakSetHas: <T extends object>(self: WeakSet<T>, value: T) => boolean =
+  /*#__PURE__*/ (() => uncurry(WeakSet.prototype.has))() as never
+
+/** `WeakSet.prototype.add(set, value)`. @internal */
+export const weakSetAdd: <T extends object>(self: WeakSet<T>, value: T) => unknown =
+  /*#__PURE__*/ (() => uncurry(WeakSet.prototype.add))() as never
+
+/** `WeakSet.prototype.delete(set, value)`. @internal */
+export const weakSetDelete: <T extends object>(self: WeakSet<T>, value: T) => boolean =
+  /*#__PURE__*/ (() => uncurry(WeakSet.prototype.delete))() as never
