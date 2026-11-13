@@ -6,7 +6,14 @@
 
 import type { ReadonlyCollection } from '../interfaces/collection'
 import type { ReadonlyList, ReadonlySequencedCollection } from '../interfaces/list'
-import { isBranded, LIST_BRAND, SEQUENCED_COLLECTION_BRAND } from '../internal/brand'
+import type { ReadonlyDeque, ReadonlyQueue } from '../interfaces/queue'
+import {
+  DEQUE_BRAND,
+  isBranded,
+  LIST_BRAND,
+  QUEUE_BRAND,
+  SEQUENCED_COLLECTION_BRAND,
+} from '../internal/brand'
 import { COLLECTION_BRAND } from '../internal/output'
 
 /**
@@ -73,4 +80,45 @@ export function isSequencedCollection(
  */
 export function isList(value: unknown): value is ReadonlyList<unknown> {
   return isBranded(value, LIST_BRAND)
+}
+
+/**
+ * Returns whether `value` is a queue from this library — an `ArrayDeque` or its reversed view —
+ * of the same major version, from any loaded copy of the package.
+ *
+ * Time: O(1), plus any getter or proxy trap that reading a property of `value` runs.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is a library queue.
+ * @throws whatever a getter or proxy trap on `value` throws while the property is read.
+ *
+ * @example
+ * ```ts
+ * isQueue(new ArrayDeque()) // true
+ * isQueue([])               // false
+ * ```
+ */
+export function isQueue(value: unknown): value is ReadonlyQueue<unknown> {
+  return isBranded(value, QUEUE_BRAND)
+}
+
+/**
+ * Returns whether `value` is a deque from this library — an `ArrayDeque` or its reversed view —
+ * of the same major version, from any loaded copy of the package.
+ *
+ * Time: O(1), plus any getter or proxy trap that reading a property of `value` runs.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is a library deque.
+ * @throws whatever a getter or proxy trap on `value` throws while the property is read.
+ *
+ * @example
+ * ```ts
+ * function last(value: unknown): unknown {
+ *   return isDeque(value) ? value.peekLast() : undefined
+ * }
+ * ```
+ */
+export function isDeque(value: unknown): value is ReadonlyDeque<unknown> {
+  return isBranded(value, DEQUE_BRAND)
 }

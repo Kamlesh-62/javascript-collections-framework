@@ -5,6 +5,7 @@
 import { expect } from 'vitest'
 import { type Collection, type Cursor, NoSuchElementError } from '../../src/index'
 import type { List } from '../../src/interfaces/list'
+import type { Deque } from '../../src/interfaces/queue'
 import { integer, pick, seeded } from './random'
 
 export interface ReferenceModelOptions {
@@ -248,4 +249,85 @@ export function runListReferenceModel(options: {
     }
   }
   expect(list.toArray(), `list reference model seed ${options.seed} final`).toEqual(array)
+}
+
+/**
+ * Seeded reference model for deques: applies the same random end operations to a deque and to a
+ * native array (`push`/`unshift`/`shift`/`pop`) and compares every result. `make` builds an empty
+ * deque (an `ArrayDeque` or a view over one).
+ */
+export function runDequeReferenceModel(options: {
+  seed: number
+  steps: number
+  make: () => Deque<number>
+}): void {
+  const random = seeded(options.seed)
+  const deque = options.make()
+  const array: number[] = []
+  const ops = [
+    'add',
+    'add',
+    'addFirst',
+    'push',
+    'poll',
+    'pop',
+    'peek',
+    'peekLast',
+    'delete',
+    'has',
+    'removeIf',
+    'check',
+  ]
+  for (let step = 0; step < options.steps; step++) {
+    const at = `deque reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const v = integer(random, 0, 9)
+    switch (op) {
+      case 'add':
+      case 'push':
+        deque[op](v)
+        array.push(v)
+        break
+      case 'addFirst':
+        deque.addFirst(v)
+        array.unshift(v)
+        break
+      case 'poll':
+        expect(deque.poll(), at).toBe(array.shift())
+        break
+      case 'pop':
+        expect(deque.pop(), at).toBe(array.pop())
+        break
+      case 'peek':
+        expect(deque.peek(), at).toBe(array[0])
+        break
+      case 'peekLast':
+        expect(deque.peekLast(), at).toBe(array[array.length - 1])
+        break
+      case 'delete': {
+        const i = array.indexOf(v)
+        expect(deque.delete(v), at).toBe(i >= 0)
+        if (i >= 0) array.splice(i, 1)
+        break
+      }
+      case 'has':
+        expect(deque.has(v), at).toBe(array.includes(v))
+        break
+      case 'removeIf': {
+        const keep = array.filter((e) => e !== v)
+        expect(
+          deque.removeIf((e) => e === v),
+          at,
+        ).toBe(keep.length !== array.length)
+        array.length = 0
+        array.push(...keep)
+        break
+      }
+      case 'check':
+        expect([...deque], at).toEqual(array)
+        expect(deque.size, at).toBe(array.length)
+        break
+    }
+  }
+  expect([...deque], `deque reference model seed ${options.seed} final`).toEqual(array)
 }

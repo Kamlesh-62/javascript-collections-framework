@@ -42,17 +42,18 @@ Or without a build step:
 
 ## Available collections
 
-| Family | Implementations              |
-| ------ | ---------------------------- |
-| Lists  | [`ArrayList`](docs/lists.md) |
+| Family            | Implementations                |
+| ----------------- | ------------------------------ |
+| Lists             | [`ArrayList`](docs/lists.md)   |
+| Queues and deques | [`ArrayDeque`](docs/deques.md) |
 
 ## Planned collections
 
-| Family            | Implementations                             |
-| ----------------- | ------------------------------------------- |
-| Sets              | `HashSet`, `LinkedHashSet`, `TreeSet`       |
-| Maps              | `HashMap`, `LinkedHashMap`, `TreeMap`       |
-| Queues and deques | `ArrayDeque`, `LinkedList`, `PriorityQueue` |
+| Family            | Implementations                       |
+| ----------------- | ------------------------------------- |
+| Sets              | `HashSet`, `LinkedHashSet`, `TreeSet` |
+| Maps              | `HashMap`, `LinkedHashMap`, `TreeMap` |
+| Queues and deques | `LinkedList`, `PriorityQueue`         |
 
 The table lists what is planned, not what is available. Each entry moves to the
 [documentation](docs/README.md) when it ships.

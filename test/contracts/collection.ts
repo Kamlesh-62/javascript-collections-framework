@@ -12,6 +12,7 @@ import {
   IllegalStateError,
   isCollection,
   NoSuchElementError,
+  NullElementError,
 } from '../../src/index'
 
 export interface CollectionContractOptions {
@@ -35,6 +36,11 @@ export interface CollectionContractOptions {
    * Omitted for collections that compare by identity.
    */
   structural?: { expectedHash: (elements: unknown[], hash: (value: unknown) => number) => number }
+  /**
+   * Whether `null` and `undefined` can be elements (`'store'`, the default) or are refused with
+   * `NullElementError` (`'reject'`, as deques do).
+   */
+  nullElements?: 'store' | 'reject'
 }
 
 /** Builds a new collection holding `initial`, in order. */
@@ -700,27 +706,23 @@ export function describeCollection(
         const tag = name
         function named() {}
         const date = new Date(0)
-        const c = make([
-          "it's\n",
-          -0,
-          5n,
-          Symbol("a'b"),
-          null,
-          undefined,
-          [1, [2]],
-          named,
-          () => 1,
-          date,
-        ])
+        const storesNull = options.nullElements !== 'reject'
+        const nulls = storesNull ? [null, undefined] : []
+        const c = make(["it's\n", -0, 5n, Symbol("a'b"), ...nulls, [1, [2]], named, () => 1, date])
         const printed = String(c)
         // A set stores -0 as 0, as native Set does; a list keeps -0 and prints it.
         const minusZero = options.brackets === 'set' ? '0' : '-0'
+        const shownNulls = storesNull ? ' null, undefined,' : ''
         expect(printed).toBe(
-          `${tag}(10) ${open}'it\\'s\\n', ${minusZero}, 5n, Symbol(a\\'b), null, undefined, [1, [2]], [Function: named], [Function: ], ${String(date)}${close}`.replace(
+          `${tag}(${storesNull ? 10 : 8}) ${open}'it\\'s\\n', ${minusZero}, 5n, Symbol(a\\'b),${shownNulls} [1, [2]], [Function: named], [Function: ], ${String(date)}${close}`.replace(
             '[Function: ]',
             '[Function (anonymous)]',
           ),
         )
+        if (!storesNull) {
+          expect(() => make([null])).toThrow(NullElementError)
+          expect(() => make([undefined])).toThrow(NullElementError)
+        }
         expect(() => String(make([Object.create(null)]))).toThrow(TypeError)
         let getterRan = false
         const sneaky = Object.defineProperty(() => 1, 'name', {

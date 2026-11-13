@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { IllegalArgumentError, IndexOutOfBoundsError } from '../../src/index'
+import { IllegalArgumentError, IndexOutOfBoundsError, NullElementError } from '../../src/index'
 import {
   checkIndex,
   checkPosition,
   checkRange,
   describeValue,
   isIterable,
+  requireElement,
   requireFunction,
 } from '../../src/internal/checks'
 
@@ -247,6 +248,23 @@ describe('requireFunction', () => {
   it('throws TypeError naming the method and parameter otherwise', () => {
     expect(() => requireFunction(null, 'ArrayList.sort', 'comparator')).toThrow(
       new TypeError('ArrayList.sort: comparator is not a function'),
+    )
+  })
+})
+
+describe('requireElement', () => {
+  it('accepts every value except null and undefined', () => {
+    for (const value of [0, '', false, Number.NaN, {}, [], Symbol('s'), 0n]) {
+      expect(() => requireElement(value, 'ArrayDeque.add')).not.toThrow()
+    }
+  })
+
+  it('throws NullElementError naming the method and the value [008 S5-AC1]', () => {
+    expect(() => requireElement(null, 'ArrayDeque.add')).toThrow(
+      new NullElementError('ArrayDeque.add: null is not allowed as an element'),
+    )
+    expect(() => requireElement(undefined, 'ArrayDeque.push')).toThrow(
+      new NullElementError('ArrayDeque.push: undefined is not allowed as an element'),
     )
   })
 })

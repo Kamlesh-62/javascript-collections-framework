@@ -7,6 +7,16 @@
 // means "usable through the public API"; it is not a security boundary, and code that reads
 // another object's internal state must use a module-local check instead.
 
+// The brand of every queue, deque and their views.
+export const QUEUE_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/Queue',
+)
+
+// The brand of every deque and its views.
+export const DEQUE_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/Deque',
+)
+
 // The brand of every sequenced collection, view and read-only wrapper.
 export const SEQUENCED_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/SequencedCollection',
