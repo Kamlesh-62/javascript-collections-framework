@@ -11,9 +11,15 @@ import type {
   Equivalence,
   HashFunction,
   KeyOf,
+  List,
+  ListCursor,
   ReadonlyCollection,
+  ReadonlyList,
+  ReadonlySequencedCollection,
+  SequencedCollection,
 } from 'javascript-collections-framework'
 import {
+  ArrayList,
   ClassCastError,
   ConcurrentModificationError,
   compareSymbol,
@@ -26,6 +32,8 @@ import {
   IllegalStateError,
   IndexOutOfBoundsError,
   isCollection,
+  isList,
+  isSequencedCollection,
   NoSuchElementError,
   NullElementError,
   naturalOrder,
@@ -93,4 +101,28 @@ export function drain<E>(collection: Collection<E>): E[] {
     cursor.remove()
   }
   return out
+}
+
+export const people: List<Person> = new ArrayList<Person>([{ name: 'b', age: 2 }])
+  .add({ name: 'a', age: null })
+  .insert(0, { name: 'c', age: 3 })
+  .sort(order)
+export const names: ArrayList<string> = ArrayList.from(people, (p) => p.name)
+export const view: ReadonlyList<Person> = people.subList(0, 1)
+export const backwards: SequencedCollection<Person> = people.reversed()
+export const ends: ReadonlySequencedCollection<string> = names
+export function edit(list: List<number>): void {
+  const cursor: ListCursor<number> = list.listCursor(list.size)
+  while (cursor.hasPrevious()) {
+    const n = cursor.previous()
+    if (n < 0) cursor.remove()
+    else cursor.set(n * 2)
+  }
+  list.forEach((n, i, self) => {
+    self.set(i, n + 1)
+  })
+}
+export function firstOf(value: unknown): unknown {
+  if (isList(value) && !value.isEmpty()) return value.get(0)
+  return isSequencedCollection(value) && !value.isEmpty() ? value.getFirst() : undefined
 }

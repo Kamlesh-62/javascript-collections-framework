@@ -10,10 +10,15 @@ export interface Printable {
   [Symbol.iterator](): Iterator<unknown>
 }
 
-/** The shared brand every collection carries, from `Symbol.for`, so any loaded copy recognises it. @internal */
+// The shared brand every collection carries, from `Symbol.for`, so any loaded copy recognises it.
 export const COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/Collection',
 )
+
+// Node's custom inspect key, from `Symbol.for`, so no platform module is imported.
+export const INSPECT: unique symbol = /*#__PURE__*/ Symbol.for(
+  'nodejs.util.inspect.custom',
+) as never
 
 const CIRCULAR = () => '[Circular]'
 

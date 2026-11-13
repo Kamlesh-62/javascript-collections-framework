@@ -4,27 +4,18 @@
 
 import { ConcurrentModificationError } from '../../errors/errors'
 import type { Collection, Cursor } from '../../interfaces/collection'
-import { describeValue } from '../checks'
+import { describeValue, isIterable, requireFunction } from '../checks'
 import { equalsSymbol, type HashFunction, hashCodeSymbol, sameValueZero } from '../equality'
 import { hashPrimitiveOrIdentity } from '../hashing'
 import { apply } from '../intrinsics'
 import {
   COLLECTION_BRAND,
   collectionToString,
+  INSPECT,
   type InspectOptions,
   inspectCollection,
 } from '../output'
 import { ChangeCounter } from '../revision'
-
-const INSPECT: unique symbol = /*#__PURE__*/ Symbol.for('nodejs.util.inspect.custom') as never
-
-function isIterable(value: unknown): value is Iterable<unknown> {
-  return (
-    value !== null &&
-    value !== undefined &&
-    typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function'
-  )
-}
 
 /**
  * Base class of every collection.
@@ -35,8 +26,15 @@ function isIterable(value: unknown): value is Iterable<unknown> {
  * @internal
  */
 export abstract class AbstractCollection<E> implements Collection<E> {
-  /** The change counter: `structural()` when elements are added or removed, `replaced()` otherwise. */
-  protected readonly changes: ChangeCounter = new ChangeCounter()
+  /**
+   * The change counter: `structural()` when elements are added or removed, `replaced()` otherwise.
+   * Views share the counter of the collection they show.
+   */
+  protected readonly changes: ChangeCounter
+
+  constructor(changes?: ChangeCounter) {
+    this.changes = changes === undefined ? new ChangeCounter() : changes
+  }
 
   /** `fail-fast` for collections with no native counterpart, `live` for hash collections. */
   protected abstract readonly iterationMode: 'fail-fast' | 'live'
@@ -178,13 +176,11 @@ export abstract class AbstractCollection<E> implements Collection<E> {
 
   /** Throws `TypeError` unless `value` is a function. */
   protected requireFunction(value: unknown, method: string, what: string): void {
-    if (typeof value !== 'function') {
-      throw new TypeError(`${this.className}.${method}: ${what} is not a function`)
-    }
+    requireFunction(value, `${this.className}.${method}`, what)
   }
 
   /** Reads the whole argument into an array before any change (self, views, throwing iterables). */
-  private readAll(elements: Iterable<E>, method: string): E[] {
+  protected readAll(elements: Iterable<E>, method: string): E[] {
     if (!isIterable(elements)) {
       throw new TypeError(
         `${this.className}.${method}: elements is not iterable (${describeValue(elements)})`,
@@ -212,12 +208,13 @@ export abstract class AbstractCollection<E> implements Collection<E> {
    * cursor. An error while deciding removes nothing; a structural change while deciding throws
    * `ConcurrentModificationError` and removes nothing.
    */
-  private removeDecided(method: string, decide: (element: E) => boolean): boolean {
+  protected removeDecided(method: string, decide: (element: E, index: number) => boolean): boolean {
     const flags: boolean[] = []
     const expected = this.changes.structure
     let any = false
-    for (const element of this.toArray()) {
-      const remove = decide(element)
+    const elements = this.toArray()
+    for (let i = 0; i < elements.length; i++) {
+      const remove = decide(elements[i] as E, i)
       if (this.changes.structure !== expected) {
         throw new ConcurrentModificationError(
           `${this.className}.${method}: the collection was changed while deciding`,
@@ -227,12 +224,20 @@ export abstract class AbstractCollection<E> implements Collection<E> {
       if (remove) any = true
     }
     if (!any) return false
+    this.removeMarked(flags)
+    return true
+  }
+
+  /**
+   * Removes the elements whose position in iteration order is marked `true` in `flags`. The
+   * default walks a cursor; collections that can compact in one pass override it.
+   */
+  protected removeMarked(flags: readonly boolean[]): void {
     const cursor = this.cursor()
     let index = 0
     while (cursor.hasNext()) {
       cursor.next()
       if (flags[index++] === true) cursor.remove()
     }
-    return true
   }
 }

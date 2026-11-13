@@ -557,3 +557,29 @@ describe('versioning page', () => {
     expect(readFileSync(join(root, 'docs', 'versioning.md'), 'utf8')).toMatch(/^# Versioning\n/)
   })
 })
+
+describe('published shape of the lists', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows public classes with no protected members [006 S9-AC1]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class ArrayList<E> implements List<E>')
+    expect(report).not.toMatch(/\bprotected\b/)
+    expect(report).not.toMatch(
+      /AbstractList|AbstractCollection|ArrayListEngine|SubList|ReversedList/,
+    )
+    const classBody = report.slice(report.indexOf('declare class ArrayList'))
+    expect(classBody.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
+  })
+
+  it('the size report records ArrayList imported alone [006 S9-AC3]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'ArrayList')
+    expect(entry).toBeDefined()
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

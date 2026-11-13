@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { IllegalArgumentError, IndexOutOfBoundsError } from '../../src/index'
-import { checkIndex, checkPosition, checkRange, describeValue } from '../../src/internal/checks'
+import {
+  checkIndex,
+  checkPosition,
+  checkRange,
+  describeValue,
+  isIterable,
+  requireFunction,
+} from '../../src/internal/checks'
 
 // Values that are never a valid index, position or range bound.
 const NOT_SAFE_INTEGERS: ReadonlyArray<unknown> = [
@@ -160,5 +167,38 @@ describe('describeValue', () => {
     expect(describeValue(true)).toBe('true')
     expect(describeValue(null)).toBe('null')
     expect(describeValue(undefined)).toBe('undefined')
+  })
+})
+
+describe('isIterable', () => {
+  it('accepts values with a callable Symbol.iterator', () => {
+    for (const value of [
+      [],
+      '',
+      new Set(),
+      new Map(),
+      { [Symbol.iterator]: () => [][Symbol.iterator]() },
+    ]) {
+      expect(isIterable(value)).toBe(true)
+    }
+  })
+
+  it('rejects null, undefined, array-likes and a non-callable Symbol.iterator', () => {
+    for (const value of [null, undefined, 1, {}, { length: 2 }, { [Symbol.iterator]: 1 }]) {
+      expect(isIterable(value)).toBe(false)
+    }
+  })
+})
+
+describe('requireFunction', () => {
+  it('accepts functions and classes', () => {
+    expect(() => requireFunction(() => 1, 'A.m', 'f')).not.toThrow()
+    expect(() => requireFunction(class {}, 'A.m', 'f')).not.toThrow()
+  })
+
+  it('throws TypeError naming the method and parameter otherwise', () => {
+    expect(() => requireFunction(null, 'ArrayList.sort', 'comparator')).toThrow(
+      new TypeError('ArrayList.sort: comparator is not a function'),
+    )
   })
 })

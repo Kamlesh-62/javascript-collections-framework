@@ -1,6 +1,7 @@
 {
   "entries": [
-    { "name": "*", "minified": 8015, "gzip": 2644 },
+    { "name": "*", "minified": 25436, "gzip": 7282 },
+    { "name": "ArrayList", "minified": 23036, "gzip": 6628 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
     { "name": "IllegalArgumentError", "minified": 682, "gzip": 408 },
@@ -16,6 +17,8 @@
     { "name": "hashCode", "minified": 2559, "gzip": 1190 },
     { "name": "hashCodeSymbol", "minified": 92, "gzip": 102 },
     { "name": "isCollection", "minified": 209, "gzip": 169 },
+    { "name": "isList", "minified": 197, "gzip": 168 },
+    { "name": "isSequencedCollection", "minified": 227, "gzip": 176 },
     { "name": "naturalOrder", "minified": 2758, "gzip": 1123 },
     { "name": "nullsFirst", "minified": 2982, "gzip": 1200 },
     { "name": "nullsLast", "minified": 2979, "gzip": 1198 },

@@ -3,9 +3,9 @@
 Every collection in this package — lists, sets, queues, deques — implements one contract, so code
 written against it works with any of them.
 
-> Available now: the `ReadonlyCollection`, `Collection` and `Cursor` types and `isCollection`.
-> The collection classes (`ArrayList`, `HashSet`, …) arrive in later releases and all follow this
-> contract.
+> Available now: the `ReadonlyCollection`, `Collection` and `Cursor` types, `isCollection`, and
+> [`ArrayList`](lists.md). The other collection classes (`HashSet`, …) arrive in later releases and
+> all follow this contract.
 
 ```ts
 import type { Collection, Cursor, ReadonlyCollection } from 'javascript-collections-framework'
