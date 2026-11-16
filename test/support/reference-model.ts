@@ -357,3 +357,100 @@ export function runDequeReferenceModel(options: {
   }
   expect([...deque], `deque reference model seed ${options.seed} final`).toEqual(array)
 }
+
+/** A queue of numbers ordered by a comparator, as the priority-queue model needs it. */
+interface NumberQueue {
+  readonly size: number
+  add(element: number): unknown
+  poll(): number | undefined
+  peek(): number | undefined
+  delete(element: number): boolean
+  has(element: number): boolean
+  clear(): void
+  cursor(): Cursor<number>
+  [Symbol.iterator](): Iterator<number>
+}
+
+/** Sorts a copy of `values` and returns it, to compare contents whatever the iteration order. */
+function sortedCopy(values: Iterable<number>): number[] {
+  return [...values].sort((a, b) => a - b)
+}
+
+/**
+ * Seeded reference model for priority queues: applies the same random operations to a queue and
+ * to a native array kept sorted by `compare`, and compares every result. `poll` and `peek` must
+ * return the model's first element; `size` is compared after every step; iteration is compared as
+ * a multiset, since its order is unspecified. `make` builds an empty queue ordered by `compare`.
+ */
+export function runPriorityQueueReferenceModel(options: {
+  seed: number
+  steps: number
+  make: () => NumberQueue
+  compare: (a: number, b: number) => number
+}): void {
+  const random = seeded(options.seed)
+  const queue = options.make()
+  const array: number[] = []
+  const insert = (v: number) => {
+    let i = 0
+    while (i < array.length && options.compare(array[i] as number, v) <= 0) i++
+    array.splice(i, 0, v)
+  }
+  const removeOne = (v: number): boolean => {
+    const i = array.indexOf(v)
+    if (i >= 0) array.splice(i, 1)
+    return i >= 0
+  }
+  const ops = ['add', 'add', 'add', 'poll', 'peek', 'delete', 'has', 'cursor', 'clear', 'check']
+  for (let step = 0; step < options.steps; step++) {
+    const at = `priority queue reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const v = integer(random, 0, 20)
+    switch (op) {
+      case 'add':
+        queue.add(v)
+        insert(v)
+        break
+      case 'poll':
+        expect(queue.poll(), at).toBe(array.shift())
+        break
+      case 'peek':
+        expect(queue.peek(), at).toBe(array[0])
+        break
+      case 'delete':
+        expect(queue.delete(v), at).toBe(removeOne(v))
+        break
+      case 'has':
+        expect(queue.has(v), at).toBe(array.includes(v))
+        break
+      case 'cursor': {
+        const before = sortedCopy(array)
+        const cursor = queue.cursor()
+        const seen: number[] = []
+        while (cursor.hasNext()) {
+          const value = cursor.next()
+          seen.push(value)
+          if (value % 3 === v % 3 && integer(random, 0, 1) === 0) {
+            cursor.remove()
+            removeOne(value)
+          }
+        }
+        expect(sortedCopy(seen), at).toEqual(before)
+        break
+      }
+      case 'clear':
+        if (integer(random, 0, 3) === 0) {
+          queue.clear()
+          array.length = 0
+        }
+        break
+      case 'check':
+        expect(sortedCopy(queue), at).toEqual(sortedCopy(array))
+        break
+    }
+    expect(queue.size, at).toBe(array.length)
+  }
+  const drained: number[] = []
+  for (let n = queue.poll(); n !== undefined; n = queue.poll()) drained.push(n)
+  expect(drained, `priority queue reference model seed ${options.seed} final`).toEqual(array)
+}

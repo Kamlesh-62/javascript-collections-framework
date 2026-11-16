@@ -641,6 +641,31 @@ describe('published shape of LinkedList', () => {
   })
 })
 
+describe('published shape of PriorityQueue', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows PriorityQueue with no protected members and its options type [010 S6-AC3]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class PriorityQueue<E> implements Queue<E>')
+    expect(report).toContain('interface PriorityQueueOptions<E>')
+    expect(report).not.toMatch(/BinaryHeapEngine|HeapCursor|HeapIterator/)
+    const start = report.indexOf('declare class PriorityQueue')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records PriorityQueue imported alone [010 S6-AC4]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'PriorityQueue')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})
+
 describe('published shape of HashSet', () => {
   const root = new URL('..', import.meta.url)
   const read = (path: string) => readFileSync(new URL(path, root), 'utf8')

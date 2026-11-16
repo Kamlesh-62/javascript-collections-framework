@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 12
+export const MINIMUM_CLASSES = 13
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -74,16 +74,29 @@ function hashSets(copy) {
   ]
 }
 
+/**
+ * A `PriorityQueue` made by one copy.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function priorityQueues(copy) {
+  const PriorityQueue = /** @type {new (elements?: Iterable<unknown>) => any} */ (
+    copy.PriorityQueue
+  )
+  return [new PriorityQueue([3, 1, 2])]
+}
+
 /** Guard name → the values from a copy that the other copy's guard must accept. */
 export const SAMPLES = {
   isCollection: (/** @type {Namespace} */ copy) => [
     ...lists(copy),
     ...allDeques(copy),
     ...hashSets(copy),
+    ...priorityQueues(copy),
   ],
   isSequencedCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...allDeques(copy)],
   isList: lists,
-  isQueue: allDeques,
+  isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
   isDeque: allDeques,
   isSetCollection: hashSets,
 }

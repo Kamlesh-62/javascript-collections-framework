@@ -48,7 +48,7 @@ describe('the two-copy check', () => {
     const result = checkTwoCopies(a, b)
     expect(result.failures).toEqual([])
     expect(brandedClasses(a)).toEqual(
-      [...NAMES, 'ArrayDeque', 'ArrayList', 'HashSet', 'LinkedList'].sort(),
+      [...NAMES, 'ArrayDeque', 'ArrayList', 'HashSet', 'LinkedList', 'PriorityQueue'].sort(),
     )
     expect(guards(a)).toEqual([
       'isCollection',
@@ -58,7 +58,7 @@ describe('the two-copy check', () => {
       'isSequencedCollection',
       'isSetCollection',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 12 classes, 6 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 13 classes, 6 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -82,7 +82,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 11 classes recognised across copies; expected at least 12')
+    expect(failures).toContain('found 12 classes recognised across copies; expected at least 13')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -260,6 +260,63 @@ describe('deques across two copies', () => {
     expect(() => new A([1]).removeNode(theirs.firstNode())).toThrow(
       a.IllegalArgumentError as new () => Error,
     )
+  })
+})
+
+describe('priority queues across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type QueueClass = new (elements?: Iterable<unknown>) => { poll(): unknown }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isQueue and isCollection accept a PriorityQueue from the other copy; the deque and list guards refuse it [010 S6-AC1]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const PriorityQueue = theirs.PriorityQueue as QueueClass
+      const queue = new PriorityQueue([2, 1])
+      for (const guard of ['isQueue', 'isCollection']) {
+        expect((mine[guard] as (value: unknown) => boolean)(queue), guard).toBe(true)
+      }
+      for (const guard of ['isDeque', 'isSequencedCollection', 'isList']) {
+        expect((mine[guard] as (value: unknown) => boolean)(queue), guard).toBe(false)
+      }
+    }
+  })
+
+  it('instanceof PriorityQueue holds across copies and not for other queues [010 S6-AC2]', async () => {
+    const [a, b] = await load()
+    const A = a.PriorityQueue as QueueClass
+    const B = b.PriorityQueue as QueueClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B() instanceof A).toBe(true)
+    for (const other of [
+      new (b.ArrayDeque as QueueClass)(),
+      new (b.LinkedList as QueueClass)(),
+      new (b.ArrayList as QueueClass)(),
+      [1],
+      null,
+      1,
+    ]) {
+      expect(other instanceof A).toBe(false)
+    }
+    expect(brandedValue(2, 'PriorityQueue') instanceof A).toBe(false)
+  })
+
+  it('the two-copy check covers PriorityQueue [010 S6-AC3]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(brandedClasses(a)).toContain('PriorityQueue')
+    expect(result.lines).toContain('PriorityQueue: recognised across copies; major 2 refused')
   })
 })
 

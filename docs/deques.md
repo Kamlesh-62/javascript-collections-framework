@@ -23,7 +23,8 @@ history.pop() // 2
 `delete`, `forEach`, iteration, cursors, `revision`, printing and JSON.
 
 [`LinkedList`](linked-lists.md) is the other deque: it stores `null` and `undefined` and adds node
-handles for O(1) insertion and removal next to a known element.
+handles for O(1) insertion and removal next to a known element. For a queue that hands out its
+least element first instead of its oldest, see [`PriorityQueue`](priority-queues.md).
 
 ## Operations
 

@@ -13,6 +13,8 @@ export { ArrayList } from './collections/array-list'
 export type { HashSetOptions } from './collections/hash-set'
 export { HashSet } from './collections/hash-set'
 export { LinkedList } from './collections/linked-list'
+export type { PriorityQueueOptions } from './collections/priority-queue'
+export { PriorityQueue } from './collections/priority-queue'
 // Errors
 export {
   ClassCastError,

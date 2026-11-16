@@ -224,15 +224,16 @@ export abstract class AbstractCollection<E> implements Collection<E> {
       if (remove) any = true
     }
     if (!any) return false
-    this.removeMarked(flags)
+    this.removeMarked(flags, method)
     return true
   }
 
   /**
    * Removes the elements whose position in iteration order is marked `true` in `flags`. The
-   * default walks a cursor; collections that can compact in one pass override it.
+   * default walks a cursor; collections that can compact in one pass override it. `method` names
+   * the public bulk method, for error messages.
    */
-  protected removeMarked(flags: readonly boolean[]): void {
+  protected removeMarked(flags: readonly boolean[], _method: string): void {
     const cursor = this.cursor()
     let index = 0
     while (cursor.hasNext()) {

@@ -16,6 +16,7 @@ import type {
   LinkedListNode,
   List,
   ListCursor,
+  PriorityQueueOptions,
   Queue,
   ReadonlyCollection,
   ReadonlyDeque,
@@ -53,6 +54,7 @@ import {
   naturalOrder,
   nullsFirst,
   nullsLast,
+  PriorityQueue,
   reverseOrder,
   sameValueZeroEquivalence,
   thenComparing,
@@ -176,3 +178,10 @@ export function sizeOfSet(value: unknown): number {
   const readable: ReadonlySetCollection<unknown> = value
   return readable.size
 }
+const byDeadline: PriorityQueueOptions<{ deadline: number }> = {
+  comparator: (a, b) => a.deadline - b.deadline,
+}
+export const deadlines = new PriorityQueue([{ deadline: 2 }], byDeadline).add({ deadline: 1 })
+export const urgent: { deadline: number } | undefined = deadlines.peek()
+export const scheduled: Queue<number> = PriorityQueue.from([3, 1, 2])
+export const sameOrder: Comparator<{ deadline: number }> | undefined = deadlines.copy().comparator()
