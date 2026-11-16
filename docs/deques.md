@@ -22,6 +22,9 @@ history.pop() // 2
 `ArrayDeque` follows the [shared collection contract](collections.md): `size`, `has`, `add`,
 `delete`, `forEach`, iteration, cursors, `revision`, printing and JSON.
 
+[`LinkedList`](linked-lists.md) is the other deque: it stores `null` and `undefined` and adds node
+handles for O(1) insertion and removal next to a known element.
+
 ## Operations
 
 | Operation                                                 | Does                                                                         | Time                    |

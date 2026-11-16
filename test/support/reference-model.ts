@@ -253,17 +253,19 @@ export function runListReferenceModel(options: {
 
 /**
  * Seeded reference model for deques: applies the same random end operations to a deque and to a
- * native array (`push`/`unshift`/`shift`/`pop`) and compares every result. `make` builds an empty
- * deque (an `ArrayDeque` or a view over one).
+ * native array (`push`/`unshift`/`shift`/`pop`) and compares every result, `size` included after
+ * every `poll` and `pop`. `make` builds an empty deque (or a view over one); `values` is the pool
+ * elements are drawn from (default the integers 0–9).
  */
 export function runDequeReferenceModel(options: {
   seed: number
   steps: number
-  make: () => Deque<number>
+  make: () => Deque<number | null | undefined>
+  values?: ReadonlyArray<number | null | undefined>
 }): void {
   const random = seeded(options.seed)
   const deque = options.make()
-  const array: number[] = []
+  const array: Array<number | null | undefined> = []
   const ops = [
     'add',
     'add',
@@ -281,7 +283,7 @@ export function runDequeReferenceModel(options: {
   for (let step = 0; step < options.steps; step++) {
     const at = `deque reference model seed ${options.seed} step ${step}`
     const op = pick(random, ops)
-    const v = integer(random, 0, 9)
+    const v = options.values ? pick(random, options.values) : integer(random, 0, 9)
     switch (op) {
       case 'add':
       case 'push':
@@ -294,9 +296,11 @@ export function runDequeReferenceModel(options: {
         break
       case 'poll':
         expect(deque.poll(), at).toBe(array.shift())
+        expect(deque.size, at).toBe(array.length)
         break
       case 'pop':
         expect(deque.pop(), at).toBe(array.pop())
+        expect(deque.size, at).toBe(array.length)
         break
       case 'peek':
         expect(deque.peek(), at).toBe(array[0])

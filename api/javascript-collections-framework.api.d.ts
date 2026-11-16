@@ -165,7 +165,67 @@ declare class IndexOutOfBoundsError extends RangeError {
     static [Symbol.hasInstance](value: unknown): boolean;
 }
 type KeyOf<T> = (value: T) => string | number | bigint | boolean | symbol | null | undefined;
+declare const LINKED_LIST_BRAND: unique symbol;
 declare const LIST_BRAND: unique symbol;
+declare class LinkedList<E> implements Deque<E> {
+    private readonly engine;
+    constructor(elements?: Iterable<E> | null);
+    static from<T>(elements: Iterable<T>): LinkedList<T>;
+    static from<T, U>(elements: Iterable<T>, mapFn: (element: T, index: number) => U, thisArg?: unknown): LinkedList<U>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [LINKED_LIST_BRAND](): true;
+    get [DEQUE_BRAND](): true;
+    get [QUEUE_BRAND](): true;
+    get [SEQUENCED_COLLECTION_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    add(element: E): this;
+    push(element: E): this;
+    addLast(element: E): this;
+    addFirst(element: E): this;
+    addAll(elements: Iterable<E>): boolean;
+    poll(): E | undefined;
+    pop(): E | undefined;
+    removeFirst(): E;
+    removeLast(): E;
+    peek(): E | undefined;
+    peekLast(): E | undefined;
+    getFirst(): E;
+    getLast(): E;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    toArray(): E[];
+    forEach(action: (element: E) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    addFirstNode(element: E): LinkedListNode<E>;
+    addLastNode(element: E): LinkedListNode<E>;
+    insertBefore(node: LinkedListNode<E>, element: E): LinkedListNode<E>;
+    insertAfter(node: LinkedListNode<E>, element: E): LinkedListNode<E>;
+    removeNode(node: LinkedListNode<E>): E;
+    firstNode(): LinkedListNode<E> | undefined;
+    lastNode(): LinkedListNode<E> | undefined;
+    reversed(): Deque<E>;
+    copy(): LinkedList<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface LinkedListNode<E> {
+    value: E;
+    readonly next: LinkedListNode<E> | undefined;
+    readonly previous: LinkedListNode<E> | undefined;
+}
 interface List<E> extends SequencedCollection<E>, ReadonlyList<E> {
     set(index: number, element: E): E;
     insert(index: number, element: E): this;
@@ -270,5 +330,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, NoSuchElementError, NullElementError, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, List, ListCursor, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, LinkedListNode, List, ListCursor, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };

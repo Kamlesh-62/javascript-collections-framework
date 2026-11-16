@@ -1,6 +1,7 @@
 // The skeleton every deque extends: every `Queue`, `Deque` and `SequencedCollection` operation
-// written once over a few index and end operations, which the ring-buffer engine implements on its
-// buffer and the reversed view implements by swapping the ends of its source.
+// written once over a few end operations and a one-direction walker. Nothing here works by
+// position, so a linked engine keeps every walk O(n); the reversed view swaps the ends and the
+// walking direction of its source.
 
 import { NoSuchElementError } from '../../errors/errors'
 import type { Cursor } from '../../interfaces/collection'
@@ -12,43 +13,51 @@ import { done, FailFastCursor, FailFastIterator } from '../iteration'
 import type { ChangeCounter } from '../revision'
 import { AbstractCollection } from './abstract-collection'
 
+/**
+ * Walks a deque in one direction, one element at a time. `next()` is called only after `hasNext()`
+ * returned `true`; `remove()` removes the element `next()` last returned, as a structural change.
+ *
+ * @internal
+ */
+export interface DequeWalker<E> {
+  hasNext(): boolean
+  next(): E
+  remove(): void
+}
+
 /** A fail-fast iterator over a deque, from its first element to its last. */
 class DequeIterator<E> extends FailFastIterator<E> {
-  private index = 0
-  private readonly deque: AbstractDeque<E>
+  private readonly walker: DequeWalker<E>
 
-  constructor(deque: AbstractDeque<E>, changes: ChangeCounter, where: string) {
+  constructor(walker: DequeWalker<E>, changes: ChangeCounter, where: string) {
     super(changes, where)
-    this.deque = deque
+    this.walker = walker
   }
 
   protected step(): IteratorResult<E> {
-    return this.index < this.deque.size
-      ? { done: false, value: this.deque.getAt(this.index++) }
-      : done()
+    return this.walker.hasNext() ? { done: false, value: this.walker.next() } : done()
   }
 }
 
 /** A fail-fast cursor over a deque; `remove` removes the element `next` returned. */
 class DequeCursor<E> extends FailFastCursor<E> {
-  private index = 0
-  private readonly deque: AbstractDeque<E>
+  private readonly walker: DequeWalker<E>
 
-  constructor(deque: AbstractDeque<E>, changes: ChangeCounter, where: string) {
+  constructor(walker: DequeWalker<E>, changes: ChangeCounter, where: string) {
     super(changes, where)
-    this.deque = deque
+    this.walker = walker
   }
 
   protected hasMore(): boolean {
-    return this.index < this.deque.size
+    return this.walker.hasNext()
   }
 
   protected advance(): E {
-    return this.deque.getAt(this.index++)
+    return this.walker.next()
   }
 
   protected removeLast(): void {
-    this.deque.removeAtIndex(--this.index)
+    this.walker.remove()
   }
 }
 
@@ -56,16 +65,20 @@ class DequeCursor<E> extends FailFastCursor<E> {
  * Base class of every deque and deque view.
  *
  * Subclasses implement `size`, `[Symbol.toStringTag]`, `reversed()` and the operations below;
- * changing operations record their change in the shared counter. Indexes reaching them are in
- * range, and elements are already checked.
+ * changing operations record their change in the shared counter. Elements reaching them are
+ * already checked, and the deque is non-empty where an operation says so.
  *
  * @internal
  */
 export abstract class AbstractDeque<E> extends AbstractCollection<E> implements Deque<E> {
   protected readonly iterationMode = 'fail-fast' as const
 
-  /** Returns the element `index` places from the front. */
-  abstract getAt(index: number): E
+  /** Returns the front element of a non-empty deque. */
+  abstract peekFront(): E
+  /** Returns the back element of a non-empty deque. */
+  abstract peekBack(): E
+  /** A walker from the front to the back, or from the back to the front. */
+  abstract walker(fromBack: boolean): DequeWalker<E>
   /** Adds `element` at the front; throws before any change when the deque is full. */
   abstract insertFront(element: E, where: string): void
   /** Adds `element` at the back; throws before any change when the deque is full. */
@@ -74,8 +87,6 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   abstract takeFront(): E
   /** Removes and returns the back element of a non-empty deque. */
   abstract takeBack(): E
-  /** Removes and returns the element `index` places from the front. */
-  abstract removeAtIndex(index: number): E
   /** Keeps the elements whose flag is not `true`, in order, in one pass. */
   abstract compact(flags: readonly boolean[]): void
   /** Removes every element of a non-empty deque. */
@@ -83,6 +94,16 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   /** Throws `IllegalStateError` when `count` more elements would not fit; changes nothing. */
   abstract ensureRoom(count: number, where: string): void
   abstract reversed(): Deque<E>
+
+  /** Whether `null` and `undefined` are stored (`true`) or rejected with `NullElementError`. */
+  get storesEmpty(): boolean {
+    return false
+  }
+
+  /** The word error messages use for this deque: `the deque is empty`. */
+  protected get noun(): string {
+    return 'deque'
+  }
 
   /** The deque the caller holds, used for identity: the public object for the engine. */
   get owner(): Deque<E> {
@@ -139,7 +160,7 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
 
   /** Checks every element and the room for all of them, then adds them at the back in order. */
   appendAll(items: readonly E[], where: string): void {
-    for (let i = 0; i < items.length; i++) requireElement(items[i], where)
+    if (!this.storesEmpty) for (let i = 0; i < items.length; i++) requireElement(items[i], where)
     if (items.length === 0) return
     this.ensureRoom(items.length, where)
     for (let i = 0; i < items.length; i++) this.insertBack(items[i] as E, where)
@@ -166,11 +187,11 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   }
 
   override delete(element: E): boolean {
-    if (element === null || element === undefined) return false
-    const size = this.size
-    for (let i = 0; i < size; i++) {
-      if (sameValueZero(this.getAt(i), element)) {
-        this.removeAtIndex(i)
+    if (!this.storesEmpty && (element === null || element === undefined)) return false
+    const walker = this.walker(false)
+    while (walker.hasNext()) {
+      if (sameValueZero(walker.next(), element)) {
+        walker.remove()
         return true
       }
     }
@@ -188,47 +209,49 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   // ── Reading ──
 
   peek(): E | undefined {
-    return this.size === 0 ? undefined : this.getAt(0)
+    return this.size === 0 ? undefined : this.peekFront()
   }
 
   peekLast(): E | undefined {
-    const size = this.size
-    return size === 0 ? undefined : this.getAt(size - 1)
+    return this.size === 0 ? undefined : this.peekBack()
   }
 
   getFirst(): E {
     if (this.size === 0) throw this.empty('getFirst')
-    return this.getAt(0)
+    return this.peekFront()
   }
 
   getLast(): E {
-    const size = this.size
-    if (size === 0) throw this.empty('getLast')
-    return this.getAt(size - 1)
+    if (this.size === 0) throw this.empty('getLast')
+    return this.peekBack()
   }
 
   override has(element: E): boolean {
-    if (element === null || element === undefined) return false
-    const size = this.size
-    for (let i = 0; i < size; i++) if (sameValueZero(this.getAt(i), element)) return true
+    if (!this.storesEmpty && (element === null || element === undefined)) return false
+    const walker = this.walker(false)
+    while (walker.hasNext()) if (sameValueZero(walker.next(), element)) return true
     return false
   }
 
   override toArray(): E[] {
-    const size = this.size
+    const walker = this.walker(false)
     const out: E[] = []
-    for (let i = 0; i < size; i++) out.push(this.getAt(i))
+    while (walker.hasNext()) out.push(walker.next())
     return out
   }
 
   // ── Iteration and equality ──
 
   [Symbol.iterator](): IterableIterator<E> {
-    return new DequeIterator(this, this.changes, `${this.className}[Symbol.iterator]().next`)
+    return new DequeIterator(
+      this.walker(false),
+      this.changes,
+      `${this.className}[Symbol.iterator]().next`,
+    )
   }
 
   cursor(): Cursor<E> {
-    return new DequeCursor(this, this.changes, `${this.className}.cursor`)
+    return new DequeCursor(this.walker(false), this.changes, `${this.className}.cursor`)
   }
 
   override equals(other: unknown): boolean {
@@ -237,12 +260,12 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
 
   private insertChecked(element: E, method: string, front: boolean): void {
     const where = `${this.className}.${method}`
-    requireElement(element, where)
+    if (!this.storesEmpty) requireElement(element, where)
     if (front) this.insertFront(element, where)
     else this.insertBack(element, where)
   }
 
   private empty(method: string): NoSuchElementError {
-    return new NoSuchElementError(`${this.className}.${method}: the deque is empty`)
+    return new NoSuchElementError(`${this.className}.${method}: the ${this.noun} is empty`)
   }
 }

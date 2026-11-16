@@ -22,4 +22,6 @@ User documentation for `javascript-collections-framework`.
 
 - [Queues, deques and `ArrayDeque`](deques.md) — first in first out, stacks with `push`/`pop`, both ends, the reversed view, `null` rejection, differences from `Array`
 
+- [`LinkedList` and node handles](linked-lists.md) — a deque with O(1) insert and remove next to a known element, handles, stored `null`/`undefined`, differences from `Array`
+
 Still to come: see the planned list in the [README](../README.md#planned-collections).

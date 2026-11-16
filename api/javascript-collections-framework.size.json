@@ -1,13 +1,14 @@
 {
   "entries": [
-    { "name": "*", "minified": 33601, "gzip": 8700 },
-    { "name": "ArrayDeque", "minified": 16170, "gzip": 4845 },
+    { "name": "*", "minified": 39439, "gzip": 9822 },
+    { "name": "ArrayDeque", "minified": 16712, "gzip": 4973 },
     { "name": "ArrayList", "minified": 23053, "gzip": 6656 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
     { "name": "IllegalArgumentError", "minified": 682, "gzip": 408 },
     { "name": "IllegalStateError", "minified": 668, "gzip": 399 },
     { "name": "IndexOutOfBoundsError", "minified": 685, "gzip": 410 },
+    { "name": "LinkedList", "minified": 17785, "gzip": 5212 },
     { "name": "NoSuchElementError", "minified": 671, "gzip": 402 },
     { "name": "NullElementError", "minified": 669, "gzip": 401 },
     { "name": "UnsupportedOperationError", "minified": 696, "gzip": 409 },

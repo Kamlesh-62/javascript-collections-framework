@@ -42,10 +42,10 @@ Or without a build step:
 
 ## Available collections
 
-| Family            | Implementations                |
-| ----------------- | ------------------------------ |
-| Lists             | [`ArrayList`](docs/lists.md)   |
-| Queues and deques | [`ArrayDeque`](docs/deques.md) |
+| Family            | Implementations                                                      |
+| ----------------- | -------------------------------------------------------------------- |
+| Lists             | [`ArrayList`](docs/lists.md)                                         |
+| Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md) |
 
 ## Planned collections
 
@@ -53,7 +53,7 @@ Or without a build step:
 | ----------------- | ------------------------------------- |
 | Sets              | `HashSet`, `LinkedHashSet`, `TreeSet` |
 | Maps              | `HashMap`, `LinkedHashMap`, `TreeMap` |
-| Queues and deques | `LinkedList`, `PriorityQueue`         |
+| Queues and deques | `PriorityQueue`                       |
 
 The table lists what is planned, not what is available. Each entry moves to the
 [documentation](docs/README.md) when it ships.

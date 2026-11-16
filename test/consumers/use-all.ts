@@ -12,6 +12,7 @@ import type {
   Equivalence,
   HashFunction,
   KeyOf,
+  LinkedListNode,
   List,
   ListCursor,
   Queue,
@@ -41,6 +42,7 @@ import {
   isList,
   isQueue,
   isSequencedCollection,
+  LinkedList,
   NoSuchElementError,
   NullElementError,
   naturalOrder,
@@ -144,3 +146,10 @@ export function lastOf(value: unknown): unknown {
   if (isDeque(value)) return value.peekLast()
   return isQueue(value) ? value.peek() : undefined
 }
+
+export const recent = new LinkedList<string | undefined>(['a', undefined])
+export const newest: LinkedListNode<string | undefined> = recent.addFirstNode('b')
+recent.insertAfter(newest, 'c')
+recent.addFirstNode(recent.removeNode(recent.lastNode() as LinkedListNode<string | undefined>))
+export const asDeque: Deque<string | undefined> = recent.reversed()
+export const firstHandle: LinkedListNode<string | undefined> | undefined = recent.firstNode()?.next
