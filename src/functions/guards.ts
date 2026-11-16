@@ -7,12 +7,14 @@
 import type { ReadonlyCollection } from '../interfaces/collection'
 import type { ReadonlyList, ReadonlySequencedCollection } from '../interfaces/list'
 import type { ReadonlyDeque, ReadonlyQueue } from '../interfaces/queue'
+import type { ReadonlySetCollection } from '../interfaces/set'
 import {
   DEQUE_BRAND,
   isBranded,
   LIST_BRAND,
   QUEUE_BRAND,
   SEQUENCED_COLLECTION_BRAND,
+  SET_COLLECTION_BRAND,
 } from '../internal/brand'
 import { COLLECTION_BRAND } from '../internal/output'
 
@@ -121,4 +123,24 @@ export function isQueue(value: unknown): value is ReadonlyQueue<unknown> {
  */
 export function isDeque(value: unknown): value is ReadonlyDeque<unknown> {
   return isBranded(value, DEQUE_BRAND)
+}
+
+/**
+ * Returns whether `value` is a set from this library — a `HashSet` or any other set — of the same
+ * major version, from any loaded copy of the package. Native `Set` is not.
+ *
+ * Time: O(1), plus any getter or proxy trap that reading a property of `value` runs.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is a library set.
+ * @throws whatever a getter or proxy trap on `value` throws while the property is read.
+ *
+ * @example
+ * ```ts
+ * isSetCollection(new HashSet([1])) // true
+ * isSetCollection(new Set([1]))     // false
+ * ```
+ */
+export function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown> {
+  return isBranded(value, SET_COLLECTION_BRAND)
 }

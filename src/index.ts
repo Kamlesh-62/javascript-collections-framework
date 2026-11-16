@@ -10,6 +10,8 @@
 // Collections
 export { ArrayDeque } from './collections/array-deque'
 export { ArrayList } from './collections/array-list'
+export type { HashSetOptions } from './collections/hash-set'
+export { HashSet } from './collections/hash-set'
 export { LinkedList } from './collections/linked-list'
 export type { PriorityQueueOptions } from './collections/priority-queue'
 export { PriorityQueue } from './collections/priority-queue'
@@ -52,6 +54,7 @@ export {
   isList,
   isQueue,
   isSequencedCollection,
+  isSetCollection,
 } from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
 export type { LinkedListNode } from './interfaces/linked-list-node'
@@ -63,3 +66,4 @@ export type {
   SequencedCollection,
 } from './interfaces/list'
 export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'
+export type { ReadonlySetCollection, SetCollection } from './interfaces/set'

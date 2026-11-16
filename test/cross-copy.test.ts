@@ -48,7 +48,7 @@ describe('the two-copy check', () => {
     const result = checkTwoCopies(a, b)
     expect(result.failures).toEqual([])
     expect(brandedClasses(a)).toEqual(
-      [...NAMES, 'ArrayDeque', 'ArrayList', 'LinkedList', 'PriorityQueue'].sort(),
+      [...NAMES, 'ArrayDeque', 'ArrayList', 'HashSet', 'LinkedList', 'PriorityQueue'].sort(),
     )
     expect(guards(a)).toEqual([
       'isCollection',
@@ -56,8 +56,9 @@ describe('the two-copy check', () => {
       'isList',
       'isQueue',
       'isSequencedCollection',
+      'isSetCollection',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 12 classes, 5 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 13 classes, 6 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -81,7 +82,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 11 classes recognised across copies; expected at least 12')
+    expect(failures).toContain('found 12 classes recognised across copies; expected at least 13')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -316,5 +317,79 @@ describe('priority queues across two copies', () => {
     expect(result.failures).toEqual([])
     expect(brandedClasses(a)).toContain('PriorityQueue')
     expect(result.lines).toContain('PriorityQueue: recognised across copies; major 2 refused')
+  })
+})
+
+describe('sets across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type SetClass = new (elements?: Iterable<unknown> | null, options?: object) => object
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isSetCollection accepts a HashSet from either copy and refuses everything else [011 S9-AC1]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const HashSet = theirs.HashSet as SetClass
+      const isSetCollection = mine.isSetCollection as (value: unknown) => boolean
+      const isCollection = mine.isCollection as (value: unknown) => boolean
+      const sets = [
+        new HashSet([1]),
+        new HashSet([1], { key: (v: unknown) => v }),
+        new HashSet([1], { equivalence: theirs.valueEquivalence }),
+      ]
+      for (const set of sets) {
+        expect(isSetCollection(set)).toBe(true)
+        expect(isCollection(set)).toBe(true)
+        for (const guard of ['isList', 'isQueue', 'isDeque', 'isSequencedCollection']) {
+          expect((mine[guard] as (value: unknown) => boolean)(set), guard).toBe(false)
+        }
+      }
+      const ArrayList = theirs.ArrayList as new (elements?: Iterable<unknown>) => unknown
+      const ArrayDeque = theirs.ArrayDeque as new (elements?: Iterable<unknown>) => unknown
+      for (const value of [
+        new Set([1]),
+        [1],
+        new ArrayList([1]),
+        new ArrayDeque([1]),
+        new Map(),
+        {},
+        null,
+        undefined,
+      ]) {
+        expect(isSetCollection(value), String(value)).toBe(false)
+      }
+    }
+  })
+
+  it('instanceof HashSet holds across copies and not for other collections [011 S9-AC2]', async () => {
+    const [a, b] = await load()
+    const A = a.HashSet as SetClass
+    const B = b.HashSet as SetClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B([1], { key: (v: unknown) => v }) instanceof A).toBe(true)
+    for (const value of [new Set(), new (b.ArrayList as SetClass)(), [], null, 1]) {
+      expect(value instanceof A).toBe(false)
+    }
+    expect(brandedValue(2, 'HashSet') instanceof A).toBe(false)
+    expect(brandedValue(1, 'HashSet') instanceof A).toBe(true)
+  })
+
+  it('the two-copy check covers HashSet and isSetCollection [011 S9-AC3]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('HashSet: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('isSetCollection: recognised across copies; major 2 refused')
+    const { isSetCollection: _dropped, ...without } = a
+    expect(checkTwoCopies(without, b).failures).toContain('guard isSetCollection not found')
   })
 })

@@ -144,7 +144,51 @@ interface Equivalence<T> {
     equals(a: T, b: T): boolean;
     hash(value: T): number;
 }
+declare const HASH_SET_BRAND: unique symbol;
 type HashFunction = (value: unknown) => number;
+declare class HashSet<E> implements SetCollection<E> {
+    private engine;
+    constructor(elements?: Iterable<E> | null, options?: HashSetOptions<E> | null);
+    constructor(options: HashSetOptions<E>);
+    static from<T>(elements: Iterable<T>, options?: HashSetOptions<T> | null): HashSet<T>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [HASH_SET_BRAND](): true;
+    get [SET_COLLECTION_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    add(element: E): this;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    addAll(elements: Iterable<E>): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    keys(): IterableIterator<E>;
+    values(): IterableIterator<E>;
+    entries(): IterableIterator<[
+        E,
+        E
+    ]>;
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    toArray(): E[];
+    copy(): HashSet<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface HashSetOptions<E> {
+    key?: KeyOf<E>;
+    equivalence?: Equivalence<E>;
+}
 declare const ILLEGAL_ARGUMENT_ERROR_BRAND: unique symbol;
 declare const ILLEGAL_STATE_ERROR_BRAND: unique symbol;
 declare const INDEX_OUT_OF_BOUNDS_ERROR_BRAND: unique symbol;
@@ -339,13 +383,26 @@ interface ReadonlySequencedCollection<E> extends ReadonlyCollection<E> {
     getLast(): E;
     reversed(): ReadonlySequencedCollection<E>;
 }
+interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
+    keys(): IterableIterator<E>;
+    values(): IterableIterator<E>;
+    entries(): IterableIterator<[
+        E,
+        E
+    ]>;
+    forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
+}
 declare const SEQUENCED_COLLECTION_BRAND: unique symbol;
+declare const SET_COLLECTION_BRAND: unique symbol;
 interface SequencedCollection<E> extends Collection<E>, ReadonlySequencedCollection<E> {
     addFirst(element: E): this;
     addLast(element: E): this;
     removeFirst(): E;
     removeLast(): E;
     reversed(): SequencedCollection<E>;
+}
+interface SetCollection<E> extends Collection<E>, ReadonlySetCollection<E> {
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
 }
 declare const UNSUPPORTED_OPERATION_ERROR_BRAND: unique symbol;
 declare class UnsupportedOperationError extends TypeError {
@@ -364,6 +421,7 @@ declare function isDeque(value: unknown): value is ReadonlyDeque<unknown>;
 declare function isList(value: unknown): value is ReadonlyList<unknown>;
 declare function isQueue(value: unknown): value is ReadonlyQueue<unknown>;
 declare function isSequencedCollection(value: unknown): value is ReadonlySequencedCollection<unknown>;
+declare function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown>;
 declare function naturalOrder<T>(): Comparator<T>;
 declare function nullsFirst<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
 declare function nullsLast<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
@@ -371,5 +429,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, isSetCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, SequencedCollection, SetCollection };

@@ -57,8 +57,12 @@ function combine(h: number, k: number): number {
   return (imul(y, 5) + 0xe6546b64) | 0
 }
 
-/** Final avalanche, so every input bit affects every output bit. */
-function finish(h: number): number {
+/**
+ * Final avalanche, so every input bit affects every output bit.
+ *
+ * @internal
+ */
+export function finish(h: number): number {
   let x = h ^ (h >>> 16)
   x = imul(x, 0x85ebca6b)
   x ^= x >>> 13

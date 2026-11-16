@@ -22,6 +22,11 @@ export const SEQUENCED_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.fo
   'javascript-collections-framework/1/SequencedCollection',
 )
 
+// The brand of every set and set view.
+export const SET_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/SetCollection',
+)
+
 // The brand of every list, list view and read-only list.
 export const LIST_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/List',
