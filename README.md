@@ -45,13 +45,14 @@ Or without a build step:
 | Family            | Implementations                                                      |
 | ----------------- | -------------------------------------------------------------------- |
 | Lists             | [`ArrayList`](docs/lists.md)                                         |
+| Sets              | [`HashSet`](docs/sets.md)                                            |
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md) |
 
 ## Planned collections
 
 | Family            | Implementations                       |
 | ----------------- | ------------------------------------- |
-| Sets              | `HashSet`, `LinkedHashSet`, `TreeSet` |
+| Sets              | `LinkedHashSet`, `TreeSet`            |
 | Maps              | `HashMap`, `LinkedHashMap`, `TreeMap` |
 | Queues and deques | `PriorityQueue`                       |
 

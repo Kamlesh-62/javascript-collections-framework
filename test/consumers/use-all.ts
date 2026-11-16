@@ -11,6 +11,7 @@ import type {
   Equatable,
   Equivalence,
   HashFunction,
+  HashSetOptions,
   KeyOf,
   LinkedListNode,
   List,
@@ -21,7 +22,9 @@ import type {
   ReadonlyList,
   ReadonlyQueue,
   ReadonlySequencedCollection,
+  ReadonlySetCollection,
   SequencedCollection,
+  SetCollection,
 } from 'javascript-collections-framework'
 import {
   ArrayDeque,
@@ -32,6 +35,7 @@ import {
   comparing,
   equals,
   equalsSymbol,
+  HashSet,
   hashCode,
   hashCodeSymbol,
   IllegalArgumentError,
@@ -42,6 +46,7 @@ import {
   isList,
   isQueue,
   isSequencedCollection,
+  isSetCollection,
   LinkedList,
   NoSuchElementError,
   NullElementError,
@@ -153,3 +158,21 @@ recent.insertAfter(newest, 'c')
 recent.addFirstNode(recent.removeNode(recent.lastNode() as LinkedListNode<string | undefined>))
 export const asDeque: Deque<string | undefined> = recent.reversed()
 export const firstHandle: LinkedListNode<string | undefined> | undefined = recent.firstNode()?.next
+
+const byPersonName: HashSetOptions<Person> = { key: (p) => p.name }
+export const members: SetCollection<Person> = new HashSet<Person>(byPersonName).add({
+  name: 'a',
+  age: 1,
+})
+export const tags: HashSet<string> = HashSet.from<string>('abc', {
+  equivalence: valueEquivalence,
+}).copy()
+export const pairs: Array<[string, string]> = [...tags.entries()]
+tags.forEach((tag, same, set) => {
+  set.has(tag + same)
+})
+export function sizeOfSet(value: unknown): number {
+  if (!isSetCollection(value)) return 0
+  const readable: ReadonlySetCollection<unknown> = value
+  return readable.size
+}

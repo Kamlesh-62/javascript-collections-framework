@@ -640,3 +640,32 @@ describe('published shape of LinkedList', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of HashSet', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows HashSet with no protected members and the set types [011 S9-AC3]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class HashSet<E> implements SetCollection<E>')
+    expect(report).toContain(
+      'interface SetCollection<E> extends Collection<E>, ReadonlySetCollection<E>',
+    )
+    expect(report).toContain('interface HashSetOptions<E>')
+    expect(report).toContain('declare function isSetCollection(')
+    expect(report).not.toMatch(/AbstractSet|HashSetEngine|BucketTable|HashSetEquality/)
+    const start = report.indexOf('declare class HashSet')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records HashSet imported alone [011 S9-AC4]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'HashSet')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

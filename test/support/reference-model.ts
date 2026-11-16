@@ -15,6 +15,14 @@ export interface ReferenceModelOptions {
   make: () => Collection<number>
   /** `set` compares with a native Set (live: with its iterators too); `array` with an array. */
   model: 'set' | 'array'
+  /** How many distinct values elements are drawn from (the integers from 0); default 10. */
+  values?: number
+  /**
+   * Adds operations that add 40 values, or delete about three quarters of the members, at once
+   * (set model only), so the collection crosses its growth and shrink thresholds while iterators
+   * and cursors are open.
+   */
+  bulk?: boolean
 }
 
 interface OpenCursor {
@@ -49,16 +57,30 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
         'remove',
       ]
     : ['add', 'add', 'delete', 'has', 'check', 'clear']
+  if (live && options.bulk === true) ops.push('fill', 'fill', 'drain')
+  const top = (options.values ?? 10) - 1
 
   for (let step = 0; step < options.steps; step++) {
     const at = `reference model seed ${options.seed} step ${step}`
     const op = pick(random, ops)
-    const v = integer(random, 0, 9)
+    const v = integer(random, 0, top)
     switch (op) {
       case 'add':
         c.add(v)
         if (live) set.add(v)
         else array.push(v)
+        break
+      case 'fill':
+        for (let i = 0; i < 40; i++) {
+          const x = integer(random, 0, top)
+          c.add(x)
+          set.add(x)
+        }
+        break
+      case 'drain':
+        for (const x of [...set]) {
+          if (random() < 0.75) expect(c.delete(x), at).toBe(set.delete(x))
+        }
         break
       case 'delete': {
         let expected: boolean

@@ -97,6 +97,34 @@ export class NativeLiveIterator<E> extends IteratorBase implements IterableItera
   }
 }
 
+/**
+ * A live iterator over a native `Set`/`Map` iterator whose items are mapped before they are
+ * returned (stored entries to members, members to `[member, member]` pairs). The live semantics
+ * are the native iterator's.
+ *
+ * @internal
+ */
+export class MappedLiveIterator<H, E> extends IteratorBase implements IterableIterator<E> {
+  private readonly inner: Iterator<H>
+  private readonly map: (item: H) => E
+
+  constructor(inner: Iterator<H>, map: (item: H) => E) {
+    super()
+    this.inner = inner
+    this.map = map
+  }
+
+  next(): IteratorResult<E> {
+    const result = this.inner.next()
+    if (result.done) return done()
+    return { done: false, value: this.map(result.value) }
+  }
+
+  [Symbol.iterator](): this {
+    return this
+  }
+}
+
 function cursorMisuse(where: string, started: boolean): IllegalStateError {
   return new IllegalStateError(
     started
@@ -166,25 +194,35 @@ export abstract class FailFastCursor<E> implements Cursor<E> {
  * A cursor over a live collection, driven by a native iterator. `hasNext()` fetches one element
  * ahead and that element counts as reached, so the following `next()` returns it even if it was
  * deleted meanwhile; once the native iterator is done the cursor is finished for good.
- * `remove()` deletes the last returned element by value and never fails if it is already gone.
- * `deleteElement` must delete from the underlying storage directly: the skeleton's default
- * `delete` opens a cursor, so passing it here would recurse without end.
+ *
+ * The native iterator yields handles `H` — the elements themselves by default, or stored entries
+ * that `project` turns into elements. `remove()` passes the handle of the last returned element to
+ * `removeHandle`, which must never fail when that element is already gone. It must remove from the
+ * underlying storage directly: the skeleton's default `delete` opens a cursor, so passing it here
+ * would recurse without end.
  *
  * @internal
  */
-export class LiveCursor<E> implements Cursor<E> {
-  private slot: IteratorResult<E> | undefined
+export class LiveCursor<E, H = E> implements Cursor<E> {
+  private slot: IteratorResult<H> | undefined
   private finished = false
-  private last: { readonly value: E } | undefined
+  private last: { readonly handle: H } | undefined
   private started = false
-  private readonly inner: Iterator<E>
-  private readonly deleteElement: (element: E) => unknown
+  private readonly inner: Iterator<H>
+  private readonly removeHandle: (handle: H) => unknown
   private readonly where: string
+  private readonly project: ((handle: H) => E) | undefined
 
-  constructor(inner: Iterator<E>, deleteElement: (element: E) => unknown, where: string) {
+  constructor(
+    inner: Iterator<H>,
+    removeHandle: (handle: H) => unknown,
+    where: string,
+    project?: (handle: H) => E,
+  ) {
     this.inner = inner
-    this.deleteElement = deleteElement
+    this.removeHandle = removeHandle
     this.where = where
+    this.project = project
   }
 
   hasNext(): boolean {
@@ -202,17 +240,17 @@ export class LiveCursor<E> implements Cursor<E> {
 
   next(): E {
     if (!this.hasNext()) throw new NoSuchElementError(`${this.where}: no more elements`)
-    const value = (this.slot as IteratorResult<E>).value as E
+    const handle = (this.slot as IteratorResult<H>).value as H
     this.slot = undefined
-    this.last = { value }
+    this.last = { handle }
     this.started = true
-    return value
+    return this.project === undefined ? (handle as unknown as E) : this.project(handle)
   }
 
   remove(): void {
     if (this.last === undefined) throw cursorMisuse(this.where, this.started)
-    const { value } = this.last
+    const { handle } = this.last
     this.last = undefined
-    this.deleteElement(value)
+    this.removeHandle(handle)
   }
 }
