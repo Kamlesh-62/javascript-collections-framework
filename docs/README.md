@@ -24,4 +24,6 @@ User documentation for `javascript-collections-framework`.
 
 - [`LinkedList` and node handles](linked-lists.md) — a deque with O(1) insert and remove next to a known element, handles, stored `null`/`undefined`, differences from `Array`
 
+- [Priority queues and `PriorityQueue`](priority-queues.md) — least element first in O(log n), comparators, iteration is not sorted, ties, failures that change nothing, differences from a sorted array
+
 Still to come: see the planned list in the [README](../README.md#planned-collections).

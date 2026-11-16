@@ -15,6 +15,7 @@ import type {
   LinkedListNode,
   List,
   ListCursor,
+  PriorityQueueOptions,
   Queue,
   ReadonlyCollection,
   ReadonlyDeque,
@@ -48,6 +49,7 @@ import {
   naturalOrder,
   nullsFirst,
   nullsLast,
+  PriorityQueue,
   reverseOrder,
   sameValueZeroEquivalence,
   thenComparing,
@@ -153,3 +155,11 @@ recent.insertAfter(newest, 'c')
 recent.addFirstNode(recent.removeNode(recent.lastNode() as LinkedListNode<string | undefined>))
 export const asDeque: Deque<string | undefined> = recent.reversed()
 export const firstHandle: LinkedListNode<string | undefined> | undefined = recent.firstNode()?.next
+
+const byDeadline: PriorityQueueOptions<{ deadline: number }> = {
+  comparator: (a, b) => a.deadline - b.deadline,
+}
+export const deadlines = new PriorityQueue([{ deadline: 2 }], byDeadline).add({ deadline: 1 })
+export const urgent: { deadline: number } | undefined = deadlines.peek()
+export const scheduled: Queue<number> = PriorityQueue.from([3, 1, 2])
+export const sameOrder: Comparator<{ deadline: number }> | undefined = deadlines.copy().comparator()

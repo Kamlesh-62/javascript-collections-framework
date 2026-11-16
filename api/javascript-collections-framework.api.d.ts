@@ -258,6 +258,47 @@ declare class NullElementError extends TypeError {
     get [NULL_ELEMENT_ERROR_BRAND](): true;
     static [Symbol.hasInstance](value: unknown): boolean;
 }
+declare const PRIORITY_QUEUE_BRAND: unique symbol;
+declare class PriorityQueue<E> implements Queue<E> {
+    private readonly engine;
+    constructor(elements?: Iterable<E> | null);
+    constructor(options: PriorityQueueOptions<E>);
+    constructor(elements: Iterable<E> | null | undefined, options?: PriorityQueueOptions<E>);
+    static from<T>(elements: Iterable<T>, options?: PriorityQueueOptions<T>): PriorityQueue<T>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [PRIORITY_QUEUE_BRAND](): true;
+    get [QUEUE_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    comparator(): Comparator<E> | undefined;
+    isEmpty(): boolean;
+    add(element: E): this;
+    addAll(elements: Iterable<E>): boolean;
+    poll(): E | undefined;
+    peek(): E | undefined;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    toArray(): E[];
+    forEach(action: (element: E) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    copy(): PriorityQueue<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface PriorityQueueOptions<E> {
+    comparator?: Comparator<E> | undefined;
+}
 declare const QUEUE_BRAND: unique symbol;
 interface Queue<E> extends Collection<E>, ReadonlyQueue<E> {
     poll(): E | undefined;
@@ -330,5 +371,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, LinkedListNode, List, ListCursor, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, SequencedCollection };
