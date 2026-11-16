@@ -11,6 +11,8 @@
 export { ArrayDeque } from './collections/array-deque'
 export { ArrayList } from './collections/array-list'
 export { LinkedList } from './collections/linked-list'
+export type { PriorityQueueOptions } from './collections/priority-queue'
+export { PriorityQueue } from './collections/priority-queue'
 // Errors
 export {
   ClassCastError,

@@ -4,7 +4,8 @@ Every collection in this package — lists, sets, queues, deques — implements 
 written against it works with any of them.
 
 > Available now: the `ReadonlyCollection`, `Collection` and `Cursor` types, `isCollection`,
-> [`ArrayList`](lists.md), [`ArrayDeque`](deques.md) and [`LinkedList`](linked-lists.md). The other collection classes (`HashSet`, …)
+> [`ArrayList`](lists.md), [`ArrayDeque`](deques.md), [`LinkedList`](linked-lists.md) and
+> [`PriorityQueue`](priority-queues.md). The other collection classes (`HashSet`, …)
 > arrive in later releases and all follow this contract.
 
 ```ts

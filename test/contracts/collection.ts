@@ -41,6 +41,12 @@ export interface CollectionContractOptions {
    * `NullElementError` (`'reject'`, as deques do).
    */
   nullElements?: 'store' | 'reject'
+  /**
+   * The iteration order: the order elements were added in (`'insertion'`, the default) or one the
+   * collection chooses (`'unspecified'`, as a heap does). With `'unspecified'`, assertions about
+   * order compare sorted copies, so they check which elements are present and how many times.
+   */
+  order?: 'insertion' | 'unspecified'
 }
 
 /** Builds a new collection holding `initial`, in order. */
@@ -57,6 +63,17 @@ function caught(fn: () => unknown): unknown {
   return undefined
 }
 
+const KIND_RANK = ['number', 'bigint', 'string', 'boolean', 'symbol', 'function', 'object']
+
+/** A total order on the primitive values the order-neutral assertions compare. */
+function byKindThenValue(a: unknown, b: unknown): number {
+  const kinds = KIND_RANK.indexOf(typeof a) - KIND_RANK.indexOf(typeof b)
+  if (kinds !== 0) return kinds
+  const x = a as number
+  const y = b as number
+  return x < y ? -1 : x > y ? 1 : 0
+}
+
 /** Runs the collection contract against `make`. */
 export function describeCollection(
   name: string,
@@ -65,6 +82,31 @@ export function describeCollection(
 ): void {
   const failFast = options.iteration === 'fail-fast'
   const [open, close] = options.brackets === 'set' ? ['{', '}'] : ['[', ']']
+  const unordered = options.order === 'unspecified'
+  /** The values in the order the assertions compare: as given, or sorted when order is free. */
+  const ordered = (values: Iterable<unknown>): unknown[] =>
+    unordered ? [...values].sort(byKindThenValue) : [...values]
+  /** Asserts that `c` iterates `expected`, in that order unless the order is unspecified. */
+  const expectElements = (c: Iterable<unknown>, expected: unknown[]): void => {
+    expect(ordered(c)).toEqual(ordered(expected))
+  }
+  /**
+   * The expected printed elements, joined with `separator`: `rendered` gives each element's text,
+   * in the order added; when the order is unspecified, the texts follow `c`'s iteration order.
+   */
+  const printedElements = (
+    c: Iterable<unknown>,
+    rendered: ReadonlyArray<readonly [unknown, string]>,
+    separator = ', ',
+  ): string => {
+    if (!unordered) return rendered.map(([, text]) => text).join(separator)
+    return [...c]
+      .map((element) => {
+        const match = rendered.find(([value]) => Object.is(value, element))
+        return match === undefined ? '?' : match[1]
+      })
+      .join(separator)
+  }
 
   describe(`${name} — collection contract`, () => {
     describe('query', () => {
@@ -158,14 +200,15 @@ export function describeCollection(
         if (options.brackets === 'list') {
           const d = make([1, 2, 1])
           expect(d.delete(1)).toBe(true)
-          expect([...d]).toEqual([2, 1]) // only the first equal element
+          expectElements(d, [2, 1]) // only the first equal element
         }
       })
 
       it('addAll adds in order and reports whether anything was added [004 S2-AC3]', () => {
         const c = make([1])
         expect(c.addAll([2, 3])).toBe(true)
-        expect([...c].slice(-2)).toEqual([2, 3])
+        if (unordered) expectElements(c, [1, 2, 3])
+        else expect([...c].slice(-2)).toEqual([2, 3])
         expect(c.addAll([])).toBe(false)
         if (options.brackets === 'set') expect(c.addAll([1, 2])).toBe(false)
       })
@@ -173,14 +216,14 @@ export function describeCollection(
       it('removeAll removes every element equal to one in the argument [004 S2-AC4]', () => {
         const c = make([1, 2, 3, 4])
         expect(c.removeAll([2, 4, 9])).toBe(true)
-        expect([...c]).toEqual([1, 3])
+        expectElements(c, [1, 3])
         expect(c.removeAll([9])).toBe(false)
       })
 
       it('retainAll removes every element not equal to one in the argument [004 S2-AC5]', () => {
         const c = make([1, 2, 3, 4])
         expect(c.retainAll([2, 4, 9])).toBe(true)
-        expect([...c]).toEqual([2, 4])
+        expectElements(c, [2, 4])
         expect(c.retainAll([2, 4])).toBe(false)
       })
 
@@ -188,7 +231,7 @@ export function describeCollection(
         const c = make([1, 2])
         if (options.brackets === 'list') {
           c.addAll(c)
-          expect([...c]).toEqual([1, 2, 1, 2])
+          expectElements(c, [1, 2, 1, 2])
         } else {
           expect(c.addAll(c)).toBe(false)
         }
@@ -207,7 +250,7 @@ export function describeCollection(
         expect(caught(() => e.addAll(throwing))).toBe(failure)
         expect(caught(() => e.removeAll(throwing))).toBe(failure)
         expect(caught(() => e.retainAll(throwing))).toBe(failure)
-        expect([...e]).toEqual([1, 2, 3])
+        expectElements(e, [1, 2, 3])
         expect(e.revision).toBe(revision)
       })
 
@@ -221,7 +264,7 @@ export function describeCollection(
           }),
         ).toBe(true)
         expect(sizes).toEqual([4, 4, 4, 4])
-        expect([...c]).toEqual([1, 3])
+        expectElements(c, [1, 3])
         expect(c.removeIf(() => false)).toBe(false)
       })
 
@@ -237,7 +280,7 @@ export function describeCollection(
             }),
           ),
         ).toBe(failure)
-        expect([...c]).toEqual([1, 2, 3])
+        expectElements(c, [1, 2, 3])
       })
 
       it('removeIf throws ConcurrentModificationError and removes nothing if the predicate changes the structure [004 S2-AC9]', () => {
@@ -310,10 +353,10 @@ export function describeCollection(
             return a === b
           })
           expect(caught(() => c.removeAll([2, 3]))).toBe(failure)
-          expect([...c]).toEqual([1, 2, 3])
+          expectElements(c, [1, 2, 3])
           calls = 0
           expect(caught(() => c.retainAll([2, 3]))).toBe(failure)
-          expect([...c]).toEqual([1, 2, 3])
+          expectElements(c, [1, 2, 3])
         },
       )
 
@@ -325,7 +368,7 @@ export function describeCollection(
           const c = options.withFailingAdd((e) => e === 3, failure)
           const revision = c.revision
           expect(caught(() => c.addAll([1, 2, 3, 4]))).toBe(failure)
-          expect([...c]).toEqual([1, 2])
+          expectElements(c, [1, 2])
           expect(c.revision).not.toBe(revision)
         },
       )
@@ -375,7 +418,7 @@ export function describeCollection(
           filter?: (f: (n: number) => boolean) => { toArray(): number[] }
         }
         if (typeof it.filter !== 'function') return
-        expect(it.filter((n) => n % 2 === 0).toArray()).toEqual([2, 4])
+        expect(ordered(it.filter((n) => n % 2 === 0).toArray())).toEqual([2, 4])
       })
 
       if (failFast) {
@@ -516,8 +559,8 @@ export function describeCollection(
           seen.push(e)
           if ((e as number) % 2 === 0) cursor.remove()
         }
-        expect(seen).toEqual([1, 2, 3, 4])
-        expect([...c]).toEqual([1, 3])
+        expect(ordered(seen)).toEqual([1, 2, 3, 4])
+        expectElements(c, [1, 3])
       })
 
       it('remove before next, or twice, throws IllegalStateError [004 S4-AC4]', () => {
@@ -686,7 +729,13 @@ export function describeCollection(
     describe('printing', () => {
       it('prints the class name, size and elements in the family brackets [004 S6-AC1]', () => {
         const tag = name
-        expect(String(make([1, 2, 'a']))).toBe(`${tag}(3) ${open}1, 2, 'a'${close}`)
+        const c = make([1, 2, 'a'])
+        const elements = printedElements(c, [
+          [1, '1'],
+          [2, '2'],
+          ['a', "'a'"],
+        ])
+        expect(String(c)).toBe(`${tag}(3) ${open}${elements}${close}`)
         expect(String(make())).toBe(`${tag}(0) ${open}${close}`)
       })
 
@@ -708,17 +757,34 @@ export function describeCollection(
         const date = new Date(0)
         const storesNull = options.nullElements !== 'reject'
         const nulls = storesNull ? [null, undefined] : []
-        const c = make(["it's\n", -0, 5n, Symbol("a'b"), ...nulls, [1, [2]], named, () => 1, date])
+        const symbol = Symbol("a'b")
+        const nested = [1, [2]]
+        const anonymous = (
+          () => () =>
+            1
+        )() // no name is inferred for a returned function
+        const c = make(["it's\n", -0, 5n, symbol, ...nulls, nested, named, anonymous, date])
         const printed = String(c)
         // A set stores -0 as 0, as native Set does; a list keeps -0 and prints it.
         const minusZero = options.brackets === 'set' ? '0' : '-0'
-        const shownNulls = storesNull ? ' null, undefined,' : ''
-        expect(printed).toBe(
-          `${tag}(${storesNull ? 10 : 8}) ${open}'it\\'s\\n', ${minusZero}, 5n, Symbol(a\\'b),${shownNulls} [1, [2]], [Function: named], [Function: ], ${String(date)}${close}`.replace(
-            '[Function: ]',
-            '[Function (anonymous)]',
-          ),
-        )
+        const shownNulls: Array<readonly [unknown, string]> = storesNull
+          ? [
+              [null, 'null'],
+              [undefined, 'undefined'],
+            ]
+          : []
+        const elements = printedElements(c, [
+          ["it's\n", "'it\\'s\\n'"],
+          [-0, minusZero],
+          [5n, '5n'],
+          [symbol, "Symbol(a\\'b)"],
+          ...shownNulls,
+          [nested, '[1, [2]]'],
+          [named, '[Function: named]'],
+          [anonymous, '[Function (anonymous)]'],
+          [date, String(date)],
+        ])
+        expect(printed).toBe(`${tag}(${storesNull ? 10 : 8}) ${open}${elements}${close}`)
         if (!storesNull) {
           expect(() => make([null])).toThrow(NullElementError)
           expect(() => make([undefined])).toThrow(NullElementError)
@@ -731,9 +797,13 @@ export function describeCollection(
             return 'sneaky'
           },
         })
-        expect(String(make([true, false, sneaky]))).toBe(
-          `${tag}(3) ${open}true, false, [Function (anonymous)]${close}`,
-        )
+        const flags = make([true, false, sneaky])
+        const flagElements = printedElements(flags, [
+          [true, 'true'],
+          [false, 'false'],
+          [sneaky, '[Function (anonymous)]'],
+        ])
+        expect(String(flags)).toBe(`${tag}(3) ${open}${flagElements}${close}`)
         expect(getterRan).toBe(false)
         expect(String(make(['a\\b']))).toBe(`${tag}(1) ${open}'a\\\\b'${close}`)
         const failure = new Error('cannot print')
@@ -764,7 +834,12 @@ export function describeCollection(
 
       it('shows class, size and elements in Node inspect, honouring depth [004 S6-AC7]', () => {
         const tag = name
-        expect(inspect(make([1, 'a']))).toBe(`${tag}(2) ${open} 1, 'a' ${close}`)
+        const pair = make([1, 'a'])
+        const pairElements = printedElements(pair, [
+          [1, '1'],
+          ['a', "'a'"],
+        ])
+        expect(inspect(pair)).toBe(`${tag}(2) ${open} ${pairElements} ${close}`)
         expect(inspect(make())).toBe(`${tag}(0) ${open}${close}`)
         expect(inspect({ inner: make([{ deep: { deeper: 1 } }]) }, { depth: 0 })).toBe(
           `{ inner: [${tag}] }`,
