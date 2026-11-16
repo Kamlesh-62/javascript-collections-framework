@@ -142,14 +142,15 @@ JSON.stringify(new HashSet([1, 2])) // '[1,2]' — JSON.stringify(new Set([1, 2]
 | iteration step, cursor `next` and `remove`         | O(1) (average for `remove`)                 |
 | `removeIf`, `removeAll`, `retainAll`               | O(n + m) average, plus the calls            |
 | `addAll`                                           | O(m) average                                |
-| `clear`                                            | O(1)                                        |
+| `clear`                                            | O(1) with `equivalence`; one native `clear` |
 | `toArray`, `copy`, `toString`, `forEach`, `equals` | O(n)                                        |
 
 With no option or with `key`, each operation is one native `Set` or `Map` operation. With an
 `equivalence`, members live in hash buckets whose layout is seeded per set, so it cannot be
 predicted from outside; a bucket that grows long with different hashes is re-laid with a new seed.
 Values that all return the **same** hash cannot be told apart by any layout, so with such an
-equivalence `add`, `has` and `delete` degrade to O(n). Hash values, seeds, the bucket layout and
+equivalence `add`, `has` and `delete` degrade to O(n). With `valueEquivalence`, symbols are hashed
+by their description, so many symbols with one description share a hash in the same way. Hash values, seeds, the bucket layout and
 when it changes are unspecified.
 
 ## Differences from `Set`

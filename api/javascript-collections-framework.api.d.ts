@@ -173,7 +173,7 @@ declare class HashSet<E> implements SetCollection<E> {
         E,
         E
     ]>;
-    forEach(action: (element: E, same: E, set: HashSet<E>) => void, thisArg?: unknown): void;
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
     [Symbol.iterator](): IterableIterator<E>;
     cursor(): Cursor<E>;
     toArray(): E[];

@@ -417,7 +417,7 @@ export class HashSet<E> implements SetCollection<E> {
    * Removes every member. An open iteration ends, and members added afterwards are visited, as
    * with native `Set`.
    *
-   * Time: O(1).
+   * Time: O(1) with an `equivalence`; one native `clear` otherwise (at most O(n)).
    *
    * @example
    * ```ts
@@ -494,8 +494,8 @@ export class HashSet<E> implements SetCollection<E> {
    * new HashSet(['a', 'b']).forEach((tag) => console.log(tag))
    * ```
    */
-  forEach(action: (element: E, same: E, set: HashSet<E>) => void, thisArg?: unknown): void {
-    this.engine.forEach(action as (element: E, same: E, set: SetCollection<E>) => void, thisArg)
+  forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void {
+    this.engine.forEach(action, thisArg)
   }
 
   /**
