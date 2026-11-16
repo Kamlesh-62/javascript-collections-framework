@@ -10,6 +10,7 @@
 // Collections
 export { ArrayDeque } from './collections/array-deque'
 export { ArrayList } from './collections/array-list'
+export { LinkedList } from './collections/linked-list'
 // Errors
 export {
   ClassCastError,
@@ -51,6 +52,7 @@ export {
   isSequencedCollection,
 } from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
+export type { LinkedListNode } from './interfaces/linked-list-node'
 export type {
   List,
   ListCursor,

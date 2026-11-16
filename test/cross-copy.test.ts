@@ -47,7 +47,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const result = checkTwoCopies(a, b)
     expect(result.failures).toEqual([])
-    expect(brandedClasses(a)).toEqual([...NAMES, 'ArrayDeque', 'ArrayList'].sort())
+    expect(brandedClasses(a)).toEqual([...NAMES, 'ArrayDeque', 'ArrayList', 'LinkedList'].sort())
     expect(guards(a)).toEqual([
       'isCollection',
       'isDeque',
@@ -55,7 +55,7 @@ describe('the two-copy check', () => {
       'isQueue',
       'isSequencedCollection',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 10 classes, 5 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 11 classes, 5 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -79,7 +79,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 9 classes recognised across copies; expected at least 10')
+    expect(failures).toContain('found 10 classes recognised across copies; expected at least 11')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -206,5 +206,56 @@ describe('deques across two copies', () => {
     expect(result.lines).toContain('isQueue: recognised across copies; major 2 refused')
     expect(result.lines).toContain('isDeque: recognised across copies; major 2 refused')
     expect(result.lines).toContain('ArrayDeque: recognised across copies; major 2 refused')
+  })
+
+  it('guards accept a LinkedList and its view from the other copy; isList refuses them [007 S6-AC1]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const LinkedList = theirs.LinkedList as DequeClass
+      const list = new LinkedList([1, 2])
+      for (const guard of ['isQueue', 'isDeque', 'isCollection', 'isSequencedCollection']) {
+        const check = mine[guard] as (value: unknown) => boolean
+        for (const value of [list, list.reversed()]) expect(check(value), guard).toBe(true)
+      }
+      const isList = mine.isList as (value: unknown) => boolean
+      expect(isList(list)).toBe(false)
+      expect(isList(list.reversed())).toBe(false)
+    }
+  })
+
+  it('instanceof LinkedList holds across copies, not for its view, handles or deques [007 S6-AC2]', async () => {
+    const [a, b] = await load()
+    const A = a.LinkedList as DequeClass
+    const B = b.LinkedList as DequeClass
+    expect(new A() instanceof B).toBe(true)
+    expect(new B() instanceof A).toBe(true)
+    expect(new A([1]).reversed() instanceof B).toBe(false)
+    const handle = (new A([1]) as unknown as { firstNode(): unknown }).firstNode()
+    expect(handle instanceof B).toBe(false)
+    expect(new (b.ArrayDeque as DequeClass)() instanceof A).toBe(false)
+    expect(brandedValue(2, 'LinkedList') instanceof A).toBe(false)
+  })
+
+  it('the two-copy check covers LinkedList, its view and handles across copies [007 S6-AC3]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('LinkedList: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('LinkedList: node handles refused across copies')
+    const A = a.LinkedList as new (
+      elements?: Iterable<unknown>,
+    ) => {
+      firstNode(): unknown
+      removeNode(node: unknown): unknown
+      size: number
+    }
+    const B = b.LinkedList as typeof A
+    const theirs = new B([1])
+    expect(() => new A([1]).removeNode(theirs.firstNode())).toThrow(
+      a.IllegalArgumentError as new () => Error,
+    )
   })
 })

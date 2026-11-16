@@ -569,7 +569,8 @@ describe('published shape of the lists', () => {
     expect(report).not.toMatch(
       /AbstractList|AbstractCollection|ArrayListEngine|SubList|ReversedList/,
     )
-    const classBody = report.slice(report.indexOf('declare class ArrayList'))
+    const start = report.indexOf('declare class ArrayList')
+    const classBody = report.slice(start, report.indexOf('\n}', start))
     expect(classBody.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
   })
 
@@ -603,6 +604,38 @@ describe('published shape of the deques', () => {
       entries: Array<{ name: string; minified: number; gzip: number }>
     }
     const entry = report.entries.find((e) => e.name === 'ArrayDeque')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})
+
+describe('published shape of LinkedList', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows LinkedList with no protected members and LinkedListNode as a type [007 S6-AC3]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class LinkedList<E> implements Deque<E>')
+    expect(report).not.toMatch(/LinkedListEngine|\bListNode\b|NodeWalker|DequeWalker/)
+    const start = report.indexOf('declare class LinkedList')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+    const node = report.slice(report.indexOf('interface LinkedListNode<E>'))
+    const members = node.slice(0, node.indexOf('\n}')).match(/^ {4}(?:readonly )?(\w+)/gm)
+    expect(members?.map((m) => m.trim().replace('readonly ', ''))).toEqual([
+      'value',
+      'next',
+      'previous',
+    ])
+    expect(report).not.toMatch(/declare class LinkedListNode/)
+  })
+
+  it('the size report records LinkedList imported alone [007 S6-AC4]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'LinkedList')
     expect(entry?.minified).toBeGreaterThan(0)
     expect(entry?.gzip).toBeGreaterThan(0)
   })

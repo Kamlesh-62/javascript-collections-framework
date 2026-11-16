@@ -3,7 +3,7 @@
 
 import { IllegalStateError } from '../../errors/errors'
 import type { Deque } from '../../interfaces/queue'
-import { AbstractDeque } from '../skeletons/abstract-deque'
+import { AbstractDeque, type DequeWalker } from '../skeletons/abstract-deque'
 import { ReversedDeque } from '../views/reversed-deque'
 
 /** The smallest buffer, and the size `clear()` returns to. */
@@ -17,6 +17,33 @@ function newBuffer<E>(capacity: number): Array<E | undefined> {
   const buffer: Array<E | undefined> = []
   for (let i = 0; i < capacity; i++) buffer.push(undefined)
   return buffer
+}
+
+/** Walks an `ArrayDequeEngine` by index, front to back or back to front. */
+class IndexWalker<E> implements DequeWalker<E> {
+  private index: number
+  private readonly deque: ArrayDequeEngine<E>
+  private readonly fromBack: boolean
+
+  constructor(deque: ArrayDequeEngine<E>, fromBack: boolean) {
+    this.deque = deque
+    this.fromBack = fromBack
+    this.index = fromBack ? deque.size - 1 : 0
+  }
+
+  hasNext(): boolean {
+    return this.fromBack ? this.index >= 0 : this.index < this.deque.size
+  }
+
+  next(): E {
+    return this.deque.getAt(this.fromBack ? this.index-- : this.index++)
+  }
+
+  remove(): void {
+    // Removing never moves the elements still ahead of a backward walk, so its index stays.
+    if (this.fromBack) this.deque.removeAtIndex(this.index + 1)
+    else this.deque.removeAtIndex(--this.index)
+  }
 }
 
 /**
@@ -56,8 +83,21 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     return this.length
   }
 
+  /** Returns the element `index` places from the front. */
   getAt(index: number): E {
     return this.buffer[(this.head + index) & (this.buffer.length - 1)] as E
+  }
+
+  peekFront(): E {
+    return this.getAt(0)
+  }
+
+  peekBack(): E {
+    return this.getAt(this.length - 1)
+  }
+
+  walker(fromBack: boolean): DequeWalker<E> {
+    return new IndexWalker(this, fromBack)
   }
 
   ensureRoom(count: number, where: string): void {
@@ -110,6 +150,7 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     return element
   }
 
+  /** Removes and returns the element `index` places from the front, shifting the shorter side. */
   removeAtIndex(index: number): E {
     const buffer = this.buffer
     const mask = buffer.length - 1

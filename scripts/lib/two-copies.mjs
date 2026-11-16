@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 10
+export const MINIMUM_CLASSES = 11
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -37,13 +37,60 @@ function deques(copy) {
   return [deque, deque.reversed()]
 }
 
+/**
+ * A `LinkedList` made by one copy and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function linkedLists(copy) {
+  const LinkedList = /** @type {new (elements?: Iterable<unknown>) => any} */ (copy.LinkedList)
+  const list = new LinkedList([1, 2, 3])
+  return [list, list.reversed()]
+}
+
+/**
+ * Every deque made by a copy: an `ArrayDeque`, a `LinkedList` and their reversed views.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function allDeques(copy) {
+  return [...deques(copy), ...linkedLists(copy)]
+}
+
 /** Guard name → the values from a copy that the other copy's guard must accept. */
 export const SAMPLES = {
-  isCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...deques(copy)],
-  isSequencedCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...deques(copy)],
+  isCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...allDeques(copy)],
+  isSequencedCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...allDeques(copy)],
   isList: lists,
-  isQueue: deques,
-  isDeque: deques,
+  isQueue: allDeques,
+  isDeque: allDeques,
+}
+
+/**
+ * Whether a list of copy `to` refuses a node handle of a list of copy `from`, changing nothing.
+ * @param {Namespace} from
+ * @param {Namespace} to
+ * @returns {boolean}
+ */
+function refusesForeignHandle(from, to) {
+  const From = /** @type {new (elements?: Iterable<unknown>) => any} */ (from.LinkedList)
+  const To = /** @type {new (elements?: Iterable<unknown>) => any} */ (to.LinkedList)
+  const IllegalArgumentError = /** @type {Constructor} */ (to.IllegalArgumentError)
+  const handle = new From([1]).firstNode()
+  const list = new To([1, 2])
+  for (const call of [
+    () => list.insertBefore(handle, 0),
+    () => list.insertAfter(handle, 0),
+    () => list.removeNode(handle),
+  ]) {
+    try {
+      call()
+      return false
+    } catch (error) {
+      if (!(error instanceof IllegalArgumentError)) return false
+    }
+  }
+  return list.size === 2
 }
 
 /** @typedef {Record<string, unknown>} Namespace */
@@ -170,6 +217,12 @@ export function checkTwoCopies(a, b, samples = SAMPLES) {
     } else {
       failures.push(`${name}: no sample value to check across copies — add one`)
     }
+  }
+
+  if (a.LinkedList !== undefined && b.LinkedList !== undefined) {
+    expect(refusesForeignHandle(a, b), 'LinkedList: copy B accepts a node handle from copy A')
+    expect(refusesForeignHandle(b, a), 'LinkedList: copy A accepts a node handle from copy B')
+    lines.push('LinkedList: node handles refused across copies')
   }
 
   lines.push(
