@@ -174,3 +174,7 @@ when it changes are unspecified.
 `isSetCollection(value)` recognises a set from any copy of the package (native `Set` is not one);
 `instanceof HashSet` recognises a `HashSet`. Type parameters as `SetCollection<E>` rather than
 `HashSet<E>`.
+
+For a set kept in sorted order, with nearest-match queries and range views, see
+[sorted sets and `TreeSet`](sorted-sets.md). A `TreeSet` and a `HashSet` with the same members are
+equal.

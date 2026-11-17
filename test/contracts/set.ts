@@ -9,12 +9,25 @@ import type { SetCollection } from '../../src/interfaces/set'
 /** Builds a new set holding `initial`, in first-seen order. */
 export type SetFactory = (initial?: Iterable<unknown>) => SetCollection<unknown>
 
-export function describeSetCollection(name: string, make: SetFactory): void {
+export interface SetContractOptions {
+  /**
+   * The order the set iterates distinct members in, given them in insertion order. Insertion order
+   * (as native `Set`) by default; a sorted set passes a function that sorts them.
+   */
+  order?: (members: unknown[]) => unknown[]
+}
+
+export function describeSetCollection(
+  name: string,
+  make: SetFactory,
+  options: SetContractOptions = {},
+): void {
+  const order = options.order ?? ((members: unknown[]) => members)
   describe(`${name} — set contract`, () => {
     it('keys, values and entries iterate in insertion order like a native Set [011 S3-AC1]', () => {
       const values = ['c', 1, null, 'a']
       const set = make(values)
-      const native = new Set<unknown>(values)
+      const native = new Set<unknown>(order([...new Set<unknown>(values)]))
       expect([...set.keys()]).toEqual([...native.keys()])
       expect([...set.values()]).toEqual([...native.values()])
       expect([...set.entries()]).toEqual([...native.entries()])

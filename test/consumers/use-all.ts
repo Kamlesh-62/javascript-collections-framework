@@ -3,6 +3,7 @@
 // TypeScript version and module resolution; it is never run.
 
 import type {
+  BoundOptions,
   Collection,
   Comparable,
   Comparator,
@@ -24,8 +25,12 @@ import type {
   ReadonlyQueue,
   ReadonlySequencedCollection,
   ReadonlySetCollection,
+  ReadonlySortedSet,
   SequencedCollection,
   SetCollection,
+  SortedSet,
+  SubSetOptions,
+  TreeSetOptions,
 } from 'javascript-collections-framework'
 import {
   ArrayDeque,
@@ -48,6 +53,7 @@ import {
   isQueue,
   isSequencedCollection,
   isSetCollection,
+  isSortedSet,
   LinkedList,
   NoSuchElementError,
   NullElementError,
@@ -57,6 +63,7 @@ import {
   PriorityQueue,
   reverseOrder,
   sameValueZeroEquivalence,
+  TreeSet,
   thenComparing,
   UnsupportedOperationError,
   valueEquivalence,
@@ -185,3 +192,17 @@ export const deadlines = new PriorityQueue([{ deadline: 2 }], byDeadline).add({ 
 export const urgent: { deadline: number } | undefined = deadlines.peek()
 export const scheduled: Queue<number> = PriorityQueue.from([3, 1, 2])
 export const sameOrder: Comparator<{ deadline: number }> | undefined = deadlines.copy().comparator()
+const byLength: TreeSetOptions<string> = { comparator: (a, b) => a.length - b.length }
+export const words: SortedSet<string> = new TreeSet(['ccc', 'a'], byLength).add('bb')
+const window: SubSetOptions = { fromInclusive: false, toInclusive: true }
+const upTo: BoundOptions = { inclusive: true }
+export const middle: SortedSet<string> = words.subSet('a', 'ccc', window)
+export const short: ReadonlySortedSet<string> = words.headSet('bb', upTo).reversed()
+export const nearest: string | undefined = TreeSet.from([3, 1, 2]).copy().ceiling(2)
+  ? words.floor('zz')
+  : words.pollFirst()
+export function firstSorted(value: unknown): unknown {
+  if (!isSortedSet(value)) return undefined
+  const readable: ReadonlySortedSet<unknown> = value
+  return readable.isEmpty() ? undefined : readable.getFirst()
+}

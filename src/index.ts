@@ -15,6 +15,8 @@ export { HashSet } from './collections/hash-set'
 export { LinkedList } from './collections/linked-list'
 export type { PriorityQueueOptions } from './collections/priority-queue'
 export { PriorityQueue } from './collections/priority-queue'
+export type { TreeSetOptions } from './collections/tree-set'
+export { TreeSet } from './collections/tree-set'
 // Errors
 export {
   ClassCastError,
@@ -55,6 +57,7 @@ export {
   isQueue,
   isSequencedCollection,
   isSetCollection,
+  isSortedSet,
 } from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
 export type { LinkedListNode } from './interfaces/linked-list-node'
@@ -67,3 +70,9 @@ export type {
 } from './interfaces/list'
 export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'
 export type { ReadonlySetCollection, SetCollection } from './interfaces/set'
+export type {
+  BoundOptions,
+  ReadonlySortedSet,
+  SortedSet,
+  SubSetOptions,
+} from './interfaces/sorted-set'

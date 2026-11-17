@@ -48,7 +48,15 @@ describe('the two-copy check', () => {
     const result = checkTwoCopies(a, b)
     expect(result.failures).toEqual([])
     expect(brandedClasses(a)).toEqual(
-      [...NAMES, 'ArrayDeque', 'ArrayList', 'HashSet', 'LinkedList', 'PriorityQueue'].sort(),
+      [
+        ...NAMES,
+        'ArrayDeque',
+        'ArrayList',
+        'HashSet',
+        'LinkedList',
+        'PriorityQueue',
+        'TreeSet',
+      ].sort(),
     )
     expect(guards(a)).toEqual([
       'isCollection',
@@ -57,8 +65,9 @@ describe('the two-copy check', () => {
       'isQueue',
       'isSequencedCollection',
       'isSetCollection',
+      'isSortedSet',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 13 classes, 6 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 14 classes, 7 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -82,7 +91,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 12 classes recognised across copies; expected at least 13')
+    expect(failures).toContain('found 13 classes recognised across copies; expected at least 14')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -391,5 +400,86 @@ describe('sets across two copies', () => {
     expect(result.lines).toContain('isSetCollection: recognised across copies; major 2 refused')
     const { isSetCollection: _dropped, ...without } = a
     expect(checkTwoCopies(without, b).failures).toContain('guard isSetCollection not found')
+  })
+})
+
+describe('sorted sets across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type SortedClass = new (
+    elements?: Iterable<unknown>,
+  ) => {
+    subSet(from: unknown, to: unknown): unknown
+    headSet(to: unknown): unknown
+    reversed(): unknown
+  }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isSortedSet accepts a TreeSet and its views from either copy and refuses other values; the set and sequenced guards accept them [015 S8-AC3]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const TreeSet = theirs.TreeSet as SortedClass
+      const set = new TreeSet([1, 2, 3])
+      const samples = [set, set.subSet(1, 3), set.headSet(2), set.reversed()]
+      const guard = (name: string) => mine[name] as (value: unknown) => boolean
+      for (const value of samples) {
+        expect(guard('isSortedSet')(value)).toBe(true)
+        expect(guard('isSetCollection')(value)).toBe(true)
+        expect(guard('isCollection')(value)).toBe(true)
+        expect(guard('isSequencedCollection')(value)).toBe(true)
+        expect(guard('isList')(value)).toBe(false)
+        expect(guard('isQueue')(value)).toBe(false)
+      }
+      for (const value of [
+        new (theirs.HashSet as SortedClass)([1]),
+        new Set([1]),
+        [1],
+        new (theirs.ArrayList as SortedClass)([1]),
+        new (theirs.ArrayDeque as SortedClass)([1]),
+        new (theirs.PriorityQueue as SortedClass)([1]),
+        {},
+        null,
+        undefined,
+      ]) {
+        expect(guard('isSortedSet')(value), String(value)).toBe(false)
+      }
+    }
+  })
+
+  it('instanceof TreeSet holds for a TreeSet from either copy and not for its views [015 S8-AC4]', async () => {
+    const [a, b] = await load()
+    const A = a.TreeSet as SortedClass
+    const B = b.TreeSet as SortedClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B([1]) instanceof A).toBe(true)
+    const set = new B([1, 2, 3])
+    for (const value of [set.subSet(1, 3), set.reversed(), set.headSet(2)]) {
+      expect(value instanceof A).toBe(false)
+      expect(value instanceof B).toBe(false)
+    }
+    for (const value of [new (b.HashSet as SortedClass)(), new Set(), [], null, 1]) {
+      expect(value instanceof A).toBe(false)
+    }
+    expect(brandedValue(2, 'TreeSet') instanceof A).toBe(false)
+    expect(brandedValue(1, 'TreeSet') instanceof A).toBe(true)
+  })
+
+  it('the two-copy check covers TreeSet and isSortedSet [015 S8-AC5]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('TreeSet: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('isSortedSet: recognised across copies; major 2 refused')
+    const { isSortedSet: _dropped, ...without } = a
+    expect(checkTwoCopies(without, b).failures).toContain('guard isSortedSet not found')
   })
 })

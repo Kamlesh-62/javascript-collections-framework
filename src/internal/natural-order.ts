@@ -160,3 +160,45 @@ export function compareNatural(a: unknown, b: unknown, where: string): -1 | 0 | 
       return compareOrdered(a as string | bigint, b as string | bigint)
   }
 }
+
+/**
+ * Compares two values in natural order as `compareNatural` does, but returns `undefined` where
+ * `compareNatural` would throw `NullElementError` or `ClassCastError` itself: for `null`,
+ * `undefined`, values with no natural order and values of different kinds. An error thrown by a
+ * `[compareSymbol]` method, or its invalid result, still propagates. Lookups use it to answer
+ * "absent" as a native `Set` does.
+ *
+ * Time: as `compareNatural`.
+ *
+ * @param a - The first value.
+ * @param b - The second value.
+ * @param where - The name to start error messages with.
+ * @returns `-1`, `0` or `1`, or `undefined` when the values cannot be compared.
+ * @throws TypeError when a `[compareSymbol]` method returns a non-number or `NaN`.
+ * @internal
+ */
+export function compareNaturalOrAbsent(
+  a: unknown,
+  b: unknown,
+  where: string,
+): -1 | 0 | 1 | undefined {
+  if (a === null || a === undefined || b === null || b === undefined) return undefined
+  const kind = kindOf(a)
+  const other = kind === undefined ? undefined : kindOf(b)
+  if (kind === undefined || other === undefined || kindName(kind) !== kindName(other)) {
+    return undefined
+  }
+  // The same steps as the end of `compareNatural`, kept separate so code that never needs this
+  // function does not pay for sharing them.
+  if (typeof kind === 'function') return compareProtocol(kind, a as object, b, where)
+  switch (kind) {
+    case 'number':
+      return compareNumbers(a as number, b as number)
+    case 'date':
+      return compareNumbers(getTime(a as Date), getTime(b as Date))
+    case 'boolean':
+      return a === b ? 0 : a ? 1 : -1
+    default:
+      return compareOrdered(a as string | bigint, b as string | bigint)
+  }
+}

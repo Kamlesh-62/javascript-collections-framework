@@ -99,6 +99,9 @@ declare class ArrayList<E> implements List<E> {
     toJSON(): E[];
     [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
 }
+interface BoundOptions {
+    inclusive?: boolean | undefined;
+}
 declare const CLASS_CAST_ERROR_BRAND: unique symbol;
 declare const COLLECTION_BRAND: unique symbol;
 declare const CONCURRENT_MODIFICATION_ERROR_BRAND: unique symbol;
@@ -392,8 +395,31 @@ interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
     ]>;
     forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
 }
+interface ReadonlySortedSet<E> extends ReadonlySetCollection<E>, ReadonlySequencedCollection<E> {
+    readonly size: number;
+    isEmpty(): boolean;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    keys(): IterableIterator<E>;
+    values(): IterableIterator<E>;
+    entries(): IterableIterator<[
+        E,
+        E
+    ]>;
+    forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
+    comparator(): Comparator<E> | undefined;
+    lower(element: E): E | undefined;
+    floor(element: E): E | undefined;
+    ceiling(element: E): E | undefined;
+    higher(element: E): E | undefined;
+    subSet(from: E, to: E, options?: SubSetOptions | null): ReadonlySortedSet<E>;
+    headSet(to: E, options?: BoundOptions | null): ReadonlySortedSet<E>;
+    tailSet(from: E, options?: BoundOptions | null): ReadonlySortedSet<E>;
+    reversed(): ReadonlySortedSet<E>;
+}
 declare const SEQUENCED_COLLECTION_BRAND: unique symbol;
 declare const SET_COLLECTION_BRAND: unique symbol;
+declare const SORTED_SET_BRAND: unique symbol;
 interface SequencedCollection<E> extends Collection<E>, ReadonlySequencedCollection<E> {
     addFirst(element: E): this;
     addLast(element: E): this;
@@ -403,6 +429,82 @@ interface SequencedCollection<E> extends Collection<E>, ReadonlySequencedCollect
 }
 interface SetCollection<E> extends Collection<E>, ReadonlySetCollection<E> {
     forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+}
+interface SortedSet<E> extends SetCollection<E>, SequencedCollection<E>, ReadonlySortedSet<E> {
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+    pollFirst(): E | undefined;
+    pollLast(): E | undefined;
+    subSet(from: E, to: E, options?: SubSetOptions | null): SortedSet<E>;
+    headSet(to: E, options?: BoundOptions | null): SortedSet<E>;
+    tailSet(from: E, options?: BoundOptions | null): SortedSet<E>;
+    reversed(): SortedSet<E>;
+}
+interface SubSetOptions {
+    fromInclusive?: boolean | undefined;
+    toInclusive?: boolean | undefined;
+}
+declare const TREE_SET_BRAND: unique symbol;
+declare class TreeSet<E> implements SortedSet<E> {
+    private readonly engine;
+    constructor(elements?: Iterable<E> | null);
+    constructor(options: TreeSetOptions<E>);
+    constructor(elements: Iterable<E> | null | undefined, options?: TreeSetOptions<E>);
+    static from<T>(elements: Iterable<T>, options?: TreeSetOptions<T>): TreeSet<T>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [TREE_SET_BRAND](): true;
+    get [SORTED_SET_BRAND](): true;
+    get [SET_COLLECTION_BRAND](): true;
+    get [SEQUENCED_COLLECTION_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    comparator(): Comparator<E> | undefined;
+    isEmpty(): boolean;
+    add(element: E): this;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    addAll(elements: Iterable<E>): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    getFirst(): E;
+    getLast(): E;
+    removeFirst(): E;
+    removeLast(): E;
+    addFirst(element: E): this;
+    addLast(element: E): this;
+    pollFirst(): E | undefined;
+    pollLast(): E | undefined;
+    lower(element: E): E | undefined;
+    floor(element: E): E | undefined;
+    ceiling(element: E): E | undefined;
+    higher(element: E): E | undefined;
+    subSet(from: E, to: E, options?: SubSetOptions | null): SortedSet<E>;
+    headSet(to: E, options?: BoundOptions | null): SortedSet<E>;
+    tailSet(from: E, options?: BoundOptions | null): SortedSet<E>;
+    reversed(): SortedSet<E>;
+    keys(): IterableIterator<E>;
+    values(): IterableIterator<E>;
+    entries(): IterableIterator<[
+        E,
+        E
+    ]>;
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    toArray(): E[];
+    copy(): TreeSet<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface TreeSetOptions<E> {
+    comparator?: Comparator<E> | undefined;
 }
 declare const UNSUPPORTED_OPERATION_ERROR_BRAND: unique symbol;
 declare class UnsupportedOperationError extends TypeError {
@@ -422,6 +524,7 @@ declare function isList(value: unknown): value is ReadonlyList<unknown>;
 declare function isQueue(value: unknown): value is ReadonlyQueue<unknown>;
 declare function isSequencedCollection(value: unknown): value is ReadonlySequencedCollection<unknown>;
 declare function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown>;
+declare function isSortedSet(value: unknown): value is ReadonlySortedSet<unknown>;
 declare function naturalOrder<T>(): Comparator<T>;
 declare function nullsFirst<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
 declare function nullsLast<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
@@ -429,5 +532,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, isSetCollection, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, SequencedCollection, SetCollection };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, isSetCollection, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, ReadonlySortedSet, SequencedCollection, SetCollection, SortedSet, SubSetOptions, TreeSetOptions };

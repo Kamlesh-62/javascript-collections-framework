@@ -6,6 +6,7 @@ import { expect } from 'vitest'
 import { type Collection, type Cursor, NoSuchElementError } from '../../src/index'
 import type { List } from '../../src/interfaces/list'
 import type { Deque } from '../../src/interfaces/queue'
+import type { SortedSet } from '../../src/interfaces/sorted-set'
 import { integer, pick, seeded } from './random'
 
 export interface ReferenceModelOptions {
@@ -453,4 +454,171 @@ export function runPriorityQueueReferenceModel(options: {
   const drained: number[] = []
   for (let n = queue.poll(); n !== undefined; n = queue.poll()) drained.push(n)
   expect(drained, `priority queue reference model seed ${options.seed} final`).toEqual(array)
+}
+
+/**
+ * Seeded reference model for sorted sets: applies the same random operations to a sorted set and
+ * to a native array kept sorted by `compare` without duplicates, and compares every result —
+ * membership, the ends, polls, the nearest-match queries, cursors and random range views (with
+ * random inclusive flags, read and changed through the view). `make` builds an empty set ordered
+ * by `compare`; `value` draws a value.
+ */
+export function runSortedSetReferenceModel<T>(options: {
+  seed: number
+  steps: number
+  make: () => SortedSet<T>
+  compare: (a: T, b: T) => number
+  value: (random: () => number) => T
+}): void {
+  const random = seeded(options.seed)
+  const { compare } = options
+  const set = options.make()
+  let array: T[] = []
+  const indexOf = (v: T): number => array.findIndex((x) => compare(x, v) === 0)
+  const insert = (v: T): boolean => {
+    if (indexOf(v) >= 0) return false
+    let i = 0
+    while (i < array.length && compare(array[i] as T, v) < 0) i++
+    array.splice(i, 0, v)
+    return true
+  }
+  const remove = (v: T): boolean => {
+    const i = indexOf(v)
+    if (i >= 0) array.splice(i, 1)
+    return i >= 0
+  }
+  const last = (items: T[]): T | undefined => items[items.length - 1]
+  const ops = [
+    'add',
+    'add',
+    'add',
+    'delete',
+    'has',
+    'near',
+    'ends',
+    'poll',
+    'cursor',
+    'range',
+    'range',
+    'check',
+    'clear',
+  ]
+  for (let step = 0; step < options.steps; step++) {
+    const at = `sorted set reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const v = options.value(random)
+    switch (op) {
+      case 'add':
+        set.add(v)
+        insert(v)
+        break
+      case 'delete':
+        expect(set.delete(v), at).toBe(remove(v))
+        break
+      case 'has':
+        expect(set.has(v), at).toBe(indexOf(v) >= 0)
+        break
+      case 'near':
+        expect(set.lower(v), at).toBe(last(array.filter((x) => compare(x, v) < 0)))
+        expect(set.floor(v), at).toBe(last(array.filter((x) => compare(x, v) <= 0)))
+        expect(set.ceiling(v), at).toBe(array.find((x) => compare(x, v) >= 0))
+        expect(set.higher(v), at).toBe(array.find((x) => compare(x, v) > 0))
+        break
+      case 'ends':
+        if (array.length === 0) {
+          expect(() => set.getFirst(), at).toThrow(NoSuchElementError)
+        } else {
+          expect(set.getFirst(), at).toBe(array[0])
+          expect(set.getLast(), at).toBe(last(array))
+        }
+        break
+      case 'poll':
+        if (random() < 0.5) expect(set.pollFirst(), at).toBe(array.shift())
+        else expect(set.pollLast(), at).toBe(array.pop())
+        break
+      case 'cursor': {
+        const descending = random() < 0.5
+        const cursor = descending ? set.reversed().cursor() : set.cursor()
+        const seen: T[] = []
+        while (cursor.hasNext()) {
+          const x = cursor.next()
+          seen.push(x)
+          if (random() < 0.2) {
+            cursor.remove()
+            remove(x)
+          }
+        }
+        const expected = seen.slice()
+        expect(seen, at).toEqual(
+          descending ? expected.sort((a, b) => compare(b, a)) : expected.sort(compare),
+        )
+        break
+      }
+      case 'range': {
+        let from = v
+        let to = options.value(random)
+        if (compare(from, to) > 0) {
+          const t = from
+          from = to
+          to = t
+        }
+        const fromInclusive = random() < 0.5
+        const toInclusive = random() < 0.5
+        const inRange = (x: T): boolean => {
+          const a = compare(x, from)
+          const b = compare(x, to)
+          return (a > 0 || (a === 0 && fromInclusive)) && (b < 0 || (b === 0 && toInclusive))
+        }
+        const kind = integer(random, 0, 2)
+        const view =
+          kind === 0
+            ? set.subSet(from, to, { fromInclusive, toInclusive })
+            : kind === 1
+              ? set.headSet(to, { inclusive: toInclusive })
+              : set.tailSet(from, { inclusive: fromInclusive })
+        const check =
+          kind === 0
+            ? inRange
+            : kind === 1
+              ? (x: T) => {
+                  const b = compare(x, to)
+                  return b < 0 || (b === 0 && toInclusive)
+                }
+              : (x: T) => {
+                  const a = compare(x, from)
+                  return a > 0 || (a === 0 && fromInclusive)
+                }
+        const expected = array.filter(check)
+        expect(view.toArray(), at).toEqual(expected)
+        expect(view.size, at).toBe(expected.length)
+        expect(view.reversed().toArray(), at).toEqual(expected.slice().reverse())
+        const probe = options.value(random)
+        expect(view.floor(probe), at).toBe(last(expected.filter((x) => compare(x, probe) <= 0)))
+        expect(view.higher(probe), at).toBe(expected.find((x) => compare(x, probe) > 0))
+        if (check(probe)) {
+          view.add(probe)
+          insert(probe)
+        } else {
+          expect(view.has(probe), at).toBe(false)
+        }
+        if (random() < 0.3) {
+          const polled = view.pollFirst()
+          expect(polled, at).toBe(array.filter(check)[0])
+          if (polled !== undefined) remove(polled)
+        }
+        break
+      }
+      case 'clear':
+        if (integer(random, 0, 5) === 0) {
+          set.clear()
+          array = []
+        }
+        break
+      case 'check':
+        expect(set.toArray(), at).toEqual(array)
+        break
+    }
+    expect(set.size, at).toBe(array.length)
+  }
+  expect(set.toArray(), `sorted set reference model seed ${options.seed} final`).toEqual(array)
 }

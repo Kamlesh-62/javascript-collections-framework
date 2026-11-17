@@ -27,6 +27,11 @@ export const SET_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/SetCollection',
 )
 
+// The brand of every sorted set and its range and reversed views.
+export const SORTED_SET_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/SortedSet',
+)
+
 // The brand of every list, list view and read-only list.
 export const LIST_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/List',
