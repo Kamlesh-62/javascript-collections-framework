@@ -123,7 +123,9 @@ that follow the map and change it:
 
 No view can add: `add` throws `UnsupportedOperationError`; set mappings on the map. `[k, v]`
 arrays are never members of `entrySet()`. The key view hashes like a `HashSet` with the same
-options, the entry view like the map; the value view equals only itself.
+options, the entry view like the map; the value view equals only itself. For views and maps
+compared across implementations, `putAll` from any map, and a set backed by a map
+(`newSetFromMap`), see [sets and maps together](sets-and-maps.md).
 
 ```ts
 const prices = new HashMap([

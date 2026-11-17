@@ -76,6 +76,7 @@ import {
   NoSuchElementError,
   NullElementError,
   naturalOrder,
+  newSetFromMap,
   nullsFirst,
   nullsLast,
   PriorityQueue,
@@ -307,3 +308,6 @@ export const sortedValues: SequencedCollection<string> = new TreeMap<
   string
 >().valueCollection()
 export const readonlySorted: ReadonlySequencedMap<number, string> = levels
+export const recentlySeen: SetCollection<string> = newSetFromMap(
+  new LinkedHashMap<string, boolean>({ accessOrder: true, maxSize: 2 }),
+)

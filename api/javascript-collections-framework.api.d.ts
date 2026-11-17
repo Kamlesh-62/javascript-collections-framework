@@ -957,11 +957,12 @@ declare function isSetCollection(value: unknown): value is ReadonlySetCollection
 declare function isSortedMap(value: unknown): value is ReadonlySortedMap<unknown, unknown>;
 declare function isSortedSet(value: unknown): value is ReadonlySortedSet<unknown>;
 declare function naturalOrder<T>(): Comparator<T>;
+declare function newSetFromMap<E>(map: MapCollection<E, boolean>): SetCollection<E>;
 declare function nullsFirst<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
 declare function nullsLast<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
 declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashMap, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashMap, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, naturalOrder, newSetFromMap, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
 export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedHashMapOptions, LinkedHashSetOptions, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySequencedMap, ReadonlySequencedSet, ReadonlySetCollection, ReadonlySortedMap, ReadonlySortedSet, SequencedCollection, SequencedMap, SequencedSet, SetCollection, SortedMap, SortedSet, SubSetOptions, TreeMapOptions, TreeSetOptions };

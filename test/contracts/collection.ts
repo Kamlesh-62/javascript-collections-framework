@@ -59,6 +59,11 @@ export interface CollectionContractOptions {
    * must throw `UnsupportedOperationError` and change nothing; the default is `add`.
    */
   insert?: (collection: Collection<unknown>, element: unknown) => void
+  /**
+   * The name cursor state errors start with, for a collection whose cursor comes from another
+   * collection it wraps; the collection's own name by default.
+   */
+  cursorName?: string
 }
 
 /** Builds a new collection holding `initial`, in order. */
@@ -605,7 +610,7 @@ export function describeCollection(
         const cursor = c.cursor()
         expect(() => cursor.remove()).toThrow(IllegalStateError)
         expect((caught(() => cursor.remove()) as Error).message).toBe(
-          `${name}.cursor: remove() called before next()`,
+          `${options.cursorName === undefined ? name : options.cursorName}.cursor: remove() called before next()`,
         )
         cursor.next()
         cursor.remove()

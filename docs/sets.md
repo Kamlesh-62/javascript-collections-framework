@@ -123,7 +123,8 @@ already gone, it deletes an equal member by value.
 Two sets are equal when they have the same size and each has every member of the other, in any
 order: `new HashSet([1, 2]).equals(new HashSet([2, 1]))` is `true`. Each side is checked with its
 own `has`, so the answer is the same both ways round even when the two sets compare members
-differently. Lists, queues, maps, arrays and native `Set` are never equal to a set.
+differently. Lists, queues, maps, arrays and native `Set` are never equal to a set. How every set
+and map of the package compares with the others is in [sets and maps together](sets-and-maps.md).
 
 Equal sets that use the same `key` function, the same `equivalence` object, or neither, have the
 same `[hashCodeSymbol]` hash; the hash values themselves are unspecified. A set that contains

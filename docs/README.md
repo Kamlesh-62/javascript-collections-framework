@@ -15,6 +15,7 @@ User documentation for `javascript-collections-framework`.
 - [Ordering](ordering.md) — natural order, comparators and their helpers, `compareSymbol` for your own types
 - [Collections: the shared contract](collections.md) — the `Collection` interface, live and fail-fast iteration, cursors, `revision`, printing
 - [Equality and hashing](equality.md) — SameValueZero by default, the `key` option, equivalences, the `equalsSymbol`/`hashCodeSymbol` protocol
+- [Sets and maps together](sets-and-maps.md) — equality and hashes across implementations, map views as sets, `putAll` from any map, native `Set`/`Map` interop, `newSetFromMap` for an LRU set or a set in a custom order
 
 ## Collections
 

@@ -1,6 +1,6 @@
 {
   "entries": [
-    { "name": "*", "minified": 131489, "gzip": 28448 },
+    { "name": "*", "minified": 132778, "gzip": 28753 },
     { "name": "ArrayDeque", "minified": 16716, "gzip": 4981 },
     { "name": "ArrayList", "minified": 23057, "gzip": 6664 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
@@ -35,6 +35,7 @@
     { "name": "isSortedMap", "minified": 207, "gzip": 171 },
     { "name": "isSortedSet", "minified": 207, "gzip": 169 },
     { "name": "naturalOrder", "minified": 2813, "gzip": 1145 },
+    { "name": "newSetFromMap", "minified": 9559, "gzip": 3414 },
     { "name": "nullsFirst", "minified": 3037, "gzip": 1221 },
     { "name": "nullsLast", "minified": 3034, "gzip": 1220 },
     { "name": "reverseOrder", "minified": 2964, "gzip": 1198 },
