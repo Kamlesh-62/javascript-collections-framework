@@ -951,7 +951,8 @@ describe('PriorityQueue — construction, copies and equality', () => {
       count++
     }
     expect(count).toBe(n)
-  })
+    // Generous: instrumented coverage runs are many times slower than plain ones.
+  }, 60000)
 })
 
 /** Kinds in the order the contract comparator puts them. */
