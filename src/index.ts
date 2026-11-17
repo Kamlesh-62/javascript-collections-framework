@@ -10,6 +10,8 @@
 // Collections
 export { ArrayDeque } from './collections/array-deque'
 export { ArrayList } from './collections/array-list'
+export type { HashMapOptions } from './collections/hash-map'
+export { HashMap } from './collections/hash-map'
 export type { HashSetOptions } from './collections/hash-set'
 export { HashSet } from './collections/hash-set'
 export { LinkedList } from './collections/linked-list'
@@ -52,6 +54,7 @@ export {
   isCollection,
   isDeque,
   isList,
+  isMapCollection,
   isQueue,
   isSequencedCollection,
   isSetCollection,
@@ -65,5 +68,6 @@ export type {
   ReadonlySequencedCollection,
   SequencedCollection,
 } from './interfaces/list'
+export type { MapCollection, MapEntry, ReadonlyMapCollection } from './interfaces/map'
 export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'
 export type { ReadonlySetCollection, SetCollection } from './interfaces/set'
