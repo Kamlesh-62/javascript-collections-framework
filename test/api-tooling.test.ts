@@ -817,3 +817,40 @@ describe('published shape of TreeMap', () => {
     }
   })
 })
+
+describe('published shape of LinkedHashMap', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows LinkedHashMap with no protected members, the sequenced-map types and the new parents of the sorted maps, and no internal names [014 S7-AC7]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class LinkedHashMap<K, V> implements SequencedMap<K, V>')
+    expect(report).toContain('interface LinkedHashMapOptions<K, V>')
+    expect(report).toContain(
+      'interface ReadonlySequencedMap<K, V> extends ReadonlyMapCollection<K, V>',
+    )
+    expect(report).toMatch(
+      /interface SequencedMap<K, V> extends MapCollection<K, V>, ReadonlySequencedMap<K, V>/,
+    )
+    expect(report).toMatch(/interface ReadonlySortedMap<K, V> extends ReadonlySequencedMap<K, V>/)
+    expect(report).toMatch(
+      /interface SortedMap<K, V> extends SequencedMap<K, V>, ReadonlySortedMap<K, V>/,
+    )
+    expect(report).not.toMatch(
+      /AbstractLinkedMap|LinkedHashMapEngine|ReversedLinkedHashMap|EvictionQueue|LinkedMapState|LinkedHashMapKeySet|LinkedHashMapEntrySet|LinkedHashMapValues/,
+    )
+    const start = report.indexOf('declare class LinkedHashMap')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records LinkedHashMap imported alone [014 S7-AC7]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'LinkedHashMap')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

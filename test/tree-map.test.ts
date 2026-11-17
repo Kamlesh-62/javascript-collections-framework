@@ -17,6 +17,7 @@ import {
   IllegalStateError,
   isCollection,
   isMapCollection,
+  isSequencedCollection,
   isSetCollection,
   isSortedMap,
   isSortedSet,
@@ -29,6 +30,7 @@ import {
 import { type CollectionFactory, describeCollection } from './contracts/collection'
 import { describeMapCollection, type MapFactory } from './contracts/map'
 import { describeSequencedCollection } from './contracts/sequenced'
+import { describeSequencedMap } from './contracts/sequenced-map'
 import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
 import { describeSortedMap } from './contracts/sorted-map'
@@ -1653,6 +1655,51 @@ describe('TreeMap — equality and output', () => {
     expect('hashCode' in tree).toBe(false)
   })
 
+  it('compares values as the other map’s value against this map’s value, both ways and mixed [014 S6-AC2]', () => {
+    const calls: Array<[string, string]> = []
+    class Tagged {
+      constructor(readonly tag: string) {}
+      [equalsSymbol](other: unknown): boolean {
+        calls.push([this.tag, (other as Tagged).tag])
+        return other instanceof Tagged
+      }
+      [hashCodeSymbol](): number {
+        return 1
+      }
+    }
+    const mine = new TreeMap([[1, new Tagged('mine')]])
+    const theirs = new TreeMap([[1, new Tagged('theirs')]])
+    expect(mine.equals(theirs)).toBe(true)
+    expect(calls[0]).toEqual(['theirs', 'mine'])
+    calls.length = 0
+    expect(mine.equals(new HashMap([[1, new Tagged('hash')]]))).toBe(true)
+    expect(calls[0]).toEqual(['hash', 'mine'])
+    calls.length = 0
+    expect(new HashMap([[1, new Tagged('hash')]]).equals(mine)).toBe(true)
+    expect(calls[0]).toEqual(['mine', 'hash'])
+  })
+
+  it('throws ConcurrentModificationError when a value’s equals adds or removes mappings of the other map [014 S6-AC2]', () => {
+    for (const make of [
+      () => new TreeMap<number, unknown>(),
+      () => new HashMap<number, unknown>(),
+    ]) {
+      const victim = new TreeMap<number, unknown>()
+      const sneaky = {
+        [equalsSymbol](): boolean {
+          victim.delete(2)
+          return true
+        },
+        [hashCodeSymbol]: () => 1,
+      }
+      const plain = { [equalsSymbol]: () => true, [hashCodeSymbol]: () => 1 }
+      victim.set(1, sneaky).set(2, 2)
+      const mine = make()
+      mine.set(1, plain).set(2, 2)
+      expect(() => mine.equals(victim)).toThrow(ConcurrentModificationError)
+    }
+  })
+
   it('hashes like an equal default HashMap for comparators consistent with the hash function [016 S6-AC3]', () => {
     const a = mapOf([1, 2, 3])
     const b = mapOf([3, 2, 1], { comparator: descending })
@@ -1818,6 +1865,114 @@ function mapObjects(
   ]
 }
 
+describe('TreeMap — a sequenced map', () => {
+  /** The map, a range view, a reversed view and a reversed range view over keys 1…4 (and outliers). */
+  function sequencedMaps(
+    comparator: Comparator<number>,
+  ): Array<[string, TreeMap<number, string>, SortedMap<number, string>]> {
+    const fill = (keys: number[]) => {
+      const map = new TreeMap<number, string>({ comparator })
+      map.putAll(keys.map((k): [number, string] => [k, `v${k}`]))
+      return map
+    }
+    const whole = fill([1, 2, 3, 4])
+    const ranged = fill([0, 1, 2, 3, 4, 9])
+    const reversed = fill([1, 2, 3, 4])
+    const reversedRange = fill([0, 1, 2, 3, 4, 9])
+    return [
+      ['TreeMap', whole, whole],
+      ['TreeSubMap', ranged, ranged.subMap(1, 5)],
+      ['ReversedTreeMap', reversed, reversed.reversed()],
+      ['ReversedTreeMap', reversedRange, reversedRange.subMap(1, 5).reversed()],
+    ]
+  }
+
+  it('putFirst and putLast throw UnsupportedOperationError on the map and its views, calling no comparator and changing nothing [014 S6-AC2]', () => {
+    const count = counting(ascending)
+    for (const [name, owner, map] of sequencedMaps(count.comparator)) {
+      const before = state(owner)
+      const calls = count.calls()
+      for (const [method, put] of [
+        ['putFirst', () => map.putFirst(7, 'x')],
+        ['putLast', () => map.putLast(2, 'x')],
+      ] as const) {
+        const error = caught(put)
+        expect(error, name).toBeInstanceOf(UnsupportedOperationError)
+        expect((error as Error).message).toBe(
+          `${name}.${method}: a sorted map places each mapping by its key; use set`,
+        )
+      }
+      expect(count.calls(), name).toBe(calls)
+      expect(state(owner), name).toEqual(before)
+    }
+  })
+
+  it('gives the value view ends, removals, a reversed view and unsupported addFirst and addLast, in the view’s order [014 S6-AC3]', () => {
+    for (const [name, owner, map] of sequencedMaps(ascending)) {
+      const values = map.valueCollection()
+      const order = [...map.values()]
+      expect(values.getFirst(), name).toBe(order[0])
+      expect(values.getLast(), name).toBe(order[order.length - 1])
+      expect([...values.reversed()], name).toEqual(order.slice().reverse())
+      expect([...values.reversed()], name).toEqual([...map.reversed().values()])
+      expect(() => values.addFirst('x')).toThrow(UnsupportedOperationError)
+      expect(() => values.addLast('x')).toThrow(UnsupportedOperationError)
+      expect(values.removeFirst(), name).toBe(order[0])
+      expect(values.reversed().removeFirst(), name).toBe(order[order.length - 1])
+      expect([...map.values()], name).toEqual(order.slice(1, -1))
+      values.clear()
+      if (name === 'TreeSubMap')
+        expect(owner.toJSON()).toEqual([
+          [0, 'v0'],
+          [9, 'v9'],
+        ])
+      for (const method of ['getFirst', 'getLast', 'removeFirst', 'removeLast'] as const) {
+        const error = caught(() => values[method]())
+        expect(error, name).toBeInstanceOf(NoSuchElementError)
+        expect((error as Error).message).toBe(`TreeMapValues.${method}: the collection is empty`)
+      }
+    }
+  })
+
+  it('gives the entry view ends, removals, a reversed view and unsupported addFirst and addLast, in the view’s order [014 S6-AC4]', () => {
+    for (const [name, , map] of sequencedMaps(ascending)) {
+      const entries = map.entrySet()
+      const keys = [...map.keys()]
+      expect(entries.getFirst().key, name).toBe(keys[0])
+      expect(entries.getLast().key, name).toBe(keys[keys.length - 1])
+      expect([...entries.reversed()].map((e) => e.key)).toEqual(keys.slice().reverse())
+      expect(() => entries.addFirst(entries.getFirst())).toThrow(UnsupportedOperationError)
+      expect(() => entries.addLast(entries.getFirst())).toThrow(UnsupportedOperationError)
+      const removed = entries.removeLast()
+      expect(removed.key, name).toBe(keys[keys.length - 1])
+      expect(removed.value, name).toBe(`v${removed.key}`)
+      expect(() => removed.setValue('again')).toThrow(IllegalStateError)
+      expect(entries.reversed().removeLast().key, name).toBe(keys[0])
+      expect([...map.keys()], name).toEqual(keys.slice(1, -1))
+      entries.clear()
+      for (const method of ['getFirst', 'getLast', 'removeFirst', 'removeLast'] as const) {
+        const error = caught(() => entries[method]())
+        expect(error, name).toBeInstanceOf(NoSuchElementError)
+        expect((error as Error).message).toBe(`TreeMapEntrySet.${method}: the set is empty`)
+      }
+    }
+  })
+
+  it('marks the map and its views as sequenced maps and their entry and value views as sequenced collections, keeping fail-fast iteration [014 S6-AC4]', () => {
+    const brand = Symbol.for('javascript-collections-framework/1/SequencedMap')
+    for (const [name, , map] of sequencedMaps(ascending)) {
+      expect((map as unknown as Record<symbol, unknown>)[brand], name).toBe(true)
+      expect(isSequencedCollection(map.entrySet()), name).toBe(true)
+      expect(isSequencedCollection(map.valueCollection()), name).toBe(true)
+      expect(isSequencedCollection(map.valueCollection().reversed()), name).toBe(true)
+      const it = map.valueCollection().reversed()[Symbol.iterator]()
+      it.next()
+      map.pollFirstEntry()
+      expect(() => it.next()).toThrow(ConcurrentModificationError)
+    }
+  })
+})
+
 describe('TreeMap — shared contracts', () => {
   it('runs the map, sorted-map, collection, set, sequenced and sorted-set suites on the map, its views and their key, entry and value views [016 S8-AC1]', () => {
     // The suites below are registered at module level; this test pins the factories they use.
@@ -1869,6 +2024,72 @@ describeSortedMap('ReversedTreeMap', (initial) => {
   view.putAll(initial ?? [])
   return view
 })
+
+// The sequenced-map suite on the map, a range view and a reversed view (over a descending map, so
+// it iterates in ascending order), fail-fast and with putFirst/putLast unsupported; the
+// sequenced-set suite on their entry views and the sequenced-collection suite on their value views.
+{
+  const sequencedMaps: Array<[string, () => SortedMap<number, unknown>]> = [
+    ['TreeMap', () => new TreeMap<number, unknown>()],
+    [
+      'TreeSubMap',
+      () =>
+        new TreeMap<number, unknown>([
+          [-1e9, 'low'],
+          [1e9, 'high'],
+        ]).subMap(-1e6, 1e6),
+    ],
+    ['ReversedTreeMap', () => new TreeMap<number, unknown>({ comparator: descending }).reversed()],
+  ]
+  for (const [name, empty] of sequencedMaps) {
+    describeSequencedMap(
+      name,
+      (initial) => {
+        const map = empty()
+        if (initial !== undefined) map.putAll(initial as Iterable<[number, unknown]>)
+        return map as never
+      },
+      { iteration: 'fail-fast', putAtEnds: 'unsupported' },
+    )
+    const owners = new WeakMap<object, SortedMap<number, unknown>>()
+    const insert = (view: object, e: unknown) => {
+      ;(owners.get(view) as SortedMap<number, unknown>).set(e as number, e)
+    }
+    describeSequencedSet(
+      'TreeMapEntrySet',
+      (initial) => {
+        const map = empty()
+        for (const e of initial ?? []) map.set(e as number, e)
+        const view = map.entrySet()
+        owners.set(view, map)
+        return view as never
+      },
+      {
+        addAtEnds: 'unsupported',
+        insert,
+        member: (entry) => (entry as MapEntry<unknown, unknown>).key,
+        probe: (e) => [...new HashMap([[e, e]]).entrySet()][0],
+      },
+    )
+    let nextKey = 0
+    describeSequencedCollection(
+      'TreeMapValues',
+      (initial) => {
+        const map = empty()
+        const view = map.valueCollection()
+        owners.set(view, map)
+        for (const e of initial ?? []) map.set(nextKey++, e)
+        return view
+      },
+      {
+        addAtEnds: 'unsupported',
+        insert: (view, e) => {
+          ;(owners.get(view) as SortedMap<number, unknown>).set(nextKey++, e)
+        },
+      },
+    )
+  }
+}
 
 const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
   elements.reduce<number>((h, e) => (h + hash(e)) | 0, 0)

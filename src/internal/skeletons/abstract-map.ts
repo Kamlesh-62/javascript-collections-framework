@@ -2,7 +2,7 @@
 // hashing and printing by mappings, whatever the insertion order. A map is not a collection; the
 // public class carries the map brand.
 
-import type { MapCollection } from '../../interfaces/map'
+import type { MapCollection, MapEntry } from '../../interfaces/map'
 import { isBranded, MAP_COLLECTION_BRAND } from '../brand'
 import { requireFunction } from '../checks'
 import { createGuard } from '../cycle'
@@ -64,6 +64,8 @@ export abstract class AbstractMap<K, V> {
   abstract find(key: K, where: string): unknown
   /** Returns the hash of a stored key under this map's key equality. */
   abstract keyHash(handle: unknown, hash: HashFunction): number
+  /** Returns a new live entry for a stored mapping. */
+  abstract entryAt(handle: unknown): MapEntry<K, V>
 
   get revision(): number {
     return this.changes.revision
@@ -131,7 +133,8 @@ export abstract class AbstractMap<K, V> {
   /**
    * Equal when `other` is a map of the same size, every key of this map is in `other` with an
    * equal value, and every key of `other` is in this map with an equal value, so the result is the
-   * same both ways round even when the two maps compare keys differently.
+   * same both ways round even when the two maps compare keys differently. `other` is asked through
+   * its entry view's `has`, which never reorders a map.
    */
   equals(other: unknown): boolean {
     if (other === this || other === this.owner) return true
@@ -144,11 +147,9 @@ export abstract class AbstractMap<K, V> {
       () => {
         const where = this.at('equals')
         const handles = this.handles(where)
-        // A fresh object per call: `that` may be user code, and must never see `MISSING`.
-        const absent = {} as V
+        const entries = that.entrySet()
         for (let step = handles.next(); step.done !== true; step = handles.next()) {
-          const found = that.getOrDefault(this.keyAt(step.value), absent)
-          if (found === absent || !equals(this.valueAt(step.value), found)) return false
+          if (!entries.has(this.entryAt(step.value))) return false
         }
         const pairs = that[Symbol.iterator]()
         for (let step = pairs.next(); step.done !== true; step = pairs.next()) {

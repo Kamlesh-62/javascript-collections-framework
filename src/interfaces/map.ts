@@ -96,7 +96,8 @@ export interface ReadonlyMapCollection<K, V> extends Iterable<[K, V]> {
   readonly size: number
   /**
    * A number that changes on every change to the mappings — adding or removing one, or writing a
-   * value — and never on a read. Its exact values are unspecified. Time: O(1).
+   * value — and never on a read, except that a read moving a mapping of an access-ordered map
+   * changes it too. Its exact values are unspecified. Time: O(1).
    */
   readonly revision: number
   /**

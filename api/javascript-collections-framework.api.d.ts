@@ -280,9 +280,88 @@ declare class IndexOutOfBoundsError extends RangeError {
     static [Symbol.hasInstance](value: unknown): boolean;
 }
 type KeyOf<T> = (value: T) => string | number | bigint | boolean | symbol | null | undefined;
+declare const LINKED_HASH_MAP_BRAND: unique symbol;
 declare const LINKED_HASH_SET_BRAND: unique symbol;
 declare const LINKED_LIST_BRAND: unique symbol;
 declare const LIST_BRAND: unique symbol;
+declare class LinkedHashMap<K, V> implements SequencedMap<K, V> {
+    private engine;
+    constructor(entries?: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>> | null, options?: LinkedHashMapOptions<K, V> | null);
+    constructor(options: LinkedHashMapOptions<K, V>);
+    static from<K, V>(entries: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>>, options?: LinkedHashMapOptions<K, V> | null): LinkedHashMap<K, V>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [LINKED_HASH_MAP_BRAND](): true;
+    get [MAP_COLLECTION_BRAND](): true;
+    get [SEQUENCED_MAP_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    get(key: K): V | undefined;
+    getOrDefault<D>(key: K, fallback: D): V | D;
+    has(key: K): boolean;
+    containsValue(value: V): boolean;
+    set(key: K, value: V): this;
+    put(key: K, value: V): V | undefined;
+    putAll(entries: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>>): void;
+    putFirst(key: K, value: V): this;
+    putLast(key: K, value: V): this;
+    delete(key: K): boolean;
+    remove(key: K): V | undefined;
+    replace(key: K, value: V): V | undefined;
+    replaceAll(fn: (value: V, key: K, map: MapCollection<K, V>) => V): void;
+    getOrInsert(key: K, value: V): V;
+    getOrInsertComputed(key: K, fn: (key: K) => V): V;
+    compute(key: K, fn: (value: V | undefined, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    computeIfPresent(key: K, fn: (value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    merge(key: K, value: V, fn: (old: V, value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    clear(): void;
+    firstEntry(): MapEntry<K, V> | undefined;
+    lastEntry(): MapEntry<K, V> | undefined;
+    pollFirstEntry(): MapEntry<K, V> | undefined;
+    pollLastEntry(): MapEntry<K, V> | undefined;
+    reversed(): SequencedMap<K, V>;
+    keySet(): SequencedSet<K>;
+    entrySet(): SequencedSet<MapEntry<K, V>>;
+    valueCollection(): SequencedCollection<V>;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<[
+        K,
+        V
+    ]>;
+    forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<[
+        K,
+        V
+    ]>;
+    copy(): LinkedHashMap<K, V>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): Array<[
+        K,
+        V
+    ]>;
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface LinkedHashMapOptions<K, V> {
+    key?: KeyOf<K> | undefined;
+    equivalence?: Equivalence<K> | undefined;
+    accessOrder?: boolean | undefined;
+    maxSize?: number | undefined;
+    onEvict?: ((value: V, key: K, map: LinkedHashMap<K, V>) => void) | undefined;
+}
 declare class LinkedHashSet<E> implements SequencedSet<E> {
     private engine;
     constructor(elements?: Iterable<E> | null, options?: LinkedHashSetOptions<E> | null);
@@ -572,6 +651,15 @@ interface ReadonlySequencedCollection<E> extends ReadonlyCollection<E> {
     getLast(): E;
     reversed(): ReadonlySequencedCollection<E>;
 }
+interface ReadonlySequencedMap<K, V> extends ReadonlyMapCollection<K, V> {
+    firstEntry(): MapEntry<K, V> | undefined;
+    lastEntry(): MapEntry<K, V> | undefined;
+    reversed(): ReadonlySequencedMap<K, V>;
+    keySet(): ReadonlySequencedSet<K>;
+    entrySet(): ReadonlySequencedSet<MapEntry<K, V>>;
+    valueCollection(): ReadonlySequencedCollection<V>;
+    forEach(action: (value: V, key: K, map: ReadonlyMapCollection<K, V>) => void, thisArg?: unknown): void;
+}
 interface ReadonlySequencedSet<E> extends ReadonlySetCollection<E>, ReadonlySequencedCollection<E> {
     reversed(): ReadonlySequencedSet<E>;
     forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
@@ -585,7 +673,7 @@ interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
     ]>;
     forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
 }
-interface ReadonlySortedMap<K, V> extends ReadonlyMapCollection<K, V> {
+interface ReadonlySortedMap<K, V> extends ReadonlySequencedMap<K, V> {
     readonly size: number;
     isEmpty(): boolean;
     [Symbol.iterator](): IterableIterator<[
@@ -634,6 +722,7 @@ interface ReadonlySortedSet<E> extends ReadonlySequencedSet<E> {
     reversed(): ReadonlySortedSet<E>;
 }
 declare const SEQUENCED_COLLECTION_BRAND: unique symbol;
+declare const SEQUENCED_MAP_BRAND: unique symbol;
 declare const SET_COLLECTION_BRAND: unique symbol;
 declare const SORTED_MAP_BRAND: unique symbol;
 declare const SORTED_SET_BRAND: unique symbol;
@@ -644,6 +733,17 @@ interface SequencedCollection<E> extends Collection<E>, ReadonlySequencedCollect
     removeLast(): E;
     reversed(): SequencedCollection<E>;
 }
+interface SequencedMap<K, V> extends MapCollection<K, V>, ReadonlySequencedMap<K, V> {
+    pollFirstEntry(): MapEntry<K, V> | undefined;
+    pollLastEntry(): MapEntry<K, V> | undefined;
+    putFirst(key: K, value: V): this;
+    putLast(key: K, value: V): this;
+    reversed(): SequencedMap<K, V>;
+    keySet(): SequencedSet<K>;
+    entrySet(): SequencedSet<MapEntry<K, V>>;
+    valueCollection(): SequencedCollection<V>;
+    forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void;
+}
 interface SequencedSet<E> extends SetCollection<E>, SequencedCollection<E>, ReadonlySequencedSet<E> {
     addFirst(element: E): this;
     addLast(element: E): this;
@@ -653,20 +753,22 @@ interface SequencedSet<E> extends SetCollection<E>, SequencedCollection<E>, Read
 interface SetCollection<E> extends Collection<E>, ReadonlySetCollection<E> {
     forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
 }
-interface SortedMap<K, V> extends MapCollection<K, V>, ReadonlySortedMap<K, V> {
+interface SortedMap<K, V> extends SequencedMap<K, V>, ReadonlySortedMap<K, V> {
     [Symbol.iterator](): IterableIterator<[
         K,
         V
     ]>;
     pollFirstEntry(): MapEntry<K, V> | undefined;
     pollLastEntry(): MapEntry<K, V> | undefined;
+    putFirst(key: K, value: V): this;
+    putLast(key: K, value: V): this;
     subMap(from: K, to: K, options?: SubSetOptions | null): SortedMap<K, V>;
     headMap(to: K, options?: BoundOptions | null): SortedMap<K, V>;
     tailMap(from: K, options?: BoundOptions | null): SortedMap<K, V>;
     reversed(): SortedMap<K, V>;
     keySet(): SortedSet<K>;
-    entrySet(): SetCollection<MapEntry<K, V>>;
-    valueCollection(): Collection<V>;
+    entrySet(): SequencedSet<MapEntry<K, V>>;
+    valueCollection(): SequencedCollection<V>;
     forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void;
 }
 interface SortedSet<E> extends SequencedSet<E>, ReadonlySortedSet<E> {
@@ -703,6 +805,7 @@ declare class TreeMap<K, V> implements SortedMap<K, V> {
     get [TREE_MAP_BRAND](): true;
     get [SORTED_MAP_BRAND](): true;
     get [MAP_COLLECTION_BRAND](): true;
+    get [SEQUENCED_MAP_BRAND](): true;
     get size(): number;
     get revision(): number;
     get [Symbol.toStringTag](): string;
@@ -736,13 +839,15 @@ declare class TreeMap<K, V> implements SortedMap<K, V> {
     higherEntry(key: K): MapEntry<K, V> | undefined;
     pollFirstEntry(): MapEntry<K, V> | undefined;
     pollLastEntry(): MapEntry<K, V> | undefined;
+    putFirst(key: K, value: V): this;
+    putLast(key: K, value: V): this;
     subMap(from: K, to: K, options?: SubSetOptions | null): SortedMap<K, V>;
     headMap(to: K, options?: BoundOptions | null): SortedMap<K, V>;
     tailMap(from: K, options?: BoundOptions | null): SortedMap<K, V>;
     reversed(): SortedMap<K, V>;
     keySet(): SortedSet<K>;
-    entrySet(): SetCollection<MapEntry<K, V>>;
-    valueCollection(): Collection<V>;
+    entrySet(): SequencedSet<MapEntry<K, V>>;
+    valueCollection(): SequencedCollection<V>;
     keys(): IterableIterator<K>;
     values(): IterableIterator<V>;
     entries(): IterableIterator<[
@@ -858,5 +963,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedHashSetOptions, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySequencedSet, ReadonlySetCollection, ReadonlySortedMap, ReadonlySortedSet, SequencedCollection, SequencedSet, SetCollection, SortedMap, SortedSet, SubSetOptions, TreeMapOptions, TreeSetOptions };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashMap, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedHashMapOptions, LinkedHashSetOptions, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySequencedMap, ReadonlySequencedSet, ReadonlySetCollection, ReadonlySortedMap, ReadonlySortedSet, SequencedCollection, SequencedMap, SequencedSet, SetCollection, SortedMap, SortedSet, SubSetOptions, TreeMapOptions, TreeSetOptions };

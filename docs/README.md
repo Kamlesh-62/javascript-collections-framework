@@ -26,6 +26,8 @@ User documentation for `javascript-collections-framework`.
 
 - [Maps and `HashMap`](maps.md) — a drop-in for `Map` with keys compared by value on request, `getOrInsert`, `compute` and `merge`, live key, entry and value views, structural `equals`, cost, differences from `Map`
 
+- [Linked hash maps and `LinkedHashMap`](linked-hash-maps.md) — a map in insertion or access order with both ends: `firstEntry`/`lastEntry`, polls, `putFirst`/`putLast` that insert or move, a live reversed view, an LRU cache from `accessOrder`, `maxSize` and `onEvict`, live iteration with moves and accesses, differences from `Map`
+
 - [Queues, deques and `ArrayDeque`](deques.md) — first in first out, stacks with `push`/`pop`, both ends, the reversed view, `null` rejection, differences from `Array`
 
 - [`LinkedList` and node handles](linked-lists.md) — a deque with O(1) insert and remove next to a known element, handles, stored `null`/`undefined`, differences from `Array`

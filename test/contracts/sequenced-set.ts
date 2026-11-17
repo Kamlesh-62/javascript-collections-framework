@@ -29,6 +29,14 @@ export interface SequencedSetContractOptions {
    * move keeps the stored member is a real one; the value itself by default.
    */
   twin?: ((value: unknown) => unknown) | undefined
+  /**
+   * Turns a member back into the element it was made from, for a set whose members wrap the
+   * elements (an entry view, whose members are entries of `[element, element]`); identity by
+   * default.
+   */
+  member?: (member: unknown) => unknown
+  /** Turns an element into a value `has` and `delete` find, for such a set; identity by default. */
+  probe?: (element: unknown) => unknown
 }
 
 export function describeSequencedSet(
@@ -39,6 +47,10 @@ export function describeSequencedSet(
   const unsupported = options.addAtEnds === 'unsupported'
   const insert = options.insert
   const twin = options.twin ?? ((value: unknown) => value)
+  const member = options.member ?? ((value: unknown) => value)
+  const probe = options.probe ?? ((value: unknown) => value)
+  /** The elements `values` were made from, in order. */
+  const elements = (values: Iterable<unknown>): unknown[] => [...values].map(member)
   /** Puts `element` into `owner` (the factory's set) through `add` or the `insert` option. */
   const put = (owner: SequencedSet<unknown>, element: unknown): void => {
     if (insert) insert(owner, element)
@@ -50,10 +62,10 @@ export function describeSequencedSet(
       const set = make([1, 2, 3])
       const view = set.reversed()
       expect(isSetCollection(view)).toBe(true)
-      expect([...view]).toEqual([3, 2, 1])
+      expect(elements(view)).toEqual([3, 2, 1])
       expect(view.size).toBe(3)
-      expect(view.has(2)).toBe(true)
-      expect(view.has(4)).toBe(false)
+      expect(view.has(probe(2))).toBe(true)
+      expect(view.has(probe(4))).toBe(false)
       expect(view.equals(set)).toBe(true)
       expect(set.equals(view)).toBe(true)
       expect(hashCode(view)).toBe(hashCode(set))
@@ -62,22 +74,22 @@ export function describeSequencedSet(
     it('reversed().reversed() iterates as the original and its changes reach the set [013 S5-AC3]', () => {
       const set = make([1, 2, 3])
       const twice = set.reversed().reversed()
-      expect([...twice]).toEqual([1, 2, 3])
-      expect(twice.removeFirst()).toBe(1)
-      expect([...set]).toEqual([2, 3])
-      twice.delete(3)
-      expect([...set]).toEqual([2])
+      expect(elements(twice)).toEqual([1, 2, 3])
+      expect(member(twice.removeFirst())).toBe(1)
+      expect(elements(set)).toEqual([2, 3])
+      twice.delete(probe(3))
+      expect(elements(set)).toEqual([2])
     })
 
     it('changes through the set or its reversed view show in both [013 S5-AC3]', () => {
       const set = make([1, 2, 3])
       const view = set.reversed()
       put(set, 4)
-      expect([...view]).toEqual([4, 3, 2, 1])
-      view.delete(3)
-      expect([...set]).toEqual([1, 2, 4])
+      expect(elements(view)).toEqual([4, 3, 2, 1])
+      view.delete(probe(3))
+      expect(elements(set)).toEqual([1, 2, 4])
       put(set, 3)
-      expect(view.has(3)).toBe(true)
+      expect(view.has(probe(3))).toBe(true)
       expect(view.size).toBe(set.size)
       view.clear()
       expect(set.size).toBe(0)
@@ -86,20 +98,20 @@ export function describeSequencedSet(
     it('the reversed view’s ends mirror the set’s [013 S5-AC3]', () => {
       const set = make([1, 2, 3, 4])
       const view = set.reversed()
-      expect(view.getFirst()).toBe(set.getLast())
-      expect(view.getLast()).toBe(set.getFirst())
-      expect(view.removeFirst()).toBe(4)
-      expect(view.removeLast()).toBe(1)
-      expect([...set]).toEqual([2, 3])
+      expect(member(view.getFirst())).toBe(member(set.getLast()))
+      expect(member(view.getLast())).toBe(member(set.getFirst()))
+      expect(member(view.removeFirst())).toBe(4)
+      expect(member(view.removeLast())).toBe(1)
+      expect(elements(set)).toEqual([2, 3])
     })
 
     if (insert) {
       it('add throws UnsupportedOperationError and changes nothing [013 S5-AC3]', () => {
         const set = make([1, 2])
         const revision = set.revision
-        expect(() => set.add(3)).toThrow(UnsupportedOperationError)
-        expect(() => set.reversed().add(3)).toThrow(UnsupportedOperationError)
-        expect([...set]).toEqual([1, 2])
+        expect(() => set.add(probe(3))).toThrow(UnsupportedOperationError)
+        expect(() => set.reversed().add(probe(3))).toThrow(UnsupportedOperationError)
+        expect(elements(set)).toEqual([1, 2])
         expect(set.revision).toBe(revision)
       })
     }
@@ -110,12 +122,12 @@ export function describeSequencedSet(
         const view = set.reversed()
         const revision = set.revision
         for (const target of [set, view]) {
-          expect(() => target.addFirst(1)).toThrow(UnsupportedOperationError)
-          expect(() => target.addLast(4)).toThrow(UnsupportedOperationError)
-          expect(() => target.addFirst(3)).toThrow(UnsupportedOperationError)
-          expect(() => target.addLast(2)).toThrow(UnsupportedOperationError)
+          expect(() => target.addFirst(probe(1))).toThrow(UnsupportedOperationError)
+          expect(() => target.addLast(probe(4))).toThrow(UnsupportedOperationError)
+          expect(() => target.addFirst(probe(3))).toThrow(UnsupportedOperationError)
+          expect(() => target.addLast(probe(2))).toThrow(UnsupportedOperationError)
         }
-        expect([...set]).toEqual([2, 3])
+        expect(elements(set)).toEqual([2, 3])
         expect(set.revision).toBe(revision)
       })
     } else {

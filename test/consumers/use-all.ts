@@ -15,6 +15,7 @@ import type {
   HashMapOptions,
   HashSetOptions,
   KeyOf,
+  LinkedHashMapOptions,
   LinkedHashSetOptions,
   LinkedListNode,
   List,
@@ -29,11 +30,13 @@ import type {
   ReadonlyMapCollection,
   ReadonlyQueue,
   ReadonlySequencedCollection,
+  ReadonlySequencedMap,
   ReadonlySequencedSet,
   ReadonlySetCollection,
   ReadonlySortedMap,
   ReadonlySortedSet,
   SequencedCollection,
+  SequencedMap,
   SequencedSet,
   SetCollection,
   SortedMap,
@@ -67,6 +70,7 @@ import {
   isSetCollection,
   isSortedMap,
   isSortedSet,
+  LinkedHashMap,
   LinkedHashSet,
   LinkedList,
   NoSuchElementError,
@@ -277,3 +281,29 @@ export function firstKey(value: unknown): unknown {
   const readable: ReadonlySortedMap<unknown, unknown> = value
   return readable.firstEntry()?.key
 }
+
+const lruOptions: LinkedHashMapOptions<string, number> = {
+  accessOrder: true,
+  maxSize: 2,
+  onEvict: (value, key, map) => {
+    map.has(key + value)
+  },
+}
+export const lru: SequencedMap<string, number> = new LinkedHashMap([['a', 1]], lruOptions)
+  .putFirst('b', 2)
+  .putLast('c', 3)
+export const lruCopy: LinkedHashMap<string, number> = LinkedHashMap.from([['a', 1]]).copy()
+export const lruNewest: ReadonlySequencedMap<string, number> = lru.reversed()
+export const lruOldest: MapEntry<string, number> | undefined = lru.pollFirstEntry()
+export const lruKeys: SequencedSet<string> = lru.keySet()
+export const lruValues: SequencedCollection<number> = lruCopy.valueCollection()
+export const sortedAsSequencedMap: SequencedMap<number, string> = new TreeMap<number, string>()
+export const sortedEntries: SequencedSet<MapEntry<number, string>> = new TreeMap<
+  number,
+  string
+>().entrySet()
+export const sortedValues: SequencedCollection<string> = new TreeMap<
+  number,
+  string
+>().valueCollection()
+export const readonlySorted: ReadonlySequencedMap<number, string> = levels

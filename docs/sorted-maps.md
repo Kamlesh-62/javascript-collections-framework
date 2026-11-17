@@ -218,10 +218,18 @@ greatest key.
   removes its mapping; `add`, `addFirst` and `addLast` throw `UnsupportedOperationError` (so does
   `addAll`, unless its argument is empty). Its range and reversed views are the key sets of the
   matching map views.
-- `entrySet()` is a set of entries in key order (`TreeMapEntrySet`). An entry is a member when its
-  key is present with a value equal under `equals`; removing it removes the mapping.
-- `valueCollection()` is a collection of the values in key order (`TreeMapValues`); `delete(v)`
-  removes the mapping of the first key with that value, in the view's order. It equals only itself.
+- `entrySet()` is a sequenced set of entries in key order (`TreeMapEntrySet`). An entry is a
+  member when its key is present with a value equal under `equals`; removing it removes the
+  mapping.
+- `valueCollection()` is a sequenced collection of the values in key order (`TreeMapValues`);
+  `delete(v)` removes the mapping of the first key with that value, in the view's order. It equals
+  only itself.
+
+The entry and value views have the view's ends: `getFirst` and `getLast` return the entry or value
+of the first and last key, `removeFirst` and `removeLast` remove those mappings (each throwing
+`NoSuchElementError` when empty), `reversed()` is the matching view of the reversed map, and
+`addFirst` and `addLast` throw `UnsupportedOperationError`. `isSequencedCollection` is `true` for
+them.
 
 Each call returns a new view; none can add.
 
@@ -260,8 +268,11 @@ stored mapping once, and every call finishes within the usual number of comparis
 ## Equality and hashing
 
 Two maps are equal when they have the same size and each maps every key of the other to a value
-equal under `equals`, in any order — so a `TreeMap` equals a `HashMap` with the same mappings, both
-ways round. In natural order, looking up a key of another kind answers absent, so a `HashMap` with
+equal under `equals`, in any order — so a `TreeMap` equals a `HashMap` or
+[`LinkedHashMap`](linked-hash-maps.md) with the same mappings, both ways round. The other map is
+asked through its entry view's `has`, so values are compared as the other map's value against this
+map's, and a value whose `equals` adds or removes mappings of the other map makes the comparison
+throw `ConcurrentModificationError`. In natural order, looking up a key of another kind answers absent, so a `HashMap` with
 a `null` or string key is simply not equal. Native `Map`, sets and plain objects are never equal to
 a map.
 
@@ -333,7 +344,11 @@ No operation recurses, so very large maps are safe to build, iterate, print, com
 | `SortedMap<K, V>`         | `pollFirstEntry`, `pollLastEntry`, and views you can change through                                 |
 | `TreeMapOptions<K>`       | `comparator`                                                                                        |
 
-`TreeMap<K, V>` implements `SortedMap<K, V>`, which extends `MapCollection<K, V>`.
+`TreeMap<K, V>` implements `SortedMap<K, V>`, which extends `SequencedMap<K, V>` (and through it
+`MapCollection<K, V>`): a sorted map is a [sequenced map](linked-hash-maps.md#types) whose order is
+decided by its keys, so `putFirst` and `putLast` throw `UnsupportedOperationError` without
+checking or changing anything — use `set`. Its entry and value views are typed `SequencedSet` and
+`SequencedCollection`.
 `isSortedMap(value)` recognises a `TreeMap` and its range and reversed views from any copy of the
 package; `isMapCollection` recognises them too, and `instanceof TreeMap` recognises the map itself.
 A sorted map is not a collection, and its key set is a sorted set, not a sorted map. Type parameters

@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 17
+export const MINIMUM_CLASSES = 18
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -116,6 +116,38 @@ function hashMaps(copy) {
 }
 
 /**
+ * A `LinkedHashMap` made by one copy on each of its three paths, and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function linkedHashMaps(copy) {
+  const LinkedHashMap = /** @type {new (entries?: Iterable<unknown>, options?: object) => any} */ (
+    copy.LinkedHashMap
+  )
+  const pairs = [
+    ['a', 1],
+    ['b', 2],
+  ]
+  const map = new LinkedHashMap(pairs)
+  return [
+    map,
+    new LinkedHashMap(pairs, { key: (/** @type {unknown} */ key) => key }),
+    new LinkedHashMap(pairs, { equivalence: copy.valueEquivalence }),
+    map.reversed(),
+  ]
+}
+
+/**
+ * The key, entry and value views of the `LinkedHashMap`s and `TreeMap`s made by one copy.
+ * @param {Namespace} copy
+ * @param {'keySet' | 'entrySet' | 'valueCollection'} kind
+ * @returns {unknown[]}
+ */
+function mapViews(copy, kind) {
+  return [...linkedHashMaps(copy), ...treeMaps(copy)].map((/** @type {any} */ map) => map[kind]())
+}
+
+/**
  * A `PriorityQueue` made by one copy.
  * @param {Namespace} copy
  * @returns {unknown[]}
@@ -171,6 +203,8 @@ export const SAMPLES = {
     ...priorityQueues(copy),
     ...treeSets(copy),
     ...treeMapKeySets(copy),
+    ...mapViews(copy, 'keySet'),
+    ...mapViews(copy, 'valueCollection'),
   ],
   isSequencedCollection: (/** @type {Namespace} */ copy) => [
     ...lists(copy),
@@ -178,6 +212,9 @@ export const SAMPLES = {
     ...linkedHashSets(copy),
     ...treeSets(copy),
     ...treeMapKeySets(copy),
+    ...mapViews(copy, 'keySet'),
+    ...mapViews(copy, 'entrySet'),
+    ...mapViews(copy, 'valueCollection'),
   ],
   isList: lists,
   isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
@@ -187,9 +224,15 @@ export const SAMPLES = {
     ...linkedHashSets(copy),
     ...treeSets(copy),
     ...treeMapKeySets(copy),
+    ...mapViews(copy, 'keySet'),
+    ...mapViews(copy, 'entrySet'),
   ],
   isSortedSet: (/** @type {Namespace} */ copy) => [...treeSets(copy), ...treeMapKeySets(copy)],
-  isMapCollection: (/** @type {Namespace} */ copy) => [...hashMaps(copy), ...treeMaps(copy)],
+  isMapCollection: (/** @type {Namespace} */ copy) => [
+    ...hashMaps(copy),
+    ...linkedHashMaps(copy),
+    ...treeMaps(copy),
+  ],
   isSortedMap: treeMaps,
 }
 

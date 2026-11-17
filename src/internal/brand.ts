@@ -32,6 +32,11 @@ export const MAP_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/MapCollection',
 )
 
+// The brand of every sequenced map and its reversed and range views.
+export const SEQUENCED_MAP_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/SequencedMap',
+)
+
 // The brand of every map entry.
 export const MAP_ENTRY_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/MapEntry',

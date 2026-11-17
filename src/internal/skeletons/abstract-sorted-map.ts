@@ -9,14 +9,19 @@
 // can create a mapping checks, in order, its callback, a `null` key in natural order, the key's
 // comparability and the view's range, then descends once.
 
-import { ConcurrentModificationError, NullElementError } from '../../errors/errors'
+import {
+  ConcurrentModificationError,
+  NullElementError,
+  UnsupportedOperationError,
+} from '../../errors/errors'
 import type { Comparator } from '../../functions/comparators'
-import type { Collection, Cursor } from '../../interfaces/collection'
+import type { Cursor } from '../../interfaces/collection'
+import type { SequencedCollection } from '../../interfaces/list'
 import type { MapCollection, MapEntry } from '../../interfaces/map'
-import type { SetCollection } from '../../interfaces/set'
+import type { SequencedSet } from '../../interfaces/sequenced-set'
 import type { SortedMap } from '../../interfaces/sorted-map'
 import type { BoundOptions, SortedSet, SubSetOptions } from '../../interfaces/sorted-set'
-import { MAP_COLLECTION_BRAND, SORTED_MAP_BRAND } from '../brand'
+import { MAP_COLLECTION_BRAND, SEQUENCED_MAP_BRAND, SORTED_MAP_BRAND } from '../brand'
 import { requireFunction } from '../checks'
 import { MISSING } from '../engines/map-stores'
 import type { MapNode, MapTree } from '../engines/map-tree'
@@ -100,6 +105,11 @@ export abstract class AbstractSortedMap<K, V>
 
   /** Marks every map for `isMapCollection`, across loaded copies. */
   get [MAP_COLLECTION_BRAND](): true {
+    return true
+  }
+
+  /** Marks every sequenced map, across loaded copies. */
+  get [SEQUENCED_MAP_BRAND](): true {
     return true
   }
 
@@ -512,6 +522,22 @@ export abstract class AbstractSortedMap<K, V>
     return entry
   }
 
+  /** Always throws: a sorted map places each mapping by its key. */
+  putFirst(_key: K, _value: V): never {
+    throw this.unsupportedPut('putFirst')
+  }
+
+  /** Always throws: a sorted map places each mapping by its key. */
+  putLast(_key: K, _value: V): never {
+    throw this.unsupportedPut('putLast')
+  }
+
+  private unsupportedPut(method: string): UnsupportedOperationError {
+    return new UnsupportedOperationError(
+      `${this.at(method)}: a sorted map places each mapping by its key; use set`,
+    )
+  }
+
   // ── Views ──
 
   subMap(from: K, to: K, options?: SubSetOptions | null): SortedMap<K, V> {
@@ -537,11 +563,11 @@ export abstract class AbstractSortedMap<K, V>
     return new TreeMapKeySet(this)
   }
 
-  entrySet(): SetCollection<MapEntry<K, V>> {
+  entrySet(): SequencedSet<MapEntry<K, V>> {
     return new TreeMapEntrySet(this)
   }
 
-  valueCollection(): Collection<V> {
+  valueCollection(): SequencedCollection<V> {
     return new TreeMapValues(this)
   }
 }
