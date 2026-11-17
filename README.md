@@ -45,7 +45,7 @@ Or without a build step:
 | Family            | Implementations                                                                                                  |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Lists             | [`ArrayList`](docs/lists.md)                                                                                     |
-| Sets              | [`HashSet`](docs/sets.md), [`TreeSet`](docs/sorted-sets.md)                                                      |
+| Sets              | [`HashSet`](docs/sets.md), [`LinkedHashSet`](docs/linked-hash-sets.md), [`TreeSet`](docs/sorted-sets.md)         |
 | Maps              | [`HashMap`](docs/maps.md)                                                                                        |
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md), [`PriorityQueue`](docs/priority-queues.md) |
 
@@ -53,7 +53,6 @@ Or without a build step:
 
 | Family | Implementations            |
 | ------ | -------------------------- |
-| Sets   | `LinkedHashSet`            |
 | Maps   | `LinkedHashMap`, `TreeMap` |
 
 The table lists what is planned, not what is available. Each entry moves to the

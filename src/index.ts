@@ -14,6 +14,8 @@ export type { HashMapOptions } from './collections/hash-map'
 export { HashMap } from './collections/hash-map'
 export type { HashSetOptions } from './collections/hash-set'
 export { HashSet } from './collections/hash-set'
+export type { LinkedHashSetOptions } from './collections/linked-hash-set'
+export { LinkedHashSet } from './collections/linked-hash-set'
 export { LinkedList } from './collections/linked-list'
 export type { PriorityQueueOptions } from './collections/priority-queue'
 export { PriorityQueue } from './collections/priority-queue'
@@ -73,6 +75,7 @@ export type {
 } from './interfaces/list'
 export type { MapCollection, MapEntry, ReadonlyMapCollection } from './interfaces/map'
 export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'
+export type { ReadonlySequencedSet, SequencedSet } from './interfaces/sequenced-set'
 export type { ReadonlySetCollection, SetCollection } from './interfaces/set'
 export type {
   BoundOptions,

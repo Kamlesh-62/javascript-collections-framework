@@ -7,7 +7,7 @@
 
 import type { Comparator } from '../functions/comparators'
 import type { Cursor } from './collection'
-import type { ReadonlySequencedCollection, SequencedCollection } from './list'
+import type { ReadonlySequencedSet, SequencedSet } from './sequenced-set'
 import type { ReadonlySetCollection, SetCollection } from './set'
 
 /**
@@ -52,9 +52,7 @@ export interface BoundOptions {
  * }
  * ```
  */
-export interface ReadonlySortedSet<E>
-  extends ReadonlySetCollection<E>,
-    ReadonlySequencedCollection<E> {
+export interface ReadonlySortedSet<E> extends ReadonlySequencedSet<E> {
   /**
    * The number of members. Time: O(1) on a set; O(k + log n) on a range view holding k of the
    * set's n members, which counts the members in range.
@@ -225,10 +223,7 @@ export interface ReadonlySortedSet<E>
  * }
  * ```
  */
-export interface SortedSet<E>
-  extends SetCollection<E>,
-    SequencedCollection<E>,
-    ReadonlySortedSet<E> {
+export interface SortedSet<E> extends SequencedSet<E>, ReadonlySortedSet<E> {
   /**
    * Calls `action(member, member, set)` for each member in order, with `this` set to `thisArg`.
    *

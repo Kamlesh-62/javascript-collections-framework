@@ -6,6 +6,7 @@ import { expect } from 'vitest'
 import { type Collection, type Cursor, NoSuchElementError } from '../../src/index'
 import type { List } from '../../src/interfaces/list'
 import type { Deque } from '../../src/interfaces/queue'
+import type { SequencedSet } from '../../src/interfaces/sequenced-set'
 import type { SortedSet } from '../../src/interfaces/sorted-set'
 import { integer, pick, seeded } from './random'
 
@@ -820,4 +821,265 @@ export function runSortedSetReferenceModel<T>(options: {
     expect(set.size, at).toBe(array.length)
   }
   expect(set.toArray(), `sorted set reference model seed ${options.seed} final`).toEqual(array)
+}
+
+/** A member of the sequenced-set model, with its order stamp. */
+interface SequencedRecord {
+  readonly value: unknown
+  readonly seq: number
+}
+
+/** An open iteration of the sequenced-set model, written from the rules, not the links. */
+interface ModelIteration {
+  readonly fromBack: boolean
+  boundary: number
+  done: boolean
+}
+
+interface SequencedCursor {
+  ours: Cursor<unknown>
+  model: ModelIteration
+  looked: { value: unknown } | 'done' | undefined
+  last: { value: unknown } | undefined
+}
+
+/**
+ * Seeded reference model for an insertion-ordered sequenced set with live iteration (a linked hash
+ * set): applies the same random operations — inserts, moves, deletes, end removals, `clear`, and
+ * `add`/`addAll`/ends through the reversed view — to the set and to an array of members stamped
+ * with order numbers, and compares every result. Open iterators and cursors on the set and on its
+ * reversed view are stepped and compared exactly: each returns the first member past the stamp of
+ * the member it last returned, in its own direction; `clear` puts it back before the first member;
+ * once done it stays done. Values are small integers, `-0` (stored as `0`) and `null`.
+ */
+export function runSequencedSetReferenceModel(options: {
+  seed: number
+  steps: number
+  /** Builds an empty set. */
+  make: () => SequencedSet<unknown>
+  /** How many distinct integers values are drawn from (from 0), besides `-0` and `null`. */
+  values?: number
+}): void {
+  const random = seeded(options.seed)
+  const set = options.make()
+  const view = set.reversed()
+  const records: SequencedRecord[] = []
+  let low = 0
+  let high = 0
+  const iterations: Array<{ ours: Iterator<unknown>; model: ModelIteration }> = []
+  const cursors: SequencedCursor[] = []
+  const top = (options.values ?? 12) - 1
+  const ops = [
+    'add',
+    'add',
+    'addFirst',
+    'addLast',
+    'delete',
+    'has',
+    'removeFirst',
+    'removeLast',
+    'ends',
+    'clear',
+    'viewAdd',
+    'viewAddAll',
+    'viewEnds',
+    'iter',
+    'step',
+    'step',
+    'step',
+    'cursor',
+    'look',
+    'next',
+    'next',
+    'remove',
+  ]
+  const draw = (): unknown => {
+    const r = random()
+    if (r < 0.06) return null
+    if (r < 0.12) return -0
+    return integer(random, 0, top)
+  }
+  const norm = (v: unknown): unknown => (v === 0 ? 0 : v)
+  const indexOf = (v: unknown): number => records.findIndex((r) => Object.is(r.value, norm(v)))
+  const insert = (v: unknown, front: boolean): void => {
+    if (front) records.unshift({ value: norm(v), seq: --low })
+    else records.push({ value: norm(v), seq: ++high })
+  }
+  const removeAt = (index: number): unknown =>
+    (records.splice(index, 1)[0] as SequencedRecord).value
+  /** Inserts an absent value at an end; with `move`, moves a present one there unless it is there. */
+  const place = (v: unknown, front: boolean, move: boolean): void => {
+    const index = indexOf(v)
+    if (index < 0) insert(v, front)
+    else if (move && index !== (front ? 0 : records.length - 1)) {
+      removeAt(index)
+      insert(v, front)
+    }
+  }
+  const advance = (it: ModelIteration): { value: unknown } | 'done' => {
+    if (it.done) return 'done'
+    let found: SequencedRecord | undefined
+    if (it.fromBack) {
+      for (let i = records.length - 1; i >= 0 && found === undefined; i--) {
+        if ((records[i] as SequencedRecord).seq < it.boundary) found = records[i]
+      }
+    } else {
+      found = records.find((r) => r.seq > it.boundary)
+    }
+    if (found === undefined) {
+      it.done = true
+      return 'done'
+    }
+    it.boundary = found.seq
+    return { value: found.value }
+  }
+  const open = (fromBack: boolean): ModelIteration => ({
+    fromBack,
+    boundary: fromBack ? high + 1 : low - 1,
+    done: false,
+  })
+  const end = (fromBack: boolean, remove: boolean): unknown => {
+    if (records.length === 0) return NoSuchElementError
+    const index = fromBack ? records.length - 1 : 0
+    return remove ? removeAt(index) : (records[index] as SequencedRecord).value
+  }
+  const expectEnd = (actual: () => unknown, expected: unknown, at: string): void => {
+    if (expected === NoSuchElementError) expect(actual, at).toThrow(NoSuchElementError)
+    else expect(actual(), at).toBe(expected)
+  }
+
+  for (let step = 0; step < options.steps; step++) {
+    const at = `sequenced set reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const v = draw()
+    switch (op) {
+      case 'add':
+        set.add(v)
+        place(v, false, false)
+        break
+      case 'addFirst':
+        set.addFirst(v)
+        place(v, true, true)
+        break
+      case 'addLast':
+        set.addLast(v)
+        place(v, false, true)
+        break
+      case 'delete': {
+        const index = indexOf(v)
+        if (index >= 0) removeAt(index)
+        expect(set.delete(v), at).toBe(index >= 0)
+        break
+      }
+      case 'has':
+        expect(set.has(v), at).toBe(indexOf(v) >= 0)
+        break
+      case 'removeFirst':
+      case 'removeLast': {
+        const fromBack = op === 'removeLast'
+        expectEnd(() => (fromBack ? set.removeLast() : set.removeFirst()), end(fromBack, true), at)
+        break
+      }
+      case 'ends':
+        expectEnd(() => set.getFirst(), end(false, false), at)
+        expectEnd(() => set.getLast(), end(true, false), at)
+        break
+      case 'clear':
+        set.clear()
+        records.length = 0
+        for (const it of iterations)
+          if (!it.model.done) Object.assign(it.model, open(it.model.fromBack))
+        for (const cur of cursors)
+          if (!cur.model.done) Object.assign(cur.model, open(cur.model.fromBack))
+        break
+      case 'viewAdd':
+        expect(view.add(v), at).toBe(view)
+        place(v, true, false)
+        break
+      case 'viewAddAll': {
+        const w = draw()
+        const changed = indexOf(v) < 0 || indexOf(w) < 0
+        expect(view.addAll([v, w]), at).toBe(changed)
+        place(v, true, false)
+        place(w, true, false)
+        break
+      }
+      case 'viewEnds': {
+        const which = integer(random, 0, 5)
+        if (which === 0) expectEnd(() => view.getFirst(), end(true, false), at)
+        else if (which === 1) expectEnd(() => view.getLast(), end(false, false), at)
+        else if (which === 2) expectEnd(() => view.removeFirst(), end(true, true), at)
+        else if (which === 3) expectEnd(() => view.removeLast(), end(false, true), at)
+        else if (which === 4) {
+          view.addFirst(v)
+          place(v, false, true)
+        } else {
+          view.addLast(v)
+          place(v, true, true)
+        }
+        break
+      }
+      case 'iter': {
+        const fromBack = random() < 0.5
+        iterations.push({
+          ours: fromBack ? view[Symbol.iterator]() : set[Symbol.iterator](),
+          model: open(fromBack),
+        })
+        break
+      }
+      case 'step': {
+        if (iterations.length === 0) break
+        const it = pick(random, iterations)
+        const expected = advance(it.model)
+        expect(it.ours.next(), at).toEqual(
+          expected === 'done' ? { done: true, value: undefined } : { done: false, ...expected },
+        )
+        break
+      }
+      case 'cursor': {
+        const fromBack = random() < 0.5
+        cursors.push({
+          ours: fromBack ? view.cursor() : set.cursor(),
+          model: open(fromBack),
+          looked: undefined,
+          last: undefined,
+        })
+        break
+      }
+      case 'look': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.looked === undefined) cur.looked = advance(cur.model)
+        expect(cur.ours.hasNext(), at).toBe(cur.looked !== 'done')
+        break
+      }
+      case 'next': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.looked === undefined) cur.looked = advance(cur.model)
+        if (cur.looked === 'done') {
+          expect(() => cur.ours.next(), at).toThrow(NoSuchElementError)
+        } else {
+          expect(cur.ours.next(), at).toBe(cur.looked.value)
+          cur.last = cur.looked
+          cur.looked = undefined
+        }
+        break
+      }
+      case 'remove': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.last === undefined) break
+        cur.ours.remove()
+        const index = indexOf(cur.last.value)
+        if (index >= 0) removeAt(index)
+        cur.last = undefined
+        break
+      }
+    }
+    const members = records.map((r) => r.value)
+    expect(set.toArray(), at).toEqual(members)
+    expect(view.toArray(), at).toEqual(members.slice().reverse())
+    expect(set.size, at).toBe(members.length)
+  }
 }

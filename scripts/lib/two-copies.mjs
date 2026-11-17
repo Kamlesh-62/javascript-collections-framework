@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 15
+export const MINIMUM_CLASSES = 16
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -77,6 +77,24 @@ function hashSets(copy) {
 }
 
 /**
+ * A `LinkedHashSet` made by one copy on each of its three paths, and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function linkedHashSets(copy) {
+  const LinkedHashSet = /** @type {new (elements?: Iterable<unknown>, options?: object) => any} */ (
+    copy.LinkedHashSet
+  )
+  const set = new LinkedHashSet([1, 2, 3])
+  return [
+    set,
+    new LinkedHashSet([1, 2, 3], { key: (/** @type {unknown} */ value) => value }),
+    new LinkedHashSet([1, 2, 3], { equivalence: copy.valueEquivalence }),
+    set.reversed(),
+  ]
+}
+
+/**
  * A `HashMap` made by one copy on each of its three paths: default, `key` and `equivalence`.
  * @param {Namespace} copy
  * @returns {unknown[]}
@@ -125,18 +143,24 @@ export const SAMPLES = {
     ...lists(copy),
     ...allDeques(copy),
     ...hashSets(copy),
+    ...linkedHashSets(copy),
     ...priorityQueues(copy),
     ...treeSets(copy),
   ],
   isSequencedCollection: (/** @type {Namespace} */ copy) => [
     ...lists(copy),
     ...allDeques(copy),
+    ...linkedHashSets(copy),
     ...treeSets(copy),
   ],
   isList: lists,
   isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
   isDeque: allDeques,
-  isSetCollection: (/** @type {Namespace} */ copy) => [...hashSets(copy), ...treeSets(copy)],
+  isSetCollection: (/** @type {Namespace} */ copy) => [
+    ...hashSets(copy),
+    ...linkedHashSets(copy),
+    ...treeSets(copy),
+  ],
   isSortedSet: treeSets,
   isMapCollection: hashMaps,
 }

@@ -21,12 +21,15 @@ import type { equalsSymbol, HashFunction, hashCodeSymbol } from '../internal/equ
  * ```
  */
 export interface Cursor<E> {
-  /** Returns whether `next()` has an element to return. Never throws. Time: O(1). */
+  /**
+   * Returns whether `next()` has an element to return. Never throws. Time: O(1) unless the
+   * collection documents otherwise.
+   */
   hasNext(): boolean
   /**
    * Returns the next element.
    *
-   * Time: O(1).
+   * Time: O(1) unless the collection documents otherwise.
    *
    * @returns The next element.
    * @throws NoSuchElementError when no element remains.

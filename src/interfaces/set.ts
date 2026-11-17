@@ -25,7 +25,7 @@ export interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
   /**
    * Returns an iterator over the members, as `values()` does (native `Set` has both).
    *
-   * Time: O(1) to create; O(1) per step.
+   * Time: O(1) to create; each step amortised O(1) unless the implementation documents otherwise.
    *
    * @returns A new iterator.
    */
@@ -33,7 +33,7 @@ export interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
   /**
    * Returns an iterator over the members.
    *
-   * Time: O(1) to create; O(1) per step.
+   * Time: O(1) to create; each step amortised O(1) unless the implementation documents otherwise.
    *
    * @returns A new iterator.
    */
@@ -41,7 +41,7 @@ export interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
   /**
    * Returns an iterator over `[member, member]` pairs, as native `Set` does.
    *
-   * Time: O(1) to create; O(1) per step.
+   * Time: O(1) to create; each step amortised O(1) unless the implementation documents otherwise.
    *
    * @returns A new iterator.
    */
