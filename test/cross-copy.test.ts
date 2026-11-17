@@ -432,7 +432,14 @@ describe('maps across two copies', () => {
       ]
       for (const map of maps) {
         expect(isMapCollection(map)).toBe(true)
-        for (const guard of ['isCollection', 'isSetCollection', 'isList', 'isQueue']) {
+        for (const guard of [
+          'isCollection',
+          'isSetCollection',
+          'isSortedSet',
+          'isSequencedCollection',
+          'isList',
+          'isQueue',
+        ]) {
           expect((mine[guard] as (value: unknown) => boolean)(map), guard).toBe(false)
         }
       }
@@ -452,6 +459,7 @@ describe('maps across two copies', () => {
         sample.keySet(),
         sample.entrySet(),
         sample.valueCollection(),
+        new (theirs.TreeSet as MapClass)([1]),
         {},
         null,
         undefined,
@@ -523,6 +531,14 @@ describe('sorted sets across two copies', () => {
       const set = new TreeSet([1, 2, 3])
       const samples = [set, set.subSet(1, 3), set.headSet(2), set.reversed()]
       const guard = (name: string) => mine[name] as (value: unknown) => boolean
+      const map = new (
+        theirs.HashMap as new (
+          pairs: unknown[][],
+        ) => {
+          keySet(): unknown
+          entrySet(): unknown
+        }
+      )([[1, 'a']])
       for (const value of samples) {
         expect(guard('isSortedSet')(value)).toBe(true)
         expect(guard('isSetCollection')(value)).toBe(true)
@@ -538,6 +554,9 @@ describe('sorted sets across two copies', () => {
         new (theirs.ArrayList as SortedClass)([1]),
         new (theirs.ArrayDeque as SortedClass)([1]),
         new (theirs.PriorityQueue as SortedClass)([1]),
+        map,
+        map.keySet(),
+        map.entrySet(),
         {},
         null,
         undefined,

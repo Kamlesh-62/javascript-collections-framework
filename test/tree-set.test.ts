@@ -1,6 +1,7 @@
 import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { ArrayList } from '../src/collections/array-list'
+import { HashMap } from '../src/collections/hash-map'
 import { HashSet } from '../src/collections/hash-set'
 import { TreeSet } from '../src/collections/tree-set'
 import {
@@ -1147,6 +1148,23 @@ describe('TreeSet — equality and output', () => {
     expect(tree.reversed().equals(tree)).toBe(true)
     expect(tree.subSet(1, 3).equals(new HashSet([1, 2]))).toBe(true)
     expect('hashCode' in tree).toBe(false)
+  })
+
+  it('equals the key view of a map with the same keys both ways and hashes alike, but never the map [015 S6-AC2]', () => {
+    const tree = new TreeSet([1, 2, 3])
+    const map = new HashMap([
+      [3, 'c'],
+      [1, 'a'],
+      [2, 'b'],
+    ])
+    expect(tree.equals(map.keySet())).toBe(true)
+    expect(map.keySet().equals(tree)).toBe(true)
+    expect(tree.reversed().equals(map.keySet())).toBe(true)
+    expect(hashCode(tree)).toBe(hashCode(map.keySet()))
+    expect(tree.equals(map)).toBe(false)
+    expect(map.equals(tree)).toBe(false)
+    map.delete(2)
+    expect(tree.equals(map.keySet())).toBe(false)
   })
 
   it('gives equal sets the same hash through the given function, as a HashSet with the same members [015 S6-AC3]', () => {

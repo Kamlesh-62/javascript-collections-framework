@@ -225,7 +225,8 @@ No operation recurses, so very large sets are safe to build, iterate, print, com
 ## Equality and hashing
 
 Two sets are equal when they have the same size and each has every member of the other, in any
-order, so a `TreeSet` equals a `HashSet` with the same members, both ways round. Lists, queues,
+order, so a `TreeSet` equals a `HashSet` or a map's `keySet()` with the same members, both ways
+round. Lists, queues,
 arrays and native `Set` are never equal to it. `hashCode(set)` combines the members' hashes; equal
 sets get the same hash when their comparators treat as equal only values that hash alike (always
 true for natural order on numbers, strings and the other primitives).
