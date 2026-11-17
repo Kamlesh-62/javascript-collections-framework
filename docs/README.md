@@ -22,6 +22,8 @@ User documentation for `javascript-collections-framework`.
 
 - [Sets and `HashSet`](sets.md) — a drop-in for `Set` with value equality on request (`key`, `equivalence`), structural `equals`, live iteration, cost and collision resistance, differences from `Set`
 
+- [Linked hash sets and `LinkedHashSet`](linked-hash-sets.md) — a set in insertion order with both ends: `getFirst`/`getLast`, `removeFirst`/`removeLast`, `addFirst`/`addLast` that insert or move, a live reversed view, live iteration with moves, differences from `Set`
+
 - [Maps and `HashMap`](maps.md) — a drop-in for `Map` with keys compared by value on request, `getOrInsert`, `compute` and `merge`, live key, entry and value views, structural `equals`, cost, differences from `Map`
 
 - [Queues, deques and `ArrayDeque`](deques.md) — first in first out, stacks with `push`/`pop`, both ends, the reversed view, `null` rejection, differences from `Array`

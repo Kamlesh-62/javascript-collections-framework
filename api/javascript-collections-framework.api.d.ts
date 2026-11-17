@@ -280,8 +280,60 @@ declare class IndexOutOfBoundsError extends RangeError {
     static [Symbol.hasInstance](value: unknown): boolean;
 }
 type KeyOf<T> = (value: T) => string | number | bigint | boolean | symbol | null | undefined;
+declare const LINKED_HASH_SET_BRAND: unique symbol;
 declare const LINKED_LIST_BRAND: unique symbol;
 declare const LIST_BRAND: unique symbol;
+declare class LinkedHashSet<E> implements SequencedSet<E> {
+    private engine;
+    constructor(elements?: Iterable<E> | null, options?: LinkedHashSetOptions<E> | null);
+    constructor(options: LinkedHashSetOptions<E>);
+    static from<T>(elements: Iterable<T>, options?: LinkedHashSetOptions<T> | null): LinkedHashSet<T>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [LINKED_HASH_SET_BRAND](): true;
+    get [SET_COLLECTION_BRAND](): true;
+    get [SEQUENCED_COLLECTION_BRAND](): true;
+    get [COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    add(element: E): this;
+    addFirst(element: E): this;
+    addLast(element: E): this;
+    has(element: E): boolean;
+    delete(element: E): boolean;
+    getFirst(): E;
+    getLast(): E;
+    removeFirst(): E;
+    removeLast(): E;
+    reversed(): SequencedSet<E>;
+    addAll(elements: Iterable<E>): boolean;
+    removeAll(elements: Iterable<E>): boolean;
+    retainAll(elements: Iterable<E>): boolean;
+    removeIf(predicate: (element: E) => unknown): boolean;
+    clear(): void;
+    keys(): IterableIterator<E>;
+    values(): IterableIterator<E>;
+    entries(): IterableIterator<[
+        E,
+        E
+    ]>;
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<E>;
+    cursor(): Cursor<E>;
+    toArray(): E[];
+    copy(): LinkedHashSet<E>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): E[];
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface LinkedHashSetOptions<E> {
+    key?: KeyOf<E>;
+    equivalence?: Equivalence<E>;
+}
 declare class LinkedList<E> implements Deque<E> {
     private readonly engine;
     constructor(elements?: Iterable<E> | null);
@@ -520,6 +572,10 @@ interface ReadonlySequencedCollection<E> extends ReadonlyCollection<E> {
     getLast(): E;
     reversed(): ReadonlySequencedCollection<E>;
 }
+interface ReadonlySequencedSet<E> extends ReadonlySetCollection<E>, ReadonlySequencedCollection<E> {
+    reversed(): ReadonlySequencedSet<E>;
+    forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
+}
 interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
     keys(): IterableIterator<E>;
     values(): IterableIterator<E>;
@@ -529,7 +585,7 @@ interface ReadonlySetCollection<E> extends ReadonlyCollection<E> {
     ]>;
     forEach(action: (element: E, same: E, set: ReadonlySetCollection<E>) => void, thisArg?: unknown): void;
 }
-interface ReadonlySortedSet<E> extends ReadonlySetCollection<E>, ReadonlySequencedCollection<E> {
+interface ReadonlySortedSet<E> extends ReadonlySequencedSet<E> {
     readonly size: number;
     isEmpty(): boolean;
     [Symbol.iterator](): IterableIterator<E>;
@@ -561,10 +617,16 @@ interface SequencedCollection<E> extends Collection<E>, ReadonlySequencedCollect
     removeLast(): E;
     reversed(): SequencedCollection<E>;
 }
+interface SequencedSet<E> extends SetCollection<E>, SequencedCollection<E>, ReadonlySequencedSet<E> {
+    addFirst(element: E): this;
+    addLast(element: E): this;
+    reversed(): SequencedSet<E>;
+    forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
+}
 interface SetCollection<E> extends Collection<E>, ReadonlySetCollection<E> {
     forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
 }
-interface SortedSet<E> extends SetCollection<E>, SequencedCollection<E>, ReadonlySortedSet<E> {
+interface SortedSet<E> extends SequencedSet<E>, ReadonlySortedSet<E> {
     forEach(action: (element: E, same: E, set: SetCollection<E>) => void, thisArg?: unknown): void;
     pollFirst(): E | undefined;
     pollLast(): E | undefined;
@@ -667,5 +729,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, ReadonlySortedSet, SequencedCollection, SetCollection, SortedSet, SubSetOptions, TreeSetOptions };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedHashSetOptions, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySequencedSet, ReadonlySetCollection, ReadonlySortedSet, SequencedCollection, SequencedSet, SetCollection, SortedSet, SubSetOptions, TreeSetOptions };

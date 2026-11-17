@@ -171,6 +171,9 @@ when it changes are unspecified.
 | `SetCollection<E>`         | the changing methods of `Collection`                     |
 | `HashSetOptions<E>`        | `key` or `equivalence`                                   |
 
+[`LinkedHashSet`](linked-hash-sets.md) behaves as a `HashSet` and can also be read and changed at
+both ends (`getFirst`, `removeLast`, `addFirst` that inserts or moves, a live reversed view).
+
 A [`HashMap`](maps.md)'s `keySet()` and `entrySet()` are sets too, live views of its keys and
 entries.
 

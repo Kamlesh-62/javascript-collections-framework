@@ -21,6 +21,7 @@ import {
 } from '../src/index'
 import { type CollectionFactory, describeCollection } from './contracts/collection'
 import { describeSequencedCollection } from './contracts/sequenced'
+import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
 import { describeSortedSet } from './contracts/sorted-set'
 import { integer, seeded } from './support/random'
@@ -1356,6 +1357,32 @@ describeSortedSet('ReversedTreeSet', (initial) => {
   view.addAll(initial ?? [])
   return view
 })
+
+describeSequencedSet(
+  'TreeSet',
+  (initial) => new TreeSet<number>(initial as Iterable<number>) as never,
+  {
+    addAtEnds: 'unsupported',
+  },
+)
+describeSequencedSet(
+  'TreeSubSet',
+  (initial) => {
+    const view = new TreeSet<number>([-1e9, 1e9]).subSet(-1e6, 1e6)
+    view.addAll((initial ?? []) as Iterable<number>)
+    return view as never
+  },
+  { addAtEnds: 'unsupported' },
+)
+describeSequencedSet(
+  'ReversedTreeSet',
+  (initial) => {
+    const view = new TreeSet<number>({ comparator: descending }).reversed()
+    view.addAll((initial ?? []) as Iterable<number>)
+    return view as never
+  },
+  { addAtEnds: 'unsupported' },
+)
 
 describe('TreeSet — reference model', () => {
   it('matches a sorted native array under seeded operations, with numbers and with strings, including navigation and range views [015 S8-AC2]', () => {

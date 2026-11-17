@@ -15,6 +15,7 @@ import type {
   HashMapOptions,
   HashSetOptions,
   KeyOf,
+  LinkedHashSetOptions,
   LinkedListNode,
   List,
   ListCursor,
@@ -28,9 +29,11 @@ import type {
   ReadonlyMapCollection,
   ReadonlyQueue,
   ReadonlySequencedCollection,
+  ReadonlySequencedSet,
   ReadonlySetCollection,
   ReadonlySortedSet,
   SequencedCollection,
+  SequencedSet,
   SetCollection,
   SortedSet,
   SubSetOptions,
@@ -60,6 +63,7 @@ import {
   isSequencedCollection,
   isSetCollection,
   isSortedSet,
+  LinkedHashSet,
   LinkedList,
   NoSuchElementError,
   NullElementError,
@@ -237,3 +241,15 @@ export function firstSorted(value: unknown): unknown {
   const readable: ReadonlySortedSet<unknown> = value
   return readable.isEmpty() ? undefined : readable.getFirst()
 }
+
+const byLowerCase: LinkedHashSetOptions<string> = { key: (s) => s.toLowerCase() }
+export const history: SequencedSet<string> = new LinkedHashSet(['a', 'b'], byLowerCase)
+  .addFirst('B')
+  .addLast('c')
+export const oldestFirst: LinkedHashSet<number> = LinkedHashSet.from([3, 1, 2]).copy()
+export const newestFirst: ReadonlySequencedSet<string> = history.reversed()
+export const oldest: number = oldestFirst.removeFirst()
+export const sortedAsSequenced: SequencedSet<string> = new TreeSet(['b', 'a'])
+history.forEach((item, same, set) => {
+  set.has(item + same)
+})

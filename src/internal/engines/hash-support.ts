@@ -1,7 +1,7 @@
 // Helpers shared by the hash engines: the guard around user callbacks, and `-0` normalisation.
 
 import { ConcurrentModificationError } from '../../errors/errors'
-import { describeValue } from '../checks'
+import { describeValue, isIterable } from '../checks'
 import { type KeyOf, sameValueZeroEquivalence, valueEquivalence } from '../equality'
 import { type CheckedEquivalence, checkEquivalence } from '../equivalence'
 import { checkKey } from '../key'
@@ -54,6 +54,50 @@ export function readEquality<E>(options: unknown, where: string): HashEquality<E
     equivalence: checkEquivalence(equivalence, where),
     builtIn: equivalence === valueEquivalence,
   }
+}
+
+/**
+ * The arguments of a hash set's constructor, read by the native `Set` rules: an iterable first
+ * argument is the elements; `undefined` or `null` means none; any other object, when no second
+ * argument is given, is the options.
+ *
+ * @internal
+ */
+export interface SetArguments<E> {
+  readonly elements: Iterable<E> | undefined
+  readonly equality: HashEquality<E>
+}
+
+/**
+ * Reads a hash set's constructor arguments: elements first, then options, as `readEquality` checks
+ * them.
+ *
+ * Time: O(1).
+ *
+ * @param first - The first argument as given: elements, options, `undefined` or `null`.
+ * @param second - The second argument as given: options, `undefined` or `null`.
+ * @param where - The constructor to name in errors.
+ * @throws TypeError when `first` is neither iterable, an options object nor `null`/`undefined`, or
+ *   the options are invalid.
+ * @internal
+ */
+export function readSetArguments<E>(
+  first: unknown,
+  second: unknown,
+  where: string,
+): SetArguments<E> {
+  let elements: Iterable<E> | undefined
+  let given: unknown = second
+  if (first === undefined || first === null) {
+    // empty
+  } else if (isIterable(first)) {
+    elements = first as Iterable<E>
+  } else if (typeof first === 'object' && (second === undefined || second === null)) {
+    given = first
+  } else {
+    throw new TypeError(`${where}: elements is not iterable (${describeValue(first)})`)
+  }
+  return { elements, equality: readEquality<E>(given, where) }
 }
 
 /**

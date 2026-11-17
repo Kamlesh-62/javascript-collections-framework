@@ -1,15 +1,16 @@
 {
   "entries": [
-    { "name": "*", "minified": 91228, "gzip": 20918 },
+    { "name": "*", "minified": 98799, "gzip": 22438 },
     { "name": "ArrayDeque", "minified": 16716, "gzip": 4981 },
     { "name": "ArrayList", "minified": 23057, "gzip": 6664 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
     { "name": "HashMap", "minified": 29725, "gzip": 8254 },
-    { "name": "HashSet", "minified": 20237, "gzip": 6261 },
+    { "name": "HashSet", "minified": 20357, "gzip": 6277 },
     { "name": "IllegalArgumentError", "minified": 682, "gzip": 408 },
     { "name": "IllegalStateError", "minified": 668, "gzip": 399 },
     { "name": "IndexOutOfBoundsError", "minified": 685, "gzip": 410 },
+    { "name": "LinkedHashSet", "minified": 23995, "gzip": 7319 },
     { "name": "LinkedList", "minified": 17789, "gzip": 5222 },
     { "name": "NoSuchElementError", "minified": 671, "gzip": 402 },
     { "name": "NullElementError", "minified": 669, "gzip": 401 },
