@@ -1277,33 +1277,85 @@ describe('HashMap — live views', () => {
 })
 
 describe('HashMap — equality, hashing and output', () => {
-  it('passes another map a fallback that behaves as an ordinary value once stored [012 S7-AC1]', () => {
-    const fallbacks: unknown[] = []
+  it('asks another map through its entry view, passing entries of this map that behave as ordinary values once stored [012 S7-AC1] [014 S3-AC2]', () => {
+    const asked: unknown[] = []
     const target = new HashMap<string, unknown>([['a', 1]])
     const other = new Proxy(target, {
       get(t, property) {
-        if (property === 'getOrDefault') {
-          return (key: string, fallback: unknown) => {
-            fallbacks.push(fallback)
-            return t.getOrDefault(key, fallback)
+        if (property === 'entrySet') {
+          return () => {
+            const view = t.entrySet()
+            return new Proxy(view, {
+              get(v, name) {
+                if (name === 'has') {
+                  return (entry: unknown) => {
+                    asked.push(entry)
+                    return v.has(entry as MapEntry<string, unknown>)
+                  }
+                }
+                const value: unknown = Reflect.get(v, name, v)
+                return typeof value === 'function' ? value.bind(v) : value
+              },
+            })
           }
         }
+        if (property === 'getOrDefault') throw new Error('getOrDefault is not used')
         const value: unknown = Reflect.get(t, property, t)
         return typeof value === 'function' ? value.bind(t) : value
       },
     })
     const map = new HashMap<string, unknown>([['a', 1]])
     expect(map.equals(other)).toBe(true)
-    expect(fallbacks.length).toBe(1)
-    const fallback = fallbacks[0]
-    const stored = new HashMap<string, unknown>([['k', fallback]])
+    expect(asked.length).toBe(1)
+    const entry = asked[0] as MapEntry<string, unknown>
+    expect(entry.key).toBe('a')
+    expect(entry.value).toBe(1)
+    const stored = new HashMap<string, unknown>([['k', entry]])
     expect(stored.equals(stored.copy())).toBe(true)
-    expect(stored.put('k', 2)).toBe(fallback)
-    stored.set('k', fallback)
-    expect(stored.remove('k')).toBe(fallback)
-    stored.set('k', fallback)
+    expect(stored.put('k', 2)).toBe(entry)
+    stored.set('k', entry)
+    expect(stored.remove('k')).toBe(entry)
+    stored.set('k', entry)
     expect(stored.delete('k')).toBe(true)
     expect(stored.size).toBe(0)
+  })
+
+  it('compares values as the other map’s value against this map’s value [014 S6-AC2]', () => {
+    const calls: Array<[string, string]> = []
+    class Tagged {
+      constructor(readonly tag: string) {}
+      [equalsSymbol](other: unknown): boolean {
+        calls.push([this.tag, (other as Tagged).tag])
+        return other instanceof Tagged
+      }
+      [hashCodeSymbol](): number {
+        return 1
+      }
+    }
+    const mine = new HashMap([['a', new Tagged('mine')]])
+    const theirs = new HashMap([['a', new Tagged('theirs')]])
+    expect(mine.equals(theirs)).toBe(true)
+    expect(calls[0]).toEqual(['theirs', 'mine'])
+  })
+
+  it('throws ConcurrentModificationError when a value’s equals adds or removes mappings of the other map [014 S6-AC2]', () => {
+    const victim = new HashMap<string, unknown>()
+    const sneaky = {
+      [equalsSymbol](): boolean {
+        victim.delete('b')
+        return true
+      },
+      [hashCodeSymbol](): number {
+        return 1
+      },
+    }
+    const plain = { [equalsSymbol]: () => true, [hashCodeSymbol]: () => 1 }
+    victim.set('a', sneaky).set('b', 2)
+    const mine = new HashMap<string, unknown>([
+      ['a', plain],
+      ['b', 2],
+    ])
+    expect(() => mine.equals(victim)).toThrow(ConcurrentModificationError)
   })
 
   it('equals compares mappings both ways, whatever the order or key equality [012 S7-AC1]', () => {

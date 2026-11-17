@@ -12,6 +12,11 @@
 // A move is a removal plus an insertion: the old record is unlinked and a new record, with the same
 // key, value and store handle, is linked at the target end and written into the store. The store
 // handle of a key therefore survives moves and is what finds a record's current place.
+//
+// Every record also carries an origin: its own sequence number when it is inserted or moved
+// explicitly, the replaced record's origin when it is moved by an access (an access-ordered table
+// moves a mapping to the back whenever it is used). A forward iteration of an access-ordered table
+// remembers the origins it returned, so a mapping moved by an access is never returned twice.
 
 import type { HashFunction } from '../equality'
 import { done, IteratorBase } from '../iteration'
@@ -34,12 +39,17 @@ export interface LinkedRecord<K, V> {
   next: LinkedRecord<K, V>
   /** The order stamp: records are linked in ascending `seq`. */
   readonly seq: number
+  /** The identity of the mapping across access moves: the `seq` of its last insertion or move. */
+  readonly origin: number
   /** Whether the record is linked (false once removed or replaced by a move). */
   live: boolean
 }
 
 function newHead<K, V>(): LinkedRecord<K, V> {
-  const head = { seq: 0, live: false, handle: undefined } as unknown as LinkedRecord<K, V>
+  const head = { seq: 0, origin: 0, live: false, handle: undefined } as unknown as LinkedRecord<
+    K,
+    V
+  >
   head.prev = head
   head.next = head
   return head
@@ -48,8 +58,8 @@ function newHead<K, V>(): LinkedRecord<K, V> {
 /**
  * A hash table of records in a defined order that can be changed at both ends in O(1).
  *
- * Time: `probe`, `find` O(1) average (O(chain) on the bucket path); `insert`, `move`, `remove`,
- * `current`, `first` O(1) average; `clear` O(1) on the bucket path, one native `clear` otherwise; `records`, `copy`, `keyHashes` O(n).
+ * Time: `probe`, `find` O(1) average (O(chain) on the bucket path); `insert`, `move`, `access`,
+ * `remove`, `current`, `first` O(1) average; `clear` O(1) on the bucket path, one native `clear` otherwise; `records`, `copy`, `keyHashes` O(n).
  *
  * @internal
  */
@@ -64,14 +74,22 @@ export class LinkedHashTable<K, V> {
   /** `low` and `high` at the last `clear`. */
   clearedLow = 0
   clearedHigh = 0
+  /** Whether mappings are moved by access, so forward iterations must remember what they returned. */
+  readonly accessOrder: boolean
   private readonly store: MapStore<K, LinkedRecord<K, V>>
 
   /**
    * @param equality - How keys are compared.
    * @param store - The lookup to use; a new empty one by default.
+   * @param accessOrder - Whether `access` is used on this table.
    */
-  constructor(equality: HashEquality<K>, store?: MapStore<K, LinkedRecord<K, V>>) {
+  constructor(
+    equality: HashEquality<K>,
+    store?: MapStore<K, LinkedRecord<K, V>>,
+    accessOrder = false,
+  ) {
     this.store = store === undefined ? newMapStore<K, LinkedRecord<K, V>>(equality) : store
+    this.accessOrder = accessOrder
   }
 
   get size(): number {
@@ -110,6 +128,21 @@ export class LinkedHashTable<K, V> {
     return true
   }
 
+  /**
+   * Moves `record` to the back as an access: like `move`, but the new record keeps the mapping's
+   * origin, so an open forward iteration that returned it does not return it again. Returns
+   * `false`, changing nothing, when it is already last.
+   */
+  access(record: LinkedRecord<K, V>): boolean {
+    if (this.head.prev === record) return false
+    this.unlink(record)
+    this.store.write(
+      record.handle,
+      this.link(record.key, record.value, record.handle, false, record.origin),
+    )
+    return true
+  }
+
   /** Unlinks `record` and removes its mapping by stored entry, calling no user function. */
   remove(record: LinkedRecord<K, V>): void {
     this.unlink(record)
@@ -123,6 +156,16 @@ export class LinkedHashTable<K, V> {
   current(record: LinkedRecord<K, V>): LinkedRecord<K, V> | undefined {
     const store = this.store
     return store.holds(record.handle) ? store.valueAt(record.handle) : undefined
+  }
+
+  /** The stored probe of a record's key, for finding the mapping again without user calls. */
+  probeAt(record: LinkedRecord<K, V>): unknown {
+    return this.store.probeAt(record.handle)
+  }
+
+  /** The hash of a record's stored key under this table's equality. */
+  keyHash(record: LinkedRecord<K, V>, hash: HashFunction): number {
+    return this.store.keyHash(record.handle, hash)
   }
 
   /** The first record (`fromBack` false) or the last (`fromBack` true), or `undefined` when empty. */
@@ -187,7 +230,7 @@ export class LinkedHashTable<K, V> {
     for (let a = from.next(), b = to.next(); a.done !== true; a = from.next(), b = to.next()) {
       handles.set(a.value, b.value)
     }
-    const table = new LinkedHashTable<K, V>(equality, store)
+    const table = new LinkedHashTable<K, V>(equality, store, this.accessOrder)
     const head = this.head
     for (let record = head.next; record !== head; record = record.next) {
       const handle = handles.get(record.handle)
@@ -196,17 +239,25 @@ export class LinkedHashTable<K, V> {
     return table
   }
 
-  private link(key: K, value: V, handle: unknown, front: boolean): LinkedRecord<K, V> {
+  private link(
+    key: K,
+    value: V,
+    handle: unknown,
+    front: boolean,
+    origin?: number,
+  ): LinkedRecord<K, V> {
     const head = this.head
     const prev = front ? head : head.prev
     const next = front ? head.next : head
+    const seq = front ? --this.low : ++this.high
     const record: LinkedRecord<K, V> = {
       key,
       value,
       handle,
       prev,
       next,
-      seq: front ? --this.low : ++this.high,
+      seq,
+      origin: origin === undefined ? seq : origin,
       live: true,
     }
     prev.next = record
@@ -232,6 +283,9 @@ export class LinkedHashTable<K, V> {
  *   neighbour, found through the links the record kept at removal.
  * - After `clear`, it starts over before the first record of the empty table; once done it stays
  *   done.
+ * - Walking forward over an access-ordered table, it keeps the origins of the records it returned
+ *   and skips any record with one of them: a mapping an access moved behind it is not returned
+ *   again. A backward walk needs none: accesses move records to its starting end.
  *
  * Time: O(1) amortised per step.
  *
@@ -247,6 +301,8 @@ export class LinkedRecordIterator<K, V>
   private boundary: number
   private epoch: number
   private finished = false
+  /** The origins returned so far, on a forward walk of an access-ordered table; made on demand. */
+  private visited: Set<number> | undefined
 
   constructor(table: LinkedHashTable<K, V>, fromBack: boolean) {
     super()
@@ -266,17 +322,22 @@ export class LinkedRecordIterator<K, V>
       this.epoch = table.epoch
       this.last = head
       this.boundary = fromBack ? table.clearedHigh + 1 : table.clearedLow - 1
+      if (this.visited !== undefined) this.visited.clear()
     }
     // The nearest live record at or behind the position: the last record itself, or the first
     // live one found by walking back through the links removed records kept.
     let anchor = this.last
     while (anchor !== head && !anchor.live) anchor = fromBack ? anchor.next : anchor.prev
     let candidate = fromBack ? anchor.prev : anchor.next
-    // Records linked at the starting end since the position was taken lie before it: skip them.
+    // Records linked at the starting end since the position was taken lie before it: skip them,
+    // and the records of mappings already returned.
     const boundary = this.boundary
+    const visited = this.visited
     while (
       candidate !== head &&
-      (fromBack ? candidate.seq >= boundary : candidate.seq <= boundary)
+      (fromBack
+        ? candidate.seq >= boundary
+        : candidate.seq <= boundary || (visited !== undefined && visited.has(candidate.origin)))
     ) {
       candidate = fromBack ? candidate.prev : candidate.next
     }
@@ -286,6 +347,10 @@ export class LinkedRecordIterator<K, V>
     }
     this.last = candidate
     this.boundary = candidate.seq
+    if (!fromBack && table.accessOrder) {
+      if (visited === undefined) this.visited = new Set<number>([candidate.origin])
+      else visited.add(candidate.origin)
+    }
     return { done: false, value: candidate }
   }
 

@@ -275,3 +275,89 @@ describe('linked hash table — copy', () => {
     expect(a.keyHashes(hash)).toBe(b.keyHashes(hash))
   })
 })
+
+describe('linked hash table — access order', () => {
+  const equality = readEquality<number>(undefined, 'T')
+  const rec = (table: LinkedHashTable<number, string>, k: number) =>
+    find(table, k) as LinkedRecord<number, string>
+  function accessOrdered(values: number[]): LinkedHashTable<number, string> {
+    const table = new LinkedHashTable<number, string>(equality, undefined, true)
+    for (const v of values) put(table, v)
+    return table
+  }
+
+  it('moves a record to the back keeping its origin, and does nothing for the last record [014 S3-AC4]', () => {
+    const table = accessOrdered([1, 2, 3])
+    const two = rec(table, 2)
+    expect(table.access(two)).toBe(true)
+    expect(keys(table)).toEqual([1, 3, 2])
+    const moved = rec(table, 2)
+    expect(moved).not.toBe(two)
+    expect(moved.origin).toBe(two.origin)
+    expect(moved.seq).toBeGreaterThan(two.seq)
+    expect(table.current(two)).toBe(moved)
+    expect(table.access(moved)).toBe(false)
+    expect(rec(table, 2)).toBe(moved)
+  })
+
+  it('never returns an accessed mapping twice on a forward walk, and visits an unvisited one at its new place [014 S3-AC4]', () => {
+    const table = accessOrdered([1, 2, 3, 4])
+    const it = table.iterator(false)
+    expect(step(it)).toBe(1)
+    table.access(rec(table, 1)) // visited: not again
+    table.access(rec(table, 3)) // unvisited: visited at the back
+    expect(drain(it)).toEqual([2, 4, 3])
+    const loop = table.iterator(false)
+    const seen: number[] = []
+    for (let r = loop.next(); r.done !== true; r = loop.next()) {
+      seen.push(r.value.key)
+      table.access(rec(table, r.value.key))
+    }
+    expect(seen).toEqual([2, 4, 1, 3])
+  })
+
+  it('continues from the old successor when the record last returned is accessed [014 S3-AC4]', () => {
+    const table = accessOrdered([1, 2, 3, 4])
+    const it = table.iterator(false)
+    step(it)
+    expect(step(it)).toBe(2)
+    table.access(rec(table, 2))
+    expect(keys(table)).toEqual([1, 3, 4, 2])
+    expect(drain(it)).toEqual([3, 4])
+  })
+
+  it('skips an accessed unvisited record on a backward walk [014 S3-AC4]', () => {
+    const table = accessOrdered([1, 2, 3, 4])
+    const it = table.iterator(true)
+    expect(step(it)).toBe(4)
+    table.access(rec(table, 2))
+    expect(drain(it)).toEqual([3, 1])
+  })
+
+  it('forgets the returned origins on clear, and treats an explicit move as a new mapping [014 S3-AC4] [014 S5-AC4]', () => {
+    const table = accessOrdered([1, 2])
+    const it = table.iterator(false)
+    expect(step(it)).toBe(1)
+    table.move(rec(table, 1), false) // explicit: visited again
+    expect(drain(it)).toEqual([2, 1])
+    const after = accessOrdered([1, 2])
+    const again = after.iterator(false)
+    step(again)
+    after.clear()
+    put(after, 1)
+    put(after, 2)
+    after.access(rec(after, 1))
+    expect(drain(again)).toEqual([2, 1])
+  })
+
+  it('keeps no record of returned origins on a table without access order, and copy keeps the flag', () => {
+    const plain = make(equality, [1, 2])
+    expect(plain.accessOrder).toBe(false)
+    const it = plain.iterator(false)
+    step(it)
+    plain.move(rec(plain, 1), false)
+    expect(drain(it)).toEqual([2, 1])
+    expect(accessOrdered([1]).copy(equality).accessOrder).toBe(true)
+    expect(plain.copy(equality).accessOrder).toBe(false)
+  })
+})

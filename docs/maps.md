@@ -157,6 +157,10 @@ deleted before `next()`.
 Two maps are equal when they have the same size and each maps every key of the other to a value
 equal under `equals`, in any order. Each side is looked up with its own key equality, so the answer
 is the same both ways round. Native `Map`, sets, lists and plain objects are never equal to a map.
+The other map is asked through its entry view's `has` (`other.entrySet().has(entry)`), which never
+reorders an access-ordered [`LinkedHashMap`](linked-hash-maps.md); values are compared as the other
+map's value against this map's, and a value whose `equals` adds or removes mappings of the other
+map makes the comparison throw `ConcurrentModificationError`.
 
 Equal maps that use the same `key` function, the same `equivalence`, or neither have the same
 `[hashCodeSymbol]` hash; the values are unspecified and there is no `hashCode()` method. A map that
@@ -211,6 +215,9 @@ an object's properties.
 | `MapCollection<K, V>`         | the writing, upsert and compute methods                                 |
 | `MapEntry<K, V>`              | `key`, `value`, `setValue`, `equals`, `toJSON`                          |
 | `HashMapOptions<K>`           | `key` or `equivalence`                                                  |
+
+For a map in insertion order that can also be read and changed at both ends, kept in access order
+or bounded in size, see [`LinkedHashMap`](linked-hash-maps.md) and the `SequencedMap` type.
 
 `isMapCollection(value)` recognises a map from any copy of the package (native `Map` is not one,
 and neither are the views); a map is not a `Collection`, so `isCollection(map)` is `false`.

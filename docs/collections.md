@@ -8,9 +8,10 @@ written against it works with any of them.
 > [`TreeSet`](sorted-sets.md),
 > [`ArrayDeque`](deques.md), [`LinkedList`](linked-lists.md) and
 > [`PriorityQueue`](priority-queues.md). The other collection classes arrive in later releases and
-> all follow this contract. Maps such as [`HashMap`](maps.md) and [`TreeMap`](sorted-maps.md) are
-> not collections; their `keySet()`, `entrySet()` and `valueCollection()` views are (a `TreeMap`'s
-> key set is a sorted set).
+> all follow this contract. Maps such as [`HashMap`](maps.md),
+> [`LinkedHashMap`](linked-hash-maps.md) and [`TreeMap`](sorted-maps.md) are not collections; their
+> `keySet()`, `entrySet()` and `valueCollection()` views are (a `TreeMap`'s key set is a sorted
+> set, and the views of a `LinkedHashMap` or `TreeMap` are sequenced collections).
 
 ```ts
 import type { Collection, Cursor, ReadonlyCollection } from 'javascript-collections-framework'

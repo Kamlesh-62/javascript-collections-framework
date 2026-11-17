@@ -779,6 +779,8 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    *
    * @param other - Any value.
    * @returns `true` when `other` is an equal map.
+   * @throws ConcurrentModificationError when a value's `equals` changes the structure of `other`
+   *   while it is compared (values are compared as `equals(otherValue, thisValue)`).
    *
    * @example
    * ```ts

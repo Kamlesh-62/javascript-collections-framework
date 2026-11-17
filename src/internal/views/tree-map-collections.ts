@@ -2,13 +2,14 @@
 // and direction and shares its change counter, so changes show everywhere and open iterators of any
 // of them fail fast. None can add: mappings are set on the map.
 
-import { ConcurrentModificationError } from '../../errors/errors'
+import { ConcurrentModificationError, NoSuchElementError } from '../../errors/errors'
 import type { Comparator } from '../../functions/comparators'
 import type { Cursor } from '../../interfaces/collection'
+import type { SequencedCollection } from '../../interfaces/list'
 import type { MapEntry } from '../../interfaces/map'
-import type { SetCollection } from '../../interfaces/set'
+import type { SequencedSet } from '../../interfaces/sequenced-set'
 import type { SortedSet } from '../../interfaces/sorted-set'
-import { isBranded, MAP_ENTRY_BRAND } from '../brand'
+import { isBranded, MAP_ENTRY_BRAND, SEQUENCED_COLLECTION_BRAND } from '../brand'
 import type { MapNode } from '../engines/map-tree'
 import type { TreeNode } from '../engines/ordered-tree'
 import { equals, type HashFunction } from '../equality'
@@ -20,6 +21,22 @@ import { unsupportedAdd } from './map-entry'
 
 function mappedOf<K, V>(node: TreeNode<K>): V {
   return (node as MapNode<K, V>).mapped
+}
+
+/**
+ * The node at the front (`back` false) or back of `map`, in its order, or `NoSuchElementError`
+ * naming `<tag>.<method>` and what the view is called.
+ */
+function endNode<K, V>(
+  map: AbstractSortedMap<K, V>,
+  back: boolean,
+  where: string,
+  noun: string,
+): TreeNode<K> {
+  const expected = map.changes.structure
+  const node = back ? map.nav.lastNode(where, expected) : map.nav.firstNode(where, expected)
+  if (node === null) throw new NoSuchElementError(`${where}: the ${noun} is empty`)
+  return node
 }
 
 /**
@@ -84,7 +101,10 @@ export class TreeMapKeySet<K, V> extends AbstractSortedSet<K> {
  *
  * @internal
  */
-export class TreeMapEntrySet<K, V> extends AbstractSet<MapEntry<K, V>> {
+export class TreeMapEntrySet<K, V>
+  extends AbstractSet<MapEntry<K, V>>
+  implements SequencedSet<MapEntry<K, V>>
+{
   protected override readonly iterationMode = 'fail-fast' as const
   private readonly map: AbstractSortedMap<K, V>
 
@@ -93,8 +113,50 @@ export class TreeMapEntrySet<K, V> extends AbstractSet<MapEntry<K, V>> {
     this.map = map
   }
 
-  get owner(): SetCollection<MapEntry<K, V>> {
+  get owner(): SequencedSet<MapEntry<K, V>> {
     return this
+  }
+
+  /** Marks every sequenced collection for `isSequencedCollection`, across loaded copies. */
+  get [SEQUENCED_COLLECTION_BRAND](): true {
+    return true
+  }
+
+  /** The entry view of the reversed map. */
+  reversed(): SequencedSet<MapEntry<K, V>> {
+    return new TreeMapEntrySet(this.map.reverseView())
+  }
+
+  getFirst(): MapEntry<K, V> {
+    return this.map.entryAt(endNode(this.map, false, `${this.className}.getFirst`, 'set'))
+  }
+
+  getLast(): MapEntry<K, V> {
+    return this.map.entryAt(endNode(this.map, true, `${this.className}.getLast`, 'set'))
+  }
+
+  removeFirst(): MapEntry<K, V> {
+    return this.removeEnd(false, 'removeFirst')
+  }
+
+  removeLast(): MapEntry<K, V> {
+    return this.removeEnd(true, 'removeLast')
+  }
+
+  /** Makes the entry first, so it reads the value the mapping had, then unlinks the node. */
+  private removeEnd(back: boolean, method: string): MapEntry<K, V> {
+    const node = endNode(this.map, back, `${this.className}.${method}`, 'set')
+    const entry = this.map.entryAt(node)
+    this.map.unlink(node)
+    return entry
+  }
+
+  addFirst(_entry: MapEntry<K, V>): this {
+    throw unsupportedAdd(this.className, 'addFirst')
+  }
+
+  addLast(_entry: MapEntry<K, V>): this {
+    throw unsupportedAdd(this.className, 'addLast')
   }
 
   get [Symbol.toStringTag](): string {
@@ -209,13 +271,47 @@ export class TreeMapEntrySet<K, V> extends AbstractSet<MapEntry<K, V>> {
  *
  * @internal
  */
-export class TreeMapValues<K, V> extends AbstractCollection<V> {
+export class TreeMapValues<K, V> extends AbstractCollection<V> implements SequencedCollection<V> {
   protected readonly iterationMode = 'fail-fast' as const
   private readonly map: AbstractSortedMap<K, V>
 
   constructor(map: AbstractSortedMap<K, V>) {
     super(map.changes)
     this.map = map
+  }
+
+  /** Marks every sequenced collection for `isSequencedCollection`, across loaded copies. */
+  get [SEQUENCED_COLLECTION_BRAND](): true {
+    return true
+  }
+
+  /** The value view of the reversed map. */
+  reversed(): SequencedCollection<V> {
+    return new TreeMapValues(this.map.reverseView())
+  }
+
+  getFirst(): V {
+    return mappedOf<K, V>(endNode(this.map, false, `${this.className}.getFirst`, 'collection'))
+  }
+
+  getLast(): V {
+    return mappedOf<K, V>(endNode(this.map, true, `${this.className}.getLast`, 'collection'))
+  }
+
+  removeFirst(): V {
+    return this.map.unlink(endNode(this.map, false, `${this.className}.removeFirst`, 'collection'))
+  }
+
+  removeLast(): V {
+    return this.map.unlink(endNode(this.map, true, `${this.className}.removeLast`, 'collection'))
+  }
+
+  addFirst(_value: V): this {
+    throw unsupportedAdd(this.className, 'addFirst')
+  }
+
+  addLast(_value: V): this {
+    throw unsupportedAdd(this.className, 'addLast')
   }
 
   get [Symbol.toStringTag](): string {

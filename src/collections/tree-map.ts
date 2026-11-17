@@ -5,12 +5,17 @@
  */
 
 import type { Comparator } from '../functions/comparators'
-import type { Collection } from '../interfaces/collection'
+import type { SequencedCollection } from '../interfaces/list'
 import type { MapCollection, MapEntry } from '../interfaces/map'
-import type { SetCollection } from '../interfaces/set'
+import type { SequencedSet } from '../interfaces/sequenced-set'
 import type { SortedMap } from '../interfaces/sorted-map'
 import type { BoundOptions, SortedSet, SubSetOptions } from '../interfaces/sorted-set'
-import { brandedHasInstance, MAP_COLLECTION_BRAND, SORTED_MAP_BRAND } from '../internal/brand'
+import {
+  brandedHasInstance,
+  MAP_COLLECTION_BRAND,
+  SEQUENCED_MAP_BRAND,
+  SORTED_MAP_BRAND,
+} from '../internal/brand'
 import { isIterable } from '../internal/checks'
 import { notIterable, readComparator, requireOptions } from '../internal/comparator-options'
 import { TreeMapEngine } from '../internal/engines/tree-map-engine'
@@ -243,6 +248,14 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * exported, so the getter is not called directly. Time: O(1).
    */
   get [MAP_COLLECTION_BRAND](): true {
+    return true
+  }
+
+  /**
+   * Marks sequenced maps across copies of the package. Its key is not exported, so the getter is
+   * not called directly. Time: O(1).
+   */
+  get [SEQUENCED_MAP_BRAND](): true {
     return true
   }
 
@@ -833,6 +846,46 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
   }
 
   /**
+   * Always throws: a sorted map places each mapping by its key, so a mapping cannot be put at an
+   * end. Use `set`. Nothing is checked or changed, and the comparator is not called.
+   *
+   * Time: O(1).
+   *
+   * @param key - Ignored.
+   * @param value - Ignored.
+   * @returns Never returns.
+   * @throws UnsupportedOperationError always.
+   *
+   * @example
+   * ```ts
+   * new TreeMap<number, string>().putFirst(1, 'a') // throws UnsupportedOperationError
+   * ```
+   */
+  putFirst(key: K, value: V): this {
+    return this.engine.putFirst(key, value)
+  }
+
+  /**
+   * Always throws: a sorted map places each mapping by its key, so a mapping cannot be put at an
+   * end. Use `set`. Nothing is checked or changed, and the comparator is not called.
+   *
+   * Time: O(1).
+   *
+   * @param key - Ignored.
+   * @param value - Ignored.
+   * @returns Never returns.
+   * @throws UnsupportedOperationError always.
+   *
+   * @example
+   * ```ts
+   * new TreeMap<number, string>().putLast(1, 'a') // throws UnsupportedOperationError
+   * ```
+   */
+  putLast(key: K, value: V): this {
+    return this.engine.putLast(key, value)
+  }
+
+  /**
    * Returns a live view of the mappings whose keys run from `from` to `to`: `from` included and
    * `to` excluded unless the options say otherwise. Changes through the view reach this map;
    * setting a key outside the range through the view throws `IllegalArgumentError`, and looking
@@ -954,10 +1007,13 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
 
   /**
    * Returns a live view of the mappings as entries, in key order. An entry is a member when its
-   * key is present with an equal value; removing it removes the mapping; `add` throws
-   * `UnsupportedOperationError`. Each call returns a new view.
+   * key is present with an equal value; removing it removes the mapping; `add`, `addFirst` and
+   * `addLast` throw `UnsupportedOperationError`. Its `getFirst`/`getLast` return the entries of the
+   * least and greatest keys, `removeFirst`/`removeLast` remove those mappings (throwing
+   * `NoSuchElementError` when empty), and `reversed()` is the entry view of `reversed()`. Each call
+   * returns a new view.
    *
-   * Time: O(1).
+   * Time: O(1); the view's ends O(log n).
    *
    * @returns A new view, tagged `TreeMapEntrySet`.
    *
@@ -966,17 +1022,20 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * for (const entry of map.entrySet()) if (entry.value < 0) entry.setValue(0)
    * ```
    */
-  entrySet(): SetCollection<MapEntry<K, V>> {
+  entrySet(): SequencedSet<MapEntry<K, V>> {
     return this.engine.entrySet()
   }
 
   /**
    * Returns a live view of the values in key order, compared with SameValueZero. `delete(v)`
    * removes the mapping of the least key with that value; `removeAll`, `retainAll` and `removeIf`
-   * every matching mapping; `add` throws `UnsupportedOperationError`. The view equals only itself.
-   * Each call returns a new view.
+   * every matching mapping; `add`, `addFirst` and `addLast` throw `UnsupportedOperationError`.
+   * Its `getFirst`/`getLast` return the values of the least and greatest keys,
+   * `removeFirst`/`removeLast` remove those mappings (throwing `NoSuchElementError` when empty),
+   * and `reversed()` is the value view of `reversed()`. The view equals only itself. Each call
+   * returns a new view.
    *
-   * Time: O(1).
+   * Time: O(1); the view's ends O(log n).
    *
    * @returns A new view, tagged `TreeMapValues`.
    *
@@ -985,7 +1044,7 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * map.valueCollection().removeIf((v) => v === 0)
    * ```
    */
-  valueCollection(): Collection<V> {
+  valueCollection(): SequencedCollection<V> {
     return this.engine.valueCollection()
   }
 
@@ -1112,6 +1171,8 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    *
    * @param other - Any value.
    * @returns `true` when `other` is an equal map.
+   * @throws ConcurrentModificationError when a value's `equals` changes the structure of `other`
+   *   while it is compared (values are compared as `equals(otherValue, thisValue)`).
    *
    * @example
    * ```ts

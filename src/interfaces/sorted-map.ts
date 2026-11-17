@@ -6,9 +6,10 @@
  */
 
 import type { Comparator } from '../functions/comparators'
-import type { Collection } from './collection'
-import type { MapCollection, MapEntry, ReadonlyMapCollection } from './map'
-import type { SetCollection } from './set'
+import type { SequencedCollection } from './list'
+import type { MapCollection, MapEntry } from './map'
+import type { ReadonlySequencedMap, SequencedMap } from './sequenced-map'
+import type { SequencedSet } from './sequenced-set'
 import type { BoundOptions, ReadonlySortedSet, SortedSet, SubSetOptions } from './sorted-set'
 
 /**
@@ -17,7 +18,8 @@ import type { BoundOptions, ReadonlySortedSet, SortedSet, SubSetOptions } from '
  * Two keys are the same key when the comparator returns `0` for them.
  *
  * "Before" and "after" follow the map's own order, which is descending on a reversed view.
- * Questions about keys alone go through `keySet()`, a sorted set: `map.keySet().floor(k)`.
+ * Questions about keys alone go through `keySet()`, a sorted set: `map.keySet().floor(k)`. A sorted
+ * map is a sequenced map whose order is decided by its keys.
  *
  * @example
  * ```ts
@@ -26,7 +28,7 @@ import type { BoundOptions, ReadonlySortedSet, SortedSet, SubSetOptions } from '
  * }
  * ```
  */
-export interface ReadonlySortedMap<K, V> extends ReadonlyMapCollection<K, V> {
+export interface ReadonlySortedMap<K, V> extends ReadonlySequencedMap<K, V> {
   /**
    * The number of mappings. Time: O(1) on a map; O(k + log n) on a range view holding k of the
    * map's n mappings, which counts the mappings in range.
@@ -190,7 +192,8 @@ export interface ReadonlySortedMap<K, V> extends ReadonlyMapCollection<K, V> {
  * A map kept in the order of its keys under a comparator, with the ends, nearest-entry queries,
  * removal of the first and last mappings, and live range views. Two keys are the same key when
  * the comparator returns `0` for them. Setting a key outside a range view's range through the view
- * throws `IllegalArgumentError`.
+ * throws `IllegalArgumentError`. As a sequenced map it has ends and a reversed view, but `putFirst`
+ * and `putLast` throw `UnsupportedOperationError`: each mapping's place is decided by its key.
  *
  * @example
  * ```ts
@@ -202,7 +205,7 @@ export interface ReadonlySortedMap<K, V> extends ReadonlyMapCollection<K, V> {
  * }
  * ```
  */
-export interface SortedMap<K, V> extends MapCollection<K, V>, ReadonlySortedMap<K, V> {
+export interface SortedMap<K, V> extends SequencedMap<K, V>, ReadonlySortedMap<K, V> {
   /**
    * Returns an iterator over new `[key, value]` arrays in key order.
    *
@@ -230,6 +233,30 @@ export interface SortedMap<K, V> extends MapCollection<K, V>, ReadonlySortedMap<
    * @returns The entry of the removed mapping, or `undefined`.
    */
   pollLastEntry(): MapEntry<K, V> | undefined
+  /**
+   * Always throws: a sorted map places each mapping by its key. Use `set`. Nothing is checked or
+   * changed.
+   *
+   * Time: O(1).
+   *
+   * @param key - Ignored.
+   * @param value - Ignored.
+   * @returns Never returns.
+   * @throws UnsupportedOperationError always.
+   */
+  putFirst(key: K, value: V): this
+  /**
+   * Always throws: a sorted map places each mapping by its key. Use `set`. Nothing is checked or
+   * changed.
+   *
+   * Time: O(1).
+   *
+   * @param key - Ignored.
+   * @param value - Ignored.
+   * @returns Never returns.
+   * @throws UnsupportedOperationError always.
+   */
+  putLast(key: K, value: V): this
   /**
    * Returns a live view of the mappings whose keys run from `from` (inclusive by default) to `to`
    * (exclusive by default); changes through the view reach this map.
@@ -283,23 +310,23 @@ export interface SortedMap<K, V> extends MapCollection<K, V>, ReadonlySortedMap<
    */
   keySet(): SortedSet<K>
   /**
-   * Returns a live view of the mappings as entries, in key order; removing an entry removes its
-   * mapping.
+   * Returns a live view of the mappings as entries, in key order, with the ends of this map;
+   * removing an entry removes its mapping, and adding throws `UnsupportedOperationError`.
    *
    * Time: O(1).
    *
    * @returns A new view.
    */
-  entrySet(): SetCollection<MapEntry<K, V>>
+  entrySet(): SequencedSet<MapEntry<K, V>>
   /**
-   * Returns a live view of the values, in key order; removing a value removes a mapping with that
-   * value.
+   * Returns a live view of the values, in key order, with the ends of this map; removing a value
+   * removes a mapping with that value, and adding throws `UnsupportedOperationError`.
    *
    * Time: O(1).
    *
    * @returns A new view.
    */
-  valueCollection(): Collection<V>
+  valueCollection(): SequencedCollection<V>
   /**
    * Calls `action(value, key, map)` for each mapping in key order, with `this` set to `thisArg`.
    *

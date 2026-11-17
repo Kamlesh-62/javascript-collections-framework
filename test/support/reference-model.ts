@@ -12,6 +12,7 @@ import {
 } from '../../src/index'
 import type { List } from '../../src/interfaces/list'
 import type { Deque } from '../../src/interfaces/queue'
+import type { SequencedMap } from '../../src/interfaces/sequenced-map'
 import type { SequencedSet } from '../../src/interfaces/sequenced-set'
 import type { SortedMap } from '../../src/interfaces/sorted-map'
 import type { SortedSet } from '../../src/interfaces/sorted-set'
@@ -1343,4 +1344,554 @@ export function runSortedMapReferenceModel<K>(options: {
   expect(map.toJSON(), `sorted map reference model seed ${options.seed} final`).toEqual(
     keys.map((k) => [k, values.get(k)]),
   )
+}
+
+/** What the LRU reference model drives. */
+interface LruMap {
+  readonly size: number
+  get(key: number): unknown
+  getOrDefault(key: number, fallback: unknown): unknown
+  set(key: number, value: number): unknown
+  put(key: number, value: number): unknown
+  getOrInsert(key: number, value: number): unknown
+  merge(key: number, value: number, fn: (old: number, value: number) => number): unknown
+  has(key: number): boolean
+  delete(key: number): boolean
+  toJSON(): Array<[number, number]>
+}
+
+/**
+ * Seeded reference model for a least-recently-used cache of `maxSize` mappings: applies the same
+ * random operations to a map built by `make` (with the given `onEvict`) and to an array of
+ * `[key, value]` pairs, most recent last. A read or write of a present key moves its pair to the
+ * end; an insertion appends and, past `maxSize`, drops the front pair and records it as evicted.
+ * After every step the pairs, the size and the evictions reported so far are compared.
+ */
+export function runLruReferenceModel(options: {
+  seed: number
+  steps: number
+  maxSize: number
+  make: (onEvict: (value: number, key: number) => void) => LruMap
+  keys?: number
+}): void {
+  const random = seeded(options.seed)
+  const reported: Array<[number, number]> = []
+  const map = options.make((value, key) => {
+    reported.push([key, value])
+  })
+  const model: Array<[number, number]> = []
+  const evicted: Array<[number, number]> = []
+  const top = (options.keys ?? 25) - 1
+  const indexOf = (key: number): number => model.findIndex((pair) => pair[0] === key)
+  /** Moves a present key to the end and returns its value, or returns `undefined`. */
+  const touch = (key: number): number | undefined => {
+    const index = indexOf(key)
+    if (index < 0) return undefined
+    const pair = model.splice(index, 1)[0] as [number, number]
+    model.push(pair)
+    return pair[1]
+  }
+  const write = (key: number, value: number): number | undefined => {
+    const old = touch(key)
+    if (old !== undefined) {
+      ;(model[model.length - 1] as [number, number])[1] = value
+      return old
+    }
+    model.push([key, value])
+    while (model.length > options.maxSize) evicted.push(model.shift() as [number, number])
+    return undefined
+  }
+  const ops = ['get', 'getOrDefault', 'set', 'set', 'put', 'getOrInsert', 'merge', 'has', 'delete']
+  for (let step = 0; step < options.steps; step++) {
+    const at = `LRU reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const k = integer(random, 0, top)
+    const v = integer(random, 0, 99)
+    switch (op) {
+      case 'get':
+        expect(map.get(k), at).toBe(touch(k))
+        break
+      case 'getOrDefault': {
+        const old = touch(k)
+        expect(map.getOrDefault(k, -1), at).toBe(old === undefined ? -1 : old)
+        break
+      }
+      case 'set':
+        map.set(k, v)
+        write(k, v)
+        break
+      case 'put':
+        expect(map.put(k, v), at).toBe(write(k, v))
+        break
+      case 'getOrInsert': {
+        const old = touch(k)
+        if (old === undefined) write(k, v)
+        expect(map.getOrInsert(k, v), at).toBe(old === undefined ? v : old)
+        break
+      }
+      case 'merge': {
+        const index = indexOf(k)
+        const value = index < 0 ? v : (model[index] as [number, number])[1] + v
+        write(k, value)
+        expect(
+          map.merge(k, v, (old, add) => old + add),
+          at,
+        ).toBe(value)
+        break
+      }
+      case 'has':
+        expect(map.has(k), at).toBe(indexOf(k) >= 0)
+        break
+      case 'delete': {
+        const index = indexOf(k)
+        if (index >= 0) model.splice(index, 1)
+        expect(map.delete(k), at).toBe(index >= 0)
+        break
+      }
+    }
+    expect(map.toJSON(), at).toEqual(model)
+    expect(map.size, at).toBe(model.length)
+    expect(reported, at).toEqual(evicted)
+  }
+}
+
+/** A mapping of the sequenced-map model, with its order stamp and its identity across accesses. */
+interface MapRecord {
+  readonly key: unknown
+  value: number
+  readonly seq: number
+  readonly origin: number
+}
+
+/** An open iteration of the sequenced-map model, written from the rules, not the links. */
+interface MapIteration {
+  readonly fromBack: boolean
+  boundary: number
+  /** The origins returned so far, on a forward iteration of an access-ordered map. */
+  readonly visited: Set<number>
+  done: boolean
+}
+
+/**
+ * Seeded reference model for a linked hash map with live iteration, in insertion or access order,
+ * optionally bounded: applies the same random operations — the map API, the ends and polls,
+ * `putFirst`/`putLast`, writes and ends through the reversed view, entry writes, `clear` — to the
+ * map and to an array of mappings stamped with order numbers, and compares every result. Open
+ * iterators of the map, its reversed view and each kind of view, and cursors with look-ahead, are
+ * stepped and compared exactly: each returns the first mapping past the stamp of the one it last
+ * returned in its own direction, skipping, on a forward walk of an access-ordered map, mappings it
+ * already returned; `clear` puts it back before the first mapping; once done it stays done. An
+ * access moves a mapping to the end keeping its identity; an explicit move gives it a new one. Past
+ * `maxSize`, an insertion evicts from the front, never the mapping it made, and the evictions
+ * reported to `onEvict` are compared after every step. Keys are small integers, `-0` (stored as
+ * `0`) and `null`.
+ */
+export function runSequencedMapReferenceModel(options: {
+  seed: number
+  steps: number
+  /** Builds an empty map with these options and the given `onEvict`. */
+  make: (onEvict: (value: number, key: unknown) => void) => SequencedMap<unknown, number>
+  accessOrder?: boolean | undefined
+  maxSize?: number | undefined
+  /** How many distinct integers keys are drawn from (from 0), besides `-0` and `null`. */
+  values?: number
+}): void {
+  const random = seeded(options.seed)
+  const reported: Array<[unknown, number]> = []
+  const map = options.make((value, key) => {
+    reported.push([key, value])
+  })
+  const view = map.reversed()
+  const accessOrder = options.accessOrder === true
+  const maxSize = options.maxSize
+  const records: MapRecord[] = []
+  const evicted: Array<[unknown, number]> = []
+  let low = 0
+  let high = 0
+  const iterations: Array<{
+    ours: Iterator<unknown>
+    model: MapIteration
+    read: (r: MapRecord) => unknown
+  }> = []
+  const cursors: Array<{
+    ours: Cursor<unknown>
+    model: MapIteration
+    looked: { key: unknown } | 'done' | undefined
+    last: { key: unknown } | undefined
+  }> = []
+  const top = (options.values ?? 10) - 1
+  const ops = [
+    'set',
+    'set',
+    'put',
+    'get',
+    'get',
+    'getOrDefault',
+    'has',
+    'delete',
+    'remove',
+    'replace',
+    'getOrInsert',
+    'getOrInsertComputed',
+    'compute',
+    'computeIfPresent',
+    'merge',
+    'putAll',
+    'putFirst',
+    'putLast',
+    'ends',
+    'poll',
+    'clear',
+    'setValue',
+    'keySetHas',
+    'iter',
+    'step',
+    'step',
+    'step',
+    'cursor',
+    'look',
+    'next',
+    'next',
+    'cursorRemove',
+  ]
+  const draw = (): unknown => {
+    const r = random()
+    if (r < 0.05) return null
+    if (r < 0.1) return -0
+    return integer(random, 0, top)
+  }
+  const norm = (k: unknown): unknown => (k === 0 ? 0 : k)
+  const indexOf = (k: unknown): number => records.findIndex((r) => Object.is(r.key, norm(k)))
+  const link = (key: unknown, value: number, front: boolean, origin?: number): MapRecord => {
+    const seq = front ? --low : ++high
+    const record: MapRecord = { key, value, seq, origin: origin === undefined ? seq : origin }
+    if (front) records.unshift(record)
+    else records.push(record)
+    return record
+  }
+  const insert = (k: unknown, value: number, front: boolean): void => {
+    const made = link(norm(k), value, front)
+    if (maxSize === undefined) return
+    while (records.length > maxSize) {
+      const index = records[0] === made ? 1 : 0
+      const victim = records.splice(index, 1)[0] as MapRecord
+      evicted.push([victim.key, victim.value])
+    }
+  }
+  const access = (index: number): void => {
+    if (!accessOrder || index === records.length - 1) return
+    const record = records.splice(index, 1)[0] as MapRecord
+    link(record.key, record.value, false, record.origin)
+  }
+  /** Writes a present key's value as an access, or inserts at the target's own end. */
+  const write = (k: unknown, value: number, viaView: boolean): number | undefined => {
+    const index = indexOf(k)
+    if (index < 0) {
+      insert(k, value, viaView)
+      return undefined
+    }
+    const old = (records[index] as MapRecord).value
+    ;(records[index] as MapRecord).value = value
+    access(index)
+    return old
+  }
+  const read = (k: unknown): number | undefined => {
+    const index = indexOf(k)
+    if (index < 0) return undefined
+    const value = (records[index] as MapRecord).value
+    access(index)
+    return value
+  }
+  const removeKey = (k: unknown): number | undefined => {
+    const index = indexOf(k)
+    return index < 0 ? undefined : (records.splice(index, 1)[0] as MapRecord).value
+  }
+  const place = (k: unknown, value: number, front: boolean): void => {
+    const index = indexOf(k)
+    if (index < 0) {
+      insert(k, value, front)
+      return
+    }
+    const record = records[index] as MapRecord
+    if (index === (front ? 0 : records.length - 1)) {
+      record.value = value
+      return
+    }
+    records.splice(index, 1)
+    link(record.key, value, front)
+  }
+  const open = (fromBack: boolean): MapIteration => ({
+    fromBack,
+    boundary: fromBack ? high + 1 : low - 1,
+    visited: new Set<number>(),
+    done: false,
+  })
+  const advance = (it: MapIteration): MapRecord | 'done' => {
+    if (it.done) return 'done'
+    let found: MapRecord | undefined
+    if (it.fromBack) {
+      for (let i = records.length - 1; i >= 0 && found === undefined; i--) {
+        if ((records[i] as MapRecord).seq < it.boundary) found = records[i]
+      }
+    } else {
+      found = records.find((r) => r.seq > it.boundary && !it.visited.has(r.origin))
+    }
+    if (found === undefined) {
+      it.done = true
+      return 'done'
+    }
+    it.boundary = found.seq
+    if (!it.fromBack && accessOrder) it.visited.add(found.origin)
+    return found
+  }
+  const endOf = (fromBack: boolean): MapRecord | undefined =>
+    fromBack ? records[records.length - 1] : records[0]
+  const pairOf = (entry: MapEntry<unknown, number> | undefined): unknown =>
+    entry === undefined ? undefined : [entry.key, entry.value]
+
+  for (let step = 0; step < options.steps; step++) {
+    const at = `sequenced map reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const k = draw()
+    const v = integer(random, 0, 99)
+    const viaView = random() < 0.3
+    const target = viaView ? view : map
+    switch (op) {
+      case 'set':
+        expect(target.set(k, v), at).toBe(target)
+        write(k, v, viaView)
+        break
+      case 'put':
+        expect(target.put(k, v), at).toBe(write(k, v, viaView))
+        break
+      case 'get':
+        expect(target.get(k), at).toBe(read(k))
+        break
+      case 'getOrDefault': {
+        const value = read(k)
+        expect(target.getOrDefault(k, -1), at).toBe(value === undefined ? -1 : value)
+        break
+      }
+      case 'has':
+        expect(target.has(k), at).toBe(indexOf(k) >= 0)
+        break
+      case 'keySetHas':
+        expect(target.keySet().has(k), at).toBe(indexOf(k) >= 0)
+        break
+      case 'delete':
+        expect(target.delete(k), at).toBe(removeKey(k) !== undefined)
+        break
+      case 'remove':
+        expect(target.remove(k), at).toBe(removeKey(k))
+        break
+      case 'replace': {
+        const present = indexOf(k) >= 0
+        expect(target.replace(k, v), at).toBe(present ? write(k, v, viaView) : undefined)
+        break
+      }
+      case 'getOrInsert': {
+        const value = read(k)
+        if (value === undefined) insert(k, v, viaView)
+        expect(target.getOrInsert(k, v), at).toBe(value === undefined ? v : value)
+        break
+      }
+      case 'getOrInsertComputed': {
+        const value = read(k)
+        if (value === undefined) insert(k, v, viaView)
+        expect(
+          target.getOrInsertComputed(k, () => v),
+          at,
+        ).toBe(value === undefined ? v : value)
+        break
+      }
+      case 'compute':
+      case 'computeIfPresent': {
+        const fn = (value: number | undefined) =>
+          value === undefined ? v : value % 2 === 0 ? undefined : value + 2
+        const index = indexOf(k)
+        let expected: number | undefined
+        if (index < 0) {
+          expected = op === 'compute' ? v : undefined
+          if (expected !== undefined) insert(k, expected, viaView)
+        } else {
+          expected = fn((records[index] as MapRecord).value)
+          if (expected === undefined) records.splice(index, 1)
+          else write(k, expected, viaView)
+        }
+        expect(
+          op === 'compute' ? target.compute(k, fn) : target.computeIfPresent(k, fn as never),
+          at,
+        ).toBe(expected)
+        break
+      }
+      case 'merge': {
+        const fn = (old: number, value: number) => (old > 50 ? undefined : old + value)
+        const index = indexOf(k)
+        let expected: number | undefined = v
+        if (index < 0) insert(k, v, viaView)
+        else {
+          expected = fn((records[index] as MapRecord).value, v)
+          if (expected === undefined) records.splice(index, 1)
+          else write(k, expected, viaView)
+        }
+        expect(target.merge(k, v, fn), at).toBe(expected)
+        break
+      }
+      case 'putAll': {
+        const w = draw()
+        target.putAll([
+          [k, v],
+          [w, v + 1],
+        ])
+        write(k, v, viaView)
+        write(w, v + 1, viaView)
+        break
+      }
+      case 'putFirst':
+      case 'putLast': {
+        const ownFront = op === 'putFirst'
+        expect(ownFront ? target.putFirst(k, v) : target.putLast(k, v), at).toBe(target)
+        place(k, v, ownFront !== viaView)
+        break
+      }
+      case 'ends': {
+        const fromBack = random() < 0.5
+        const record = endOf(fromBack !== viaView)
+        const entry = fromBack ? target.lastEntry() : target.firstEntry()
+        expect(pairOf(entry), at).toEqual(
+          record === undefined ? undefined : [record.key, record.value],
+        )
+        break
+      }
+      case 'poll': {
+        const fromBack = random() < 0.5
+        const record = endOf(fromBack !== viaView)
+        const entry = fromBack ? target.pollLastEntry() : target.pollFirstEntry()
+        expect(pairOf(entry), at).toEqual(
+          record === undefined ? undefined : [record.key, record.value],
+        )
+        if (record !== undefined) records.splice(records.indexOf(record), 1)
+        break
+      }
+      case 'setValue': {
+        const fromBack = random() < 0.5
+        const entry = fromBack ? map.lastEntry() : map.firstEntry()
+        const record = endOf(fromBack)
+        if (entry === undefined || record === undefined) break
+        expect(entry.setValue(v), at).toBe(record.value)
+        record.value = v
+        break
+      }
+      case 'clear':
+        if (random() < 0.7) break
+        target.clear()
+        records.length = 0
+        for (const it of [...iterations.map((i) => i.model), ...cursors.map((c) => c.model)]) {
+          if (it.done) continue
+          it.boundary = it.fromBack ? high + 1 : low - 1
+          it.visited.clear()
+        }
+        break
+      case 'iter': {
+        const fromBack = random() < 0.5
+        const source = fromBack ? view : map
+        const kind = integer(random, 0, 4)
+        const iterator: Iterator<unknown> =
+          kind === 0
+            ? source.entries()
+            : kind === 1
+              ? source.keySet()[Symbol.iterator]()
+              : kind === 2
+                ? source.valueCollection()[Symbol.iterator]()
+                : kind === 3
+                  ? source.entrySet()[Symbol.iterator]()
+                  : source.keys()
+        const readOf =
+          kind === 0
+            ? (r: MapRecord) => [r.key, r.value]
+            : kind === 2
+              ? (r: MapRecord) => r.value
+              : kind === 3
+                ? (r: MapRecord) => [r.key, r.value]
+                : (r: MapRecord) => r.key
+        iterations.push({
+          ours:
+            kind === 3
+              ? {
+                  next: () => {
+                    const result = iterator.next() as IteratorResult<MapEntry<unknown, number>>
+                    return result.done === true
+                      ? result
+                      : { done: false, value: [result.value.key, result.value.value] }
+                  },
+                }
+              : iterator,
+          model: open(fromBack),
+          read: readOf,
+        })
+        break
+      }
+      case 'step': {
+        if (iterations.length === 0) break
+        const it = pick(random, iterations)
+        const expected = advance(it.model)
+        expect(it.ours.next(), at).toEqual(
+          expected === 'done'
+            ? { done: true, value: undefined }
+            : { done: false, value: it.read(expected) },
+        )
+        break
+      }
+      case 'cursor': {
+        const fromBack = random() < 0.5
+        cursors.push({
+          ours: (fromBack ? view : map).keySet().cursor(),
+          model: open(fromBack),
+          looked: undefined,
+          last: undefined,
+        })
+        break
+      }
+      case 'look': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.looked === undefined) {
+          const found = advance(cur.model)
+          cur.looked = found === 'done' ? 'done' : { key: found.key }
+        }
+        expect(cur.ours.hasNext(), at).toBe(cur.looked !== 'done')
+        break
+      }
+      case 'next': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.looked === undefined) {
+          const found = advance(cur.model)
+          cur.looked = found === 'done' ? 'done' : { key: found.key }
+        }
+        if (cur.looked === 'done') {
+          expect(() => cur.ours.next(), at).toThrow(NoSuchElementError)
+        } else {
+          expect(cur.ours.next(), at).toBe(cur.looked.key)
+          cur.last = cur.looked
+          cur.looked = undefined
+        }
+        break
+      }
+      case 'cursorRemove': {
+        if (cursors.length === 0) break
+        const cur = pick(random, cursors)
+        if (cur.last === undefined) break
+        cur.ours.remove()
+        removeKey(cur.last.key)
+        cur.last = undefined
+        break
+      }
+    }
+    const expected = records.map((r) => [r.key, r.value])
+    expect(map.toJSON(), at).toEqual(expected)
+    expect(view.toJSON(), at).toEqual(expected.slice().reverse())
+    expect(map.size, at).toBe(records.length)
+    expect(reported, at).toEqual(evicted)
+  }
 }
