@@ -632,7 +632,14 @@ describe('linked hash sets across two copies', () => {
         expect(guard('isSetCollection')(value)).toBe(true)
         expect(guard('isSequencedCollection')(value)).toBe(true)
         expect(guard('isCollection')(value)).toBe(true)
-        for (const name of ['isList', 'isQueue', 'isDeque', 'isSortedSet', 'isMapCollection']) {
+        for (const name of [
+          'isList',
+          'isQueue',
+          'isDeque',
+          'isSortedSet',
+          'isMapCollection',
+          'isSortedMap',
+        ]) {
           expect(guard(name)(value), name).toBe(false)
         }
       }
@@ -717,10 +724,16 @@ describe('sorted maps across two copies', () => {
       const keySet = map.keySet()
       expect(guard('isSortedSet')(keySet)).toBe(true)
       expect(guard('isSequencedCollection')(keySet)).toBe(true)
+      for (const name of ['isMapCollection', 'isList', 'isQueue', 'isDeque']) {
+        expect(guard(name)(keySet), name).toBe(false)
+      }
       expect(guard('isCollection')(map.valueCollection())).toBe(true)
       expect(guard('isSetCollection')(map.entrySet())).toBe(true)
       const TreeSet = theirs.TreeSet as new (elements: unknown[]) => unknown
       const HashMap = theirs.HashMap as new (pairs: unknown[][]) => unknown
+      const linked = new (theirs.LinkedHashSet as new (e: unknown[]) => { reversed(): unknown })([
+        1,
+      ])
       for (const value of [
         new HashMap([[1, 'a']]),
         new Map([[1, 'a']]),
@@ -732,6 +745,8 @@ describe('sorted maps across two copies', () => {
         new (theirs.ArrayList as new (e: unknown[]) => unknown)([1]),
         new (theirs.ArrayDeque as new (e: unknown[]) => unknown)([1]),
         new (theirs.PriorityQueue as new (e: unknown[]) => unknown)([1]),
+        linked,
+        linked.reversed(),
         {},
         null,
         undefined,

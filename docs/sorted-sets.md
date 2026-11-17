@@ -255,8 +255,8 @@ true for natural order on numbers, strings and the other primitives).
 
 `TreeSet<E>` implements `SortedSet<E>`, which extends `SequencedSet<E>` (and so `SetCollection<E>`
 and `SequencedCollection<E>`): sorted sets are [sequenced sets](linked-hash-sets.md#types) whose
-`addFirst` and `addLast` throw `UnsupportedOperationError`. `isSortedSet(value)` recognises a `TreeSet` and its views from any copy
-of the package; `isSetCollection` and `isSequencedCollection` recognise them too, and
+`addFirst` and `addLast` throw `UnsupportedOperationError`. `isSortedSet(value)` recognises a
+`TreeSet`, its views and the key set of a `TreeMap` from any copy of the package; `isSetCollection` and `isSequencedCollection` recognise them too, and
 `instanceof TreeSet` recognises the set itself. Type parameters as `SortedSet<E>` rather than
 `TreeSet<E>`.
 
