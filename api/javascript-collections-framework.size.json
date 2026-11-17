@@ -1,6 +1,6 @@
 {
   "entries": [
-    { "name": "*", "minified": 73516, "gzip": 17213 },
+    { "name": "*", "minified": 91228, "gzip": 20918 },
     { "name": "ArrayDeque", "minified": 16716, "gzip": 4981 },
     { "name": "ArrayList", "minified": 23057, "gzip": 6664 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
@@ -14,6 +14,7 @@
     { "name": "NoSuchElementError", "minified": 671, "gzip": 402 },
     { "name": "NullElementError", "minified": 669, "gzip": 401 },
     { "name": "PriorityQueue", "minified": 17353, "gzip": 5374 },
+    { "name": "TreeSet", "minified": 29767, "gzip": 8285 },
     { "name": "UnsupportedOperationError", "minified": 696, "gzip": 409 },
     { "name": "compareSymbol", "minified": 90, "gzip": 101 },
     { "name": "comparing", "minified": 2985, "gzip": 1206 },
@@ -28,6 +29,7 @@
     { "name": "isQueue", "minified": 199, "gzip": 168 },
     { "name": "isSequencedCollection", "minified": 227, "gzip": 176 },
     { "name": "isSetCollection", "minified": 215, "gzip": 171 },
+    { "name": "isSortedSet", "minified": 207, "gzip": 169 },
     { "name": "naturalOrder", "minified": 2813, "gzip": 1145 },
     { "name": "nullsFirst", "minified": 3037, "gzip": 1221 },
     { "name": "nullsLast", "minified": 3034, "gzip": 1220 },

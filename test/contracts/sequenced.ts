@@ -2,13 +2,28 @@
 // view). Each implementation's test file runs it through `describeSequencedCollection`.
 
 import { describe, expect, it } from 'vitest'
-import { NoSuchElementError } from '../../src/index'
+import { NoSuchElementError, UnsupportedOperationError } from '../../src/index'
 import type { SequencedCollection } from '../../src/interfaces/list'
 
 /** Builds a new sequenced collection holding `initial`, in order. */
 export type SequencedFactory = (initial?: Iterable<unknown>) => SequencedCollection<unknown>
 
-export function describeSequencedCollection(name: string, make: SequencedFactory): void {
+export interface SequencedContractOptions {
+  /**
+   * Whether `addFirst` and `addLast` add at the ends (`'supported'`, the default) or throw
+   * `UnsupportedOperationError` because the collection places elements itself (`'unsupported'`,
+   * as sorted sets do). With `'unsupported'`, the factory's collection must keep `1, 2, 3, 4` in
+   * that order when they are added.
+   */
+  addAtEnds?: 'supported' | 'unsupported'
+}
+
+export function describeSequencedCollection(
+  name: string,
+  make: SequencedFactory,
+  options: SequencedContractOptions = {},
+): void {
+  const unsupported = options.addAtEnds === 'unsupported'
   describe(`${name} — sequenced collection contract`, () => {
     it('getFirst and getLast return the ends [006 S1-AC5]', () => {
       const c = make([1, 2, 3])
@@ -32,12 +47,23 @@ export function describeSequencedCollection(name: string, make: SequencedFactory
       ).toBe(true)
     })
 
-    it('addFirst and addLast add at the ends and return the collection [006 S2-AC8]', () => {
-      const c = make([2])
-      expect(c.addFirst(1)).toBe(c)
-      expect(c.addLast(3)).toBe(c)
-      expect([...c]).toEqual([1, 2, 3])
-    })
+    if (unsupported) {
+      it('addFirst and addLast throw UnsupportedOperationError and change nothing [015 S2-AC4]', () => {
+        const c = make([2])
+        const revision = c.revision
+        expect(() => c.addFirst(1)).toThrow(UnsupportedOperationError)
+        expect(() => c.addLast(3)).toThrow(UnsupportedOperationError)
+        expect([...c]).toEqual([2])
+        expect(c.revision).toBe(revision)
+      })
+    } else {
+      it('addFirst and addLast add at the ends and return the collection [006 S2-AC8]', () => {
+        const c = make([2])
+        expect(c.addFirst(1)).toBe(c)
+        expect(c.addLast(3)).toBe(c)
+        expect([...c]).toEqual([1, 2, 3])
+      })
+    }
 
     it('removeFirst and removeLast remove the ends, or throw when empty [006 S2-AC9]', () => {
       const c = make([1, 2, 3])
@@ -54,7 +80,8 @@ export function describeSequencedCollection(name: string, make: SequencedFactory
       const r = c.reversed()
       expect([...r]).toEqual([3, 2, 1])
       expect(r.getFirst()).toBe(3)
-      r.addFirst(4)
+      if (unsupported) r.add(4)
+      else r.addFirst(4)
       expect([...c]).toEqual([1, 2, 3, 4])
       r.removeLast()
       expect([...c]).toEqual([2, 3, 4])

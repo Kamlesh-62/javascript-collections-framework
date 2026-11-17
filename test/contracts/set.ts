@@ -11,6 +11,11 @@ export type SetFactory = (initial?: Iterable<unknown>) => SetCollection<unknown>
 
 export interface SetContractOptions {
   /**
+   * The order the set iterates distinct members in, given them in insertion order. Insertion order
+   * (as native `Set`) by default; a sorted set passes a function that sorts them.
+   */
+  order?: (members: unknown[]) => unknown[]
+  /**
    * Puts an element into the set some other way than `add`, for a view filled through its map.
    * With it, `addAll` of present elements is not checked (a view cannot add).
    */
@@ -32,6 +37,7 @@ export function describeSetCollection(
   make: SetFactory,
   options: SetContractOptions = {},
 ): void {
+  const order = options.order ?? ((members: unknown[]) => members)
   const member = options.member ?? ((value: unknown) => value)
   const probe = options.probe ?? ((value: unknown) => value)
   const printed = options.printed ?? ((text: string) => text)
@@ -40,7 +46,7 @@ export function describeSetCollection(
     it('keys, values and entries iterate in insertion order like a native Set [011 S3-AC1]', () => {
       const values = ['c', 1, null, 'a']
       const set = make(values)
-      const native = new Set<unknown>(values)
+      const native = new Set<unknown>(order([...new Set<unknown>(values)]))
       expect(members(set.keys())).toEqual([...native.keys()])
       expect(members(set.values())).toEqual([...native.values()])
       expect([...set.entries()].map(([a, b]) => [member(a), member(b)])).toEqual([

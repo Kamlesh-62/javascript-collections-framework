@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 14
+export const MINIMUM_CLASSES = 15
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -13,6 +13,7 @@ export const REQUIRED_GUARDS = [
   'isQueue',
   'isDeque',
   'isSetCollection',
+  'isSortedSet',
   'isMapCollection',
 ]
 
@@ -107,6 +108,17 @@ function priorityQueues(copy) {
   return [new PriorityQueue([3, 1, 2])]
 }
 
+/**
+ * A `TreeSet` made by one copy, one of its range views and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function treeSets(copy) {
+  const TreeSet = /** @type {new (elements?: Iterable<unknown>) => any} */ (copy.TreeSet)
+  const set = new TreeSet([1, 2, 3])
+  return [set, set.subSet(1, 3), set.reversed()]
+}
+
 /** Guard name → the values from a copy that the other copy's guard must accept. */
 export const SAMPLES = {
   isCollection: (/** @type {Namespace} */ copy) => [
@@ -114,12 +126,18 @@ export const SAMPLES = {
     ...allDeques(copy),
     ...hashSets(copy),
     ...priorityQueues(copy),
+    ...treeSets(copy),
   ],
-  isSequencedCollection: (/** @type {Namespace} */ copy) => [...lists(copy), ...allDeques(copy)],
+  isSequencedCollection: (/** @type {Namespace} */ copy) => [
+    ...lists(copy),
+    ...allDeques(copy),
+    ...treeSets(copy),
+  ],
   isList: lists,
   isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
   isDeque: allDeques,
-  isSetCollection: hashSets,
+  isSetCollection: (/** @type {Namespace} */ copy) => [...hashSets(copy), ...treeSets(copy)],
+  isSortedSet: treeSets,
   isMapCollection: hashMaps,
 }
 

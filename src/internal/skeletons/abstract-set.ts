@@ -27,7 +27,8 @@ function pair<E>(element: E): [E, E] {
  * @internal
  */
 export abstract class AbstractSet<E> extends AbstractCollection<E> implements SetCollection<E> {
-  protected readonly iterationMode = 'live' as const
+  /** `live` by default, as native `Set`; sorted sets, which have no native twin, are `fail-fast`. */
+  protected readonly iterationMode: 'fail-fast' | 'live' = 'live'
 
   /** The public set handed to `forEach` callbacks: the object the caller holds. */
   abstract get owner(): SetCollection<E>

@@ -722,3 +722,35 @@ describe('published shape of HashMap', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of TreeSet', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows TreeSet with no protected members, the sorted-set types and the guard [015 S8-AC5]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class TreeSet<E> implements SortedSet<E>')
+    expect(report).toContain('interface TreeSetOptions<E>')
+    expect(report).toContain('interface ReadonlySortedSet<E>')
+    expect(report).toContain('interface SortedSet<E>')
+    expect(report).toContain('interface SubSetOptions')
+    expect(report).toContain('interface BoundOptions')
+    expect(report).toContain('declare function isSortedSet(')
+    expect(report).not.toMatch(
+      /AbstractSortedSet|TreeSetEngine|OrderedTree|TreeNode|SubSetView|ReversedView/,
+    )
+    const start = report.indexOf('declare class TreeSet')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records TreeSet imported alone [015 S8-AC5]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'TreeSet')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

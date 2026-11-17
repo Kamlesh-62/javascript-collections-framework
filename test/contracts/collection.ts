@@ -49,6 +49,11 @@ export interface CollectionContractOptions {
    */
   order?: 'insertion' | 'unspecified'
   /**
+   * Whether `-0` is stored as `0` (`'zero'`, the default for sets, as native `Set` does) or kept
+   * (`'kept'`, the default for lists, and for sets that compare with a user comparator).
+   */
+  minusZero?: 'zero' | 'kept'
+  /**
    * Puts an element into the collection some other way than `add`, for a view that cannot add (a
    * map's key or value view, filled through its map). With it, `add` and `addAll` of new elements
    * must throw `UnsupportedOperationError` and change nothing; the default is `add`.
@@ -797,8 +802,13 @@ export function describeCollection(
         )() // no name is inferred for a returned function
         const c = make(["it's\n", -0, 5n, symbol, ...nulls, nested, named, anonymous, date])
         const printed = String(c)
-        // A set stores -0 as 0, as native Set does; a list keeps -0 and prints it.
-        const minusZero = options.brackets === 'set' ? '0' : '-0'
+        // A set stores -0 as 0, as native Set does, unless it compares with a user comparator;
+        // a list keeps -0 and prints it.
+        const storesZero =
+          options.minusZero === undefined
+            ? options.brackets === 'set'
+            : options.minusZero === 'zero'
+        const minusZero = storesZero ? '0' : '-0'
         const shownNulls: Array<readonly [unknown, string]> = storesNull
           ? [
               [null, 'null'],
