@@ -48,6 +48,7 @@ Or without a build step:
 | Sets              | [`HashSet`](docs/sets.md), [`LinkedHashSet`](docs/linked-hash-sets.md), [`TreeSet`](docs/sorted-sets.md)         |
 | Maps              | [`HashMap`](docs/maps.md), [`LinkedHashMap`](docs/linked-hash-maps.md), [`TreeMap`](docs/sorted-maps.md)         |
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md), [`PriorityQueue`](docs/priority-queues.md) |
+| Sets from maps    | [`newSetFromMap`](docs/sets-and-maps.md#newsetfrommap)                                                           |
 
 ## Planned collections
 

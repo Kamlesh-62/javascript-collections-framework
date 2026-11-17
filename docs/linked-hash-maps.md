@@ -139,6 +139,9 @@ const sessions = new LinkedHashMap<string, Session>({
 eviction, so `new LinkedHashMap([['a', 1], ['b', 2], ['c', 3], ['a', 4]], { maxSize: 2 })` ends as
 `{'c' => 3, 'a' => 4}` after evicting `a` then `b`.
 
+For an LRU **set** — members only, the least recently added evicted first — wrap an access-ordered
+map with `maxSize` in [`newSetFromMap`](sets-and-maps.md#newsetfrommap).
+
 ## Live iteration, moves and accesses
 
 Iteration is live, as on a native `Map`, and never throws `ConcurrentModificationError`:

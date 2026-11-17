@@ -854,3 +854,26 @@ describe('published shape of LinkedHashMap', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of newSetFromMap', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows newSetFromMap returning a SetCollection, with no SetFromMap class or internal names [017 S4-AC9]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain(
+      'declare function newSetFromMap<E>(map: MapCollection<E, boolean>): SetCollection<E>;',
+    )
+    expect(report).not.toMatch(/\bSetFromMap\b/)
+    expect(report).not.toMatch(/AbstractSet\b|AbstractCollection/)
+  })
+
+  it('the size report records newSetFromMap imported alone [017 S4-AC9]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'newSetFromMap')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

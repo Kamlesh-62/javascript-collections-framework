@@ -69,6 +69,8 @@ export {
   isSortedMap,
   isSortedSet,
 } from './functions/guards'
+// Sets and maps
+export { newSetFromMap } from './functions/sets'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
 export type { LinkedListNode } from './interfaces/linked-list-node'
 export type {

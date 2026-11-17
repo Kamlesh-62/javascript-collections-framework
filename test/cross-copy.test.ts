@@ -869,3 +869,79 @@ describe('sorted maps across two copies', () => {
     expect(checkTwoCopies(without, b).failures).toContain('guard isSortedMap not found')
   })
 })
+
+describe('sets from maps across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type AnySet = {
+    add(e: unknown): AnySet
+    has(e: unknown): boolean
+    equals(o: unknown): boolean
+    readonly size: number
+  }
+  type MapClass = new (
+    options?: unknown,
+  ) => { keySet(): unknown; entrySet(): unknown; has(k: unknown): boolean; size: number }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('newSetFromMap accepts an empty HashMap or TreeMap from the other copy and the set is recognised by both [017 S4-AC1]', async () => {
+    const [a, b] = await load()
+    const newSetFromMap = a.newSetFromMap as (map: unknown) => AnySet
+    for (const name of ['HashMap', 'TreeMap']) {
+      const map = new (b[name] as MapClass)()
+      const set = newSetFromMap(map)
+      set.add(2).add(1)
+      expect(set.size, name).toBe(2)
+      expect(map.has(1), name).toBe(true)
+      expect(set.has(2), name).toBe(true)
+      for (const copy of [a, b]) {
+        expect((copy.isSetCollection as (v: unknown) => boolean)(set), name).toBe(true)
+        expect((copy.isCollection as (v: unknown) => boolean)(set), name).toBe(true)
+      }
+      expect(set.equals(new (b.HashSet as new (e: unknown[]) => unknown)([1, 2]))).toBe(true)
+    }
+  })
+
+  it('newSetFromMap refuses a key or entry set from the other copy with TypeError [017 S4-AC2]', async () => {
+    const [a, b] = await load()
+    const newSetFromMap = a.newSetFromMap as (map: unknown) => AnySet
+    const map = new (b.HashMap as MapClass)()
+    for (const view of [map.keySet(), map.entrySet()]) {
+      expect(() => newSetFromMap(view)).toThrow(TypeError)
+      expect(() => newSetFromMap(view)).toThrow(
+        /^newSetFromMap: map is not a map from this library/,
+      )
+    }
+  })
+
+  it('equal value-equivalence sets from the two copies hash alike [017 S1-AC2]', async () => {
+    const [a, b] = await load()
+    const equalsKey = a.equalsSymbol as symbol
+    const hashKey = a.hashCodeSymbol as symbol
+    expect(b.equalsSymbol).toBe(equalsKey)
+    const value = (n: number) => ({
+      n,
+      [equalsKey](other: { n: number }) {
+        return other !== null && typeof other === 'object' && other.n === n
+      },
+      [hashKey]() {
+        return n
+      },
+    })
+    const make = (copy: Namespace) =>
+      new (copy.HashSet as new (e: unknown[], o: unknown) => unknown)([value(1), value(2)], {
+        equivalence: copy.valueEquivalence,
+      })
+    const fromA = make(a)
+    const fromB = make(b)
+    expect((a.equals as (x: unknown, y: unknown) => boolean)(fromA, fromB)).toBe(true)
+    expect((a.hashCode as (x: unknown) => number)(fromA)).toBe(
+      (b.hashCode as (x: unknown) => number)(fromB),
+    )
+  })
+})
