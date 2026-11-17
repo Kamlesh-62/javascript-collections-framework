@@ -180,11 +180,16 @@ export class BucketTable<V> {
   /**
    * A new table with the same hashes and values in the same order, under its own seed. The
    * entries are laid out once at this table's capacity, without chain checks, so copying is O(n)
-   * even when many entries share one hash.
+   * even when many entries share one hash. `clone`, when given, copies each value.
    */
-  copy(): BucketTable<V> {
+  copy(clone?: (value: V) => V): BucketTable<V> {
     const table = new BucketTable<V>()
-    for (const entry of this.order) table.order.add({ hash: entry.hash, value: entry.value })
+    for (const entry of this.order) {
+      table.order.add({
+        hash: entry.hash,
+        value: clone === undefined ? entry.value : clone(entry.value),
+      })
+    }
     table.rebuild(this.buckets.length)
     return table
   }

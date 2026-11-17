@@ -12,16 +12,20 @@ import type {
   Equatable,
   Equivalence,
   HashFunction,
+  HashMapOptions,
   HashSetOptions,
   KeyOf,
   LinkedListNode,
   List,
   ListCursor,
+  MapCollection,
+  MapEntry,
   PriorityQueueOptions,
   Queue,
   ReadonlyCollection,
   ReadonlyDeque,
   ReadonlyList,
+  ReadonlyMapCollection,
   ReadonlyQueue,
   ReadonlySequencedCollection,
   ReadonlySetCollection,
@@ -41,6 +45,7 @@ import {
   comparing,
   equals,
   equalsSymbol,
+  HashMap,
   HashSet,
   hashCode,
   hashCodeSymbol,
@@ -50,6 +55,7 @@ import {
   isCollection,
   isDeque,
   isList,
+  isMapCollection,
   isQueue,
   isSequencedCollection,
   isSetCollection,
@@ -192,6 +198,31 @@ export const deadlines = new PriorityQueue([{ deadline: 2 }], byDeadline).add({ 
 export const urgent: { deadline: number } | undefined = deadlines.peek()
 export const scheduled: Queue<number> = PriorityQueue.from([3, 1, 2])
 export const sameOrder: Comparator<{ deadline: number }> | undefined = deadlines.copy().comparator()
+
+const byPersonKey: HashMapOptions<Person> = { key: (p) => p.name }
+export const ages: MapCollection<Person, number> = new HashMap<Person, number>(byPersonKey).set(
+  { name: 'a', age: 1 },
+  1,
+)
+export const counts: HashMap<string, number> = HashMap.from<string, number>([['a', 1]], {
+  equivalence: valueEquivalence,
+}).copy()
+counts.merge('a', 1, (old, one) => old + one)
+counts.compute('b', (value, key, map) => (value ?? map.size) + key.length)
+export const counted: number = counts.getOrInsertComputed('c', (key) => key.length)
+export const firstEntry: MapEntry<string, number> | undefined = [...counts.entrySet()][0]
+export const keysOnly: SetCollection<string> = counts.keySet()
+export const valuesOnly: Collection<number> = counts.valueCollection()
+counts.forEach((value, key, map) => {
+  map.set(key, value)
+})
+export const native: Map<string, number> = new Map(counts)
+export function sizeOfMap(value: unknown): number {
+  if (!isMapCollection(value)) return 0
+  const readable: ReadonlyMapCollection<unknown, unknown> = value
+  return readable.size
+}
+
 const byLength: TreeSetOptions<string> = { comparator: (a, b) => a.length - b.length }
 export const words: SortedSet<string> = new TreeSet(['ccc', 'a'], byLength).add('bb')
 const window: SubSetOptions = { fromInclusive: false, toInclusive: true }

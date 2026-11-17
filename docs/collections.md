@@ -6,8 +6,9 @@ written against it works with any of them.
 > Available now: the `ReadonlyCollection`, `Collection` and `Cursor` types, `isCollection`,
 > [`ArrayList`](lists.md), [`HashSet`](sets.md), [`TreeSet`](sorted-sets.md),
 > [`ArrayDeque`](deques.md), [`LinkedList`](linked-lists.md) and
-> [`PriorityQueue`](priority-queues.md). The other collection
-> classes (`HashMap`, …) arrive in later releases and all follow this contract.
+> [`PriorityQueue`](priority-queues.md). The other collection classes arrive in later releases and
+> all follow this contract. Maps such as [`HashMap`](maps.md) are not collections; their `keySet()`,
+> `entrySet()` and `valueCollection()` views are.
 
 ```ts
 import type { Collection, Cursor, ReadonlyCollection } from 'javascript-collections-framework'
@@ -130,4 +131,5 @@ cannot be written as JSON: `JSON.stringify` fails with the engine's error.
 isCollection(value) // true for any collection from this package, even another loaded copy
 ```
 
-Maps, arrays and native `Set`/`Map` are not collections.
+Maps, arrays and native `Set`/`Map` are not collections; `isMapCollection` recognises a
+[map](maps.md).

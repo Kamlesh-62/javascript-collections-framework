@@ -3,8 +3,8 @@
 How collections decide that two values are "the same", and how to change it.
 
 > Available now: `equals`, `hashCode`, the two equivalences, the types and the protocol, and the
-> `key` and `equivalence` options of [`HashSet`](sets.md). The other hashed collections
-> (`HashMap` and the linked variants) arrive in a later release and take the same options.
+> `key` and `equivalence` options of [`HashSet`](sets.md) and [`HashMap`](maps.md). The linked
+> variants arrive in a later release and take the same options.
 
 ```ts
 import {

@@ -27,6 +27,16 @@ export const SET_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/SetCollection',
 )
 
+// The brand of every map.
+export const MAP_COLLECTION_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/MapCollection',
+)
+
+// The brand of every map entry.
+export const MAP_ENTRY_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/MapEntry',
+)
+
 // The brand of every sorted set and its range and reversed views.
 export const SORTED_SET_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/SortedSet',

@@ -52,6 +52,7 @@ describe('the two-copy check', () => {
         ...NAMES,
         'ArrayDeque',
         'ArrayList',
+        'HashMap',
         'HashSet',
         'LinkedList',
         'PriorityQueue',
@@ -62,12 +63,13 @@ describe('the two-copy check', () => {
       'isCollection',
       'isDeque',
       'isList',
+      'isMapCollection',
       'isQueue',
       'isSequencedCollection',
       'isSetCollection',
       'isSortedSet',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 14 classes, 7 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 15 classes, 8 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -91,7 +93,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 13 classes recognised across copies; expected at least 14')
+    expect(failures).toContain('found 14 classes recognised across copies; expected at least 15')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -400,6 +402,97 @@ describe('sets across two copies', () => {
     expect(result.lines).toContain('isSetCollection: recognised across copies; major 2 refused')
     const { isSetCollection: _dropped, ...without } = a
     expect(checkTwoCopies(without, b).failures).toContain('guard isSetCollection not found')
+  })
+})
+
+describe('maps across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type MapClass = new (entries?: Iterable<unknown> | null, options?: object) => object
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isMapCollection accepts a HashMap from either copy and refuses everything else, and maps are not collections [012 S9-AC4]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const HashMap = theirs.HashMap as MapClass
+      const isMapCollection = mine.isMapCollection as (value: unknown) => boolean
+      const pairs = [['a', 1]]
+      const maps = [
+        new HashMap(pairs),
+        new HashMap(pairs, { key: (v: unknown) => v }),
+        new HashMap(pairs, { equivalence: theirs.valueEquivalence }),
+      ]
+      for (const map of maps) {
+        expect(isMapCollection(map)).toBe(true)
+        for (const guard of ['isCollection', 'isSetCollection', 'isList', 'isQueue']) {
+          expect((mine[guard] as (value: unknown) => boolean)(map), guard).toBe(false)
+        }
+      }
+      const sample = maps[0] as {
+        keySet(): unknown
+        entrySet(): unknown
+        valueCollection(): unknown
+      }
+      const HashSet = theirs.HashSet as MapClass
+      const ArrayList = theirs.ArrayList as MapClass
+      const ArrayDeque = theirs.ArrayDeque as MapClass
+      for (const value of [
+        new Map([['a', 1]]),
+        new HashSet([1]),
+        new ArrayList([1]),
+        new ArrayDeque([1]),
+        sample.keySet(),
+        sample.entrySet(),
+        sample.valueCollection(),
+        {},
+        null,
+        undefined,
+      ]) {
+        expect(isMapCollection(value), String(value)).toBe(false)
+      }
+    }
+  })
+
+  it('instanceof HashMap holds across copies and not for other values [012 S9-AC4]', async () => {
+    const [a, b] = await load()
+    const A = a.HashMap as MapClass
+    const B = b.HashMap as MapClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B([['a', 1]], { key: (v: unknown) => v }) instanceof A).toBe(true)
+    for (const value of [new Map(), new (b.HashSet as MapClass)(), [], null, 1]) {
+      expect(value instanceof A).toBe(false)
+    }
+    expect(brandedValue(2, 'HashMap') instanceof A).toBe(false)
+    expect(brandedValue(1, 'HashMap') instanceof A).toBe(true)
+  })
+
+  it('compares equal maps from two copies as equal, both ways [012 S9-AC4]', async () => {
+    const [a, b] = await load()
+    const A = a.HashMap as MapClass
+    const B = b.HashMap as MapClass
+    const x = new A([['a', 1]]) as { equals(o: unknown): boolean }
+    const y = new B([['a', 1]]) as { equals(o: unknown): boolean }
+    expect(x.equals(y)).toBe(true)
+    expect(y.equals(x)).toBe(true)
+  })
+
+  it('the two-copy check covers HashMap and isMapCollection [012 S9-AC5]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('HashMap: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('isMapCollection: recognised across copies; major 2 refused')
+    const { isMapCollection: _dropped, ...without } = a
+    expect(checkTwoCopies(without, b).failures).toContain('guard isMapCollection not found')
   })
 })
 

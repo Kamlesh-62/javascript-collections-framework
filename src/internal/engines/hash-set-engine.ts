@@ -7,7 +7,6 @@
 // `Set`'s is. A member's derived key or hash is computed once, when it is stored, and reused for
 // every later removal by stored entry.
 
-import { ConcurrentModificationError } from '../../errors/errors'
 import type { Cursor } from '../../interfaces/collection'
 import type { SetCollection } from '../../interfaces/set'
 import {
@@ -20,56 +19,16 @@ import {
 import type { CheckedEquivalence } from '../equivalence'
 import { LiveCursor, MappedLiveIterator, NativeLiveIterator } from '../iteration'
 import { deriveKey } from '../key'
-import type { ChangeCounter } from '../revision'
 import { AbstractSet } from '../skeletons/abstract-set'
+import { type HashEquality, normalise, Operation } from './hash-support'
 import { type BucketEntry, BucketTable } from './hash-table'
 
 /**
- * How a set decides that two values are equal, fixed at construction: SameValueZero on the values
- * (`native`), SameValueZero on derived keys (`keyed`), or an equivalence over seeded buckets
- * (`buckets`; `builtIn` for this copy's `valueEquivalence`).
+ * How a set decides that two values are equal.
  *
  * @internal
  */
-export type HashSetEquality<E> =
-  | { readonly kind: 'native' }
-  | { readonly kind: 'keyed'; readonly key: KeyOf<E> }
-  | {
-      readonly kind: 'buckets'
-      readonly equivalence: CheckedEquivalence
-      readonly builtIn: boolean
-    }
-
-/**
- * One operation on a set: the API to name in errors, and the structure count when it started. A
- * `key`, `equals` or `hash` call is passed through `after`, which throws when the call changed the
- * set's members, so the operation itself changes nothing.
- */
-class Operation {
-  private readonly start: number
-  readonly changes: ChangeCounter
-  readonly where: string
-
-  constructor(changes: ChangeCounter, where: string) {
-    this.changes = changes
-    this.where = where
-    this.start = changes.structure
-  }
-
-  after<T>(result: T): T {
-    if (this.changes.structure !== this.start) {
-      throw new ConcurrentModificationError(
-        `${this.where}: the set was changed by a key, equals or hash function`,
-      )
-    }
-    return result
-  }
-}
-
-/** Turns `-0` into `0`, as native `Set` does, before any user function sees the value. */
-function normalise<E>(value: E): E {
-  return ((value as unknown) === 0 ? 0 : value) as E
-}
+export type HashSetEquality<E> = HashEquality<E>
 
 /**
  * Storage for one equality. Handles are what the store's live iteration yields (members, map

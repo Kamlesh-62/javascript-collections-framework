@@ -1,11 +1,12 @@
 {
   "entries": [
-    { "name": "*", "minified": 75516, "gzip": 17626 },
+    { "name": "*", "minified": 91228, "gzip": 20918 },
     { "name": "ArrayDeque", "minified": 16716, "gzip": 4981 },
     { "name": "ArrayList", "minified": 23057, "gzip": 6664 },
     { "name": "ClassCastError", "minified": 663, "gzip": 400 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
-    { "name": "HashSet", "minified": 20179, "gzip": 6227 },
+    { "name": "HashMap", "minified": 29725, "gzip": 8254 },
+    { "name": "HashSet", "minified": 20237, "gzip": 6261 },
     { "name": "IllegalArgumentError", "minified": 682, "gzip": 408 },
     { "name": "IllegalStateError", "minified": 668, "gzip": 399 },
     { "name": "IndexOutOfBoundsError", "minified": 685, "gzip": 410 },
@@ -24,6 +25,7 @@
     { "name": "isCollection", "minified": 209, "gzip": 169 },
     { "name": "isDeque", "minified": 199, "gzip": 169 },
     { "name": "isList", "minified": 197, "gzip": 168 },
+    { "name": "isMapCollection", "minified": 215, "gzip": 172 },
     { "name": "isQueue", "minified": 199, "gzip": 168 },
     { "name": "isSequencedCollection", "minified": 227, "gzip": 176 },
     { "name": "isSetCollection", "minified": 215, "gzip": 171 },

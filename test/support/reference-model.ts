@@ -456,6 +456,205 @@ export function runPriorityQueueReferenceModel(options: {
   expect(drained, `priority queue reference model seed ${options.seed} final`).toEqual(array)
 }
 
+/** What the map reference model drives: the native `Map` methods plus the map helpers it checks. */
+interface ModelledMap {
+  readonly size: number
+  get(key: number): unknown
+  has(key: number): boolean
+  set(key: number, value: number): unknown
+  delete(key: number): boolean
+  clear(): void
+  put(key: number, value: number): unknown
+  remove(key: number): unknown
+  replace(key: number, value: number): unknown
+  getOrInsert(key: number, value: number): unknown
+  getOrInsertComputed(key: number, fn: (key: number) => number): unknown
+  compute(key: number, fn: (value: number | undefined) => number | undefined): unknown
+  merge(key: number, value: number, fn: (old: number, value: number) => number | undefined): unknown
+  entries(): Iterator<[number, number]>
+  keys(): Iterator<number>
+  values(): Iterator<number>
+  [Symbol.iterator](): Iterator<[number, number]>
+}
+
+type NativeUpsert = Map<number, number> & {
+  getOrInsert?: (key: number, value: number) => number
+  getOrInsertComputed?: (key: number, fn: (key: number) => number) => number
+}
+
+/** `Map.prototype.getOrInsert`, by hand where the runtime lacks it. */
+function nativeGetOrInsert(map: NativeUpsert, key: number, value: number): number {
+  if (typeof map.getOrInsert === 'function') return map.getOrInsert(key, value)
+  if (map.has(key)) return map.get(key) as number
+  map.set(key, value)
+  return value
+}
+
+/** `Map.prototype.getOrInsertComputed`, by hand where the runtime lacks it. */
+function nativeGetOrInsertComputed(
+  map: NativeUpsert,
+  key: number,
+  fn: (key: number) => number,
+): number {
+  if (typeof map.getOrInsertComputed === 'function') return map.getOrInsertComputed(key, fn)
+  if (map.has(key)) return map.get(key) as number
+  const value = fn(key)
+  map.set(key, value)
+  return value
+}
+
+/**
+ * Seeded reference model for maps with small integer keys: applies the same random operations to
+ * a map and to a native `Map` and compares every result, the size, the order, and open iterators
+ * of each kind interleaved with the changes. With `bulk`, it also fills 40 keys or deletes about
+ * three quarters at once, so the map crosses its growth and shrink thresholds while iterators are
+ * open.
+ */
+export function runMapReferenceModel(options: {
+  seed: number
+  steps: number
+  make: () => ModelledMap
+  keys?: number
+  bulk?: boolean
+}): void {
+  const random = seeded(options.seed)
+  const map = options.make()
+  const model: NativeUpsert = new Map<number, number>()
+  const iterators: Array<{ ours: Iterator<unknown>; theirs: Iterator<unknown> }> = []
+  const ops = [
+    'set',
+    'set',
+    'put',
+    'delete',
+    'remove',
+    'get',
+    'has',
+    'replace',
+    'getOrInsert',
+    'getOrInsertComputed',
+    'compute',
+    'merge',
+    'check',
+    'clear',
+    'iter',
+    'step',
+    'step',
+  ]
+  if (options.bulk === true) ops.push('fill', 'fill', 'drain')
+  const top = (options.keys ?? 10) - 1
+  for (let step = 0; step < options.steps; step++) {
+    const at = `map reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const k = integer(random, 0, top)
+    const v = integer(random, 0, 99)
+    switch (op) {
+      case 'set':
+        map.set(k, v)
+        model.set(k, v)
+        break
+      case 'put':
+        expect(map.put(k, v), at).toBe(model.get(k))
+        model.set(k, v)
+        break
+      case 'delete':
+        expect(map.delete(k), at).toBe(model.delete(k))
+        break
+      case 'remove': {
+        const old = model.get(k)
+        model.delete(k)
+        expect(map.remove(k), at).toBe(old)
+        break
+      }
+      case 'get':
+        expect(map.get(k), at).toBe(model.get(k))
+        break
+      case 'has':
+        expect(map.has(k), at).toBe(model.has(k))
+        break
+      case 'replace': {
+        const old = model.get(k)
+        if (model.has(k)) model.set(k, v)
+        expect(map.replace(k, v), at).toBe(old)
+        break
+      }
+      case 'getOrInsert':
+        expect(map.getOrInsert(k, v), at).toBe(nativeGetOrInsert(model, k, v))
+        break
+      case 'getOrInsertComputed':
+        expect(
+          map.getOrInsertComputed(k, (key) => key + v),
+          at,
+        ).toBe(nativeGetOrInsertComputed(model, k, (key) => key + v))
+        break
+      case 'compute': {
+        // Odd values are kept and incremented; even ones are removed.
+        const fn = (value: number | undefined) =>
+          value === undefined ? v : value % 2 === 0 ? undefined : value + 2
+        const old = model.get(k)
+        const result = fn(old)
+        if (result === undefined) model.delete(k)
+        else model.set(k, result)
+        expect(map.compute(k, fn), at).toBe(result)
+        break
+      }
+      case 'merge': {
+        const fn = (old: number, value: number) => (old > 50 ? undefined : old + value)
+        let expected: number | undefined = v
+        if (model.has(k)) {
+          expected = fn(model.get(k) as number, v)
+          if (expected === undefined) model.delete(k)
+          else model.set(k, expected)
+        } else {
+          model.set(k, v)
+        }
+        expect(map.merge(k, v, fn), at).toBe(expected)
+        break
+      }
+      case 'fill':
+        for (let i = 0; i < 40; i++) {
+          const key = integer(random, 0, top)
+          map.set(key, i)
+          model.set(key, i)
+        }
+        break
+      case 'drain':
+        for (const key of [...model.keys()]) {
+          if (random() < 0.75) expect(map.delete(key), at).toBe(model.delete(key))
+        }
+        break
+      case 'clear':
+        map.clear()
+        model.clear()
+        break
+      case 'check':
+        expect([...(map as Iterable<[number, number]>)], at).toEqual([...model])
+        expect(map.size, at).toBe(model.size)
+        break
+      case 'iter': {
+        const kind = integer(random, 0, 2)
+        iterators.push(
+          kind === 0
+            ? { ours: map.keys(), theirs: model.keys() }
+            : kind === 1
+              ? { ours: map.values(), theirs: model.values() }
+              : { ours: map.entries(), theirs: model.entries() },
+        )
+        break
+      }
+      case 'step': {
+        if (iterators.length === 0) break
+        const it = pick(random, iterators)
+        expect(it.ours.next(), at).toEqual(it.theirs.next())
+        break
+      }
+    }
+  }
+  expect(
+    [...(map as Iterable<[number, number]>)],
+    `map reference model seed ${options.seed} final`,
+  ).toEqual([...model])
+}
+
 /**
  * Seeded reference model for sorted sets: applies the same random operations to a sorted set and
  * to a native array kept sorted by `compare` without duplicates, and compares every result —

@@ -171,6 +171,9 @@ when it changes are unspecified.
 | `SetCollection<E>`         | the changing methods of `Collection`                     |
 | `HashSetOptions<E>`        | `key` or `equivalence`                                   |
 
+A [`HashMap`](maps.md)'s `keySet()` and `entrySet()` are sets too, live views of its keys and
+entries.
+
 `isSetCollection(value)` recognises a set from any copy of the package (native `Set` is not one);
 `instanceof HashSet` recognises a `HashSet`. Type parameters as `SetCollection<E>` rather than
 `HashSet<E>`.

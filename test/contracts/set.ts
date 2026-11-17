@@ -15,6 +15,21 @@ export interface SetContractOptions {
    * (as native `Set`) by default; a sorted set passes a function that sorts them.
    */
   order?: (members: unknown[]) => unknown[]
+  /**
+   * Puts an element into the set some other way than `add`, for a view filled through its map.
+   * With it, `addAll` of present elements is not checked (a view cannot add).
+   */
+  insert?: (set: SetCollection<unknown>, element: unknown) => void
+  /**
+   * Turns a member back into the element it was made from, for a set whose members wrap the
+   * elements (an entry view, whose members are entries of `[element, element]`); identity by
+   * default.
+   */
+  member?: (member: unknown) => unknown
+  /** Turns an element into a value `has` finds, for such a set; identity by default. */
+  probe?: (element: unknown) => unknown
+  /** How a member made from `text`, the printed element, prints; the text itself by default. */
+  printed?: (text: string) => string
 }
 
 export function describeSetCollection(
@@ -23,15 +38,21 @@ export function describeSetCollection(
   options: SetContractOptions = {},
 ): void {
   const order = options.order ?? ((members: unknown[]) => members)
+  const member = options.member ?? ((value: unknown) => value)
+  const probe = options.probe ?? ((value: unknown) => value)
+  const printed = options.printed ?? ((text: string) => text)
+  const members = (values: Iterable<unknown>): unknown[] => [...values].map(member)
   describe(`${name} — set contract`, () => {
     it('keys, values and entries iterate in insertion order like a native Set [011 S3-AC1]', () => {
       const values = ['c', 1, null, 'a']
       const set = make(values)
       const native = new Set<unknown>(order([...new Set<unknown>(values)]))
-      expect([...set.keys()]).toEqual([...native.keys()])
-      expect([...set.values()]).toEqual([...native.values()])
-      expect([...set.entries()]).toEqual([...native.entries()])
-      expect([...set]).toEqual([...native])
+      expect(members(set.keys())).toEqual([...native.keys()])
+      expect(members(set.values())).toEqual([...native.values()])
+      expect([...set.entries()].map(([a, b]) => [member(a), member(b)])).toEqual([
+        ...native.entries(),
+      ])
+      expect(members(set)).toEqual([...native])
     })
 
     it('forEach passes each member twice and the set, with thisArg [011 S3-AC2]', () => {
@@ -39,7 +60,7 @@ export function describeSetCollection(
       const calls: unknown[][] = []
       const self = {}
       set.forEach(function (this: unknown, a, b, owner) {
-        calls.push([a, b, owner, this])
+        calls.push([member(a), member(b), owner, this])
       }, self)
       expect(calls).toEqual([
         [1, 1, set, self],
@@ -51,18 +72,18 @@ export function describeSetCollection(
       const set = make([1, 2, 3])
       expect(set.size).toBe(3)
       expect(new Set(set).size).toBe(3)
-      expect([...new Set(set.keys())]).toEqual([1, 2, 3])
+      expect(members(new Set(set.keys()))).toEqual([1, 2, 3])
       const isSubsetOf = (Set.prototype as { isSubsetOf?: (other: unknown) => boolean }).isSubsetOf
       if (typeof isSubsetOf === 'function') {
-        expect(isSubsetOf.call(new Set([2, 3]), set)).toBe(true)
-        expect(isSubsetOf.call(new Set([4]), set)).toBe(false)
+        expect(isSubsetOf.call(new Set([probe(2), probe(3)]), set)).toBe(true)
+        expect(isSubsetOf.call(new Set([probe(4)]), set)).toBe(false)
       }
     })
 
     it('holds each member once [011 S7-AC1]', () => {
       const set = make([1, 1, 2, Number.NaN, Number.NaN, 0, -0])
       expect(set.size).toBe(4)
-      expect(set.addAll([1, 2])).toBe(false)
+      if (!options.insert) expect(set.addAll([1, 2])).toBe(false)
     })
 
     it('equals another set with the same members in any order, both ways [011 S4-AC1]', () => {
@@ -90,7 +111,7 @@ export function describeSetCollection(
     })
 
     it('prints its members in braces and is recognised by isSetCollection [011 S7-AC1]', () => {
-      expect(String(make([1, 'a']))).toBe(`${name}(2) {1, 'a'}`)
+      expect(String(make([1, 'a']))).toBe(`${name}(2) {${printed('1')}, ${printed("'a'")}}`)
       expect(isSetCollection(make())).toBe(true)
     })
   })

@@ -147,8 +147,76 @@ interface Equivalence<T> {
     equals(a: T, b: T): boolean;
     hash(value: T): number;
 }
+declare const HASH_MAP_BRAND: unique symbol;
 declare const HASH_SET_BRAND: unique symbol;
 type HashFunction = (value: unknown) => number;
+declare class HashMap<K, V> implements MapCollection<K, V> {
+    private engine;
+    constructor(entries?: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>> | null, options?: HashMapOptions<K> | null);
+    constructor(options: HashMapOptions<K>);
+    static from<K, V>(entries: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>>, options?: HashMapOptions<K> | null): HashMap<K, V>;
+    static [Symbol.hasInstance](value: unknown): boolean;
+    get [HASH_MAP_BRAND](): true;
+    get [MAP_COLLECTION_BRAND](): true;
+    get size(): number;
+    get revision(): number;
+    get [Symbol.toStringTag](): string;
+    isEmpty(): boolean;
+    get(key: K): V | undefined;
+    getOrDefault<D>(key: K, fallback: D): V | D;
+    has(key: K): boolean;
+    containsValue(value: V): boolean;
+    set(key: K, value: V): this;
+    put(key: K, value: V): V | undefined;
+    putAll(entries: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>>): void;
+    delete(key: K): boolean;
+    remove(key: K): V | undefined;
+    replace(key: K, value: V): V | undefined;
+    replaceAll(fn: (value: V, key: K, map: MapCollection<K, V>) => V): void;
+    getOrInsert(key: K, value: V): V;
+    getOrInsertComputed(key: K, fn: (key: K) => V): V;
+    compute(key: K, fn: (value: V | undefined, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    computeIfPresent(key: K, fn: (value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    merge(key: K, value: V, fn: (old: V, value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    clear(): void;
+    keySet(): SetCollection<K>;
+    entrySet(): SetCollection<MapEntry<K, V>>;
+    valueCollection(): Collection<V>;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<[
+        K,
+        V
+    ]>;
+    forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void;
+    [Symbol.iterator](): IterableIterator<[
+        K,
+        V
+    ]>;
+    copy(): HashMap<K, V>;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): Array<[
+        K,
+        V
+    ]>;
+    [INSPECT](depth: number | null, options: object, inspect: (value: unknown, options: object) => string): string;
+}
+interface HashMapOptions<K> {
+    key?: KeyOf<K> | undefined;
+    equivalence?: Equivalence<K> | undefined;
+}
 declare class HashSet<E> implements SetCollection<E> {
     private engine;
     constructor(elements?: Iterable<E> | null, options?: HashSetOptions<E> | null);
@@ -293,6 +361,42 @@ interface ListCursor<E> extends Cursor<E> {
     set(element: E): void;
     insert(element: E): void;
 }
+declare const MAP_COLLECTION_BRAND: unique symbol;
+interface MapCollection<K, V> extends ReadonlyMapCollection<K, V> {
+    set(key: K, value: V): this;
+    put(key: K, value: V): V | undefined;
+    putAll(entries: Iterable<readonly [
+        K,
+        V
+    ] | MapEntry<K, V>>): void;
+    delete(key: K): boolean;
+    remove(key: K): V | undefined;
+    replace(key: K, value: V): V | undefined;
+    replaceAll(fn: (value: V, key: K, map: MapCollection<K, V>) => V): void;
+    getOrInsert(key: K, value: V): V;
+    getOrInsertComputed(key: K, fn: (key: K) => V): V;
+    compute(key: K, fn: (value: V | undefined, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    computeIfPresent(key: K, fn: (value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    merge(key: K, value: V, fn: (old: V, value: V, key: K, map: MapCollection<K, V>) => V | undefined): V | undefined;
+    clear(): void;
+    keySet(): SetCollection<K>;
+    entrySet(): SetCollection<MapEntry<K, V>>;
+    valueCollection(): Collection<V>;
+    forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void;
+}
+interface MapEntry<K, V> extends Iterable<K | V> {
+    readonly key: K;
+    readonly value: V;
+    setValue(value: V): V;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): [
+        K,
+        V
+    ];
+}
 declare const NO_SUCH_ELEMENT_ERROR_BRAND: unique symbol;
 declare const NULL_ELEMENT_ERROR_BRAND: unique symbol;
 declare class NoSuchElementError extends Error {
@@ -377,6 +481,36 @@ interface ReadonlyList<E> extends ReadonlySequencedCollection<E> {
     subList(from: number, to: number): ReadonlyList<E>;
     reversed(): ReadonlyList<E>;
     forEach(action: (element: E, index: number, list: ReadonlyList<E>) => void, thisArg?: unknown): void;
+}
+interface ReadonlyMapCollection<K, V> extends Iterable<[
+    K,
+    V
+]> {
+    readonly size: number;
+    readonly revision: number;
+    isEmpty(): boolean;
+    get(key: K): V | undefined;
+    getOrDefault<D>(key: K, fallback: D): V | D;
+    has(key: K): boolean;
+    containsValue(value: V): boolean;
+    keySet(): ReadonlySetCollection<K>;
+    entrySet(): ReadonlySetCollection<MapEntry<K, V>>;
+    valueCollection(): ReadonlyCollection<V>;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+    entries(): IterableIterator<[
+        K,
+        V
+    ]>;
+    forEach(action: (value: V, key: K, map: ReadonlyMapCollection<K, V>) => void, thisArg?: unknown): void;
+    equals(other: unknown): boolean;
+    [equalsSymbol](other: unknown): boolean;
+    [hashCodeSymbol](hash: HashFunction): number;
+    toString(): string;
+    toJSON(): Array<[
+        K,
+        V
+    ]>;
 }
 interface ReadonlyQueue<E> extends ReadonlyCollection<E> {
     peek(): E | undefined;
@@ -521,6 +655,7 @@ declare const hashCodeSymbol: unique symbol;
 declare function isCollection(value: unknown): value is ReadonlyCollection<unknown>;
 declare function isDeque(value: unknown): value is ReadonlyDeque<unknown>;
 declare function isList(value: unknown): value is ReadonlyList<unknown>;
+declare function isMapCollection(value: unknown): value is ReadonlyMapCollection<unknown, unknown>;
 declare function isQueue(value: unknown): value is ReadonlyQueue<unknown>;
 declare function isSequencedCollection(value: unknown): value is ReadonlySequencedCollection<unknown>;
 declare function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown>;
@@ -532,5 +667,5 @@ declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isQueue, isSequencedCollection, isSetCollection, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
-export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, ReadonlySortedSet, SequencedCollection, SetCollection, SortedSet, SubSetOptions, TreeSetOptions };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeSet, UnsupportedOperationError, compareSymbol, comparing, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedSet, naturalOrder, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, thenComparing, valueEquivalence };
+export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySetCollection, ReadonlySortedSet, SequencedCollection, SetCollection, SortedSet, SubSetOptions, TreeSetOptions };
