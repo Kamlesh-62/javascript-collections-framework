@@ -31,12 +31,15 @@ import type {
   ReadonlySequencedCollection,
   ReadonlySequencedSet,
   ReadonlySetCollection,
+  ReadonlySortedMap,
   ReadonlySortedSet,
   SequencedCollection,
   SequencedSet,
   SetCollection,
+  SortedMap,
   SortedSet,
   SubSetOptions,
+  TreeMapOptions,
   TreeSetOptions,
 } from 'javascript-collections-framework'
 import {
@@ -62,6 +65,7 @@ import {
   isQueue,
   isSequencedCollection,
   isSetCollection,
+  isSortedMap,
   isSortedSet,
   LinkedHashSet,
   LinkedList,
@@ -73,6 +77,7 @@ import {
   PriorityQueue,
   reverseOrder,
   sameValueZeroEquivalence,
+  TreeMap,
   TreeSet,
   thenComparing,
   UnsupportedOperationError,
@@ -253,3 +258,22 @@ export const sortedAsSequenced: SequencedSet<string> = new TreeSet(['b', 'a'])
 history.forEach((item, same, set) => {
   set.has(item + same)
 })
+
+const highestFirst: TreeMapOptions<number> = { comparator: (a, b) => b - a }
+export const levels: SortedMap<number, string> = new TreeMap([[100, 'low']], highestFirst).set(
+  500,
+  'mid',
+)
+export const ks: SortedSet<number> = new TreeMap<number, string>().keySet()
+export const band: SortedMap<number, string> = levels.subMap(500, 100, window).reversed()
+export const level: string | undefined = TreeMap.from([[1, 'a']])
+  .copy()
+  .floorEntry(2)?.value
+export const polled: MapEntry<number, string> | undefined = levels
+  .headMap(300, upTo)
+  .pollFirstEntry()
+export function firstKey(value: unknown): unknown {
+  if (!isSortedMap(value)) return undefined
+  const readable: ReadonlySortedMap<unknown, unknown> = value
+  return readable.firstEntry()?.key
+}

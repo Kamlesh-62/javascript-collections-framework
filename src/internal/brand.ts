@@ -42,6 +42,11 @@ export const SORTED_SET_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/SortedSet',
 )
 
+// The brand of every sorted map and its range and reversed views.
+export const SORTED_MAP_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
+  'javascript-collections-framework/1/SortedMap',
+)
+
 // The brand of every list, list view and read-only list.
 export const LIST_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/List',

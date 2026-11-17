@@ -46,14 +46,14 @@ Or without a build step:
 | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Lists             | [`ArrayList`](docs/lists.md)                                                                                     |
 | Sets              | [`HashSet`](docs/sets.md), [`LinkedHashSet`](docs/linked-hash-sets.md), [`TreeSet`](docs/sorted-sets.md)         |
-| Maps              | [`HashMap`](docs/maps.md)                                                                                        |
+| Maps              | [`HashMap`](docs/maps.md), [`TreeMap`](docs/sorted-maps.md)                                                      |
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md), [`PriorityQueue`](docs/priority-queues.md) |
 
 ## Planned collections
 
-| Family | Implementations            |
-| ------ | -------------------------- |
-| Maps   | `LinkedHashMap`, `TreeMap` |
+| Family | Implementations |
+| ------ | --------------- |
+| Maps   | `LinkedHashMap` |
 
 The table lists what is planned, not what is available. Each entry moves to the
 [documentation](docs/README.md) when it ships.

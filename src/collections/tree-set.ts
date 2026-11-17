@@ -14,7 +14,8 @@ import {
   SET_COLLECTION_BRAND,
   SORTED_SET_BRAND,
 } from '../internal/brand'
-import { describeValue, isIterable } from '../internal/checks'
+import { isIterable } from '../internal/checks'
+import { notIterable, readComparator, requireOptions } from '../internal/comparator-options'
 import { TreeSetEngine } from '../internal/engines/tree-set-engine'
 import { equalsSymbol, type HashFunction, hashCodeSymbol } from '../internal/equality'
 import { COLLECTION_BRAND, INSPECT } from '../internal/output'
@@ -30,28 +31,6 @@ export interface TreeSetOptions<E> {
    * order (numbers, strings, bigints, booleans, dates or `[compareSymbol]` objects) when omitted.
    */
   comparator?: Comparator<E> | undefined
-}
-
-function notIterable(where: string, value: unknown): TypeError {
-  const hint = typeof value === 'function' ? '; pass the comparator as { comparator }' : ''
-  return new TypeError(`${where}: elements is not iterable (${describeValue(value)})${hint}`)
-}
-
-/** Throws `TypeError` unless `options` is an object (not `null`, not a function). */
-function requireOptions(options: unknown, where: string): void {
-  if (options === null || typeof options !== 'object') {
-    throw new TypeError(`${where}: options is not an object (${describeValue(options)})`)
-  }
-}
-
-/** Reads `comparator` once from checked options; it must be `undefined` or a function. */
-function readComparator<E>(options: object | undefined, where: string): Comparator<E> | undefined {
-  if (options === undefined) return undefined
-  const comparator: unknown = (options as { comparator?: unknown }).comparator
-  if (comparator !== undefined && typeof comparator !== 'function') {
-    throw new TypeError(`${where}: comparator is not a function (${describeValue(comparator)})`)
-  }
-  return comparator as Comparator<E> | undefined
 }
 
 /** Reads every element of `elements` into a new array. */
@@ -168,11 +147,11 @@ export class TreeSet<E> implements SortedSet<E> {
       } else if (typeof first === 'object') {
         settings = first
       } else {
-        throw notIterable('TreeSet', first)
+        throw notIterable('TreeSet', first, 'elements')
       }
     } else {
       if (first !== undefined && first !== null) {
-        if (!isIterable(first)) throw notIterable('TreeSet', first)
+        if (!isIterable(first)) throw notIterable('TreeSet', first, 'elements')
         elements = first as Iterable<E>
       }
       requireOptions(options, 'TreeSet')
@@ -208,7 +187,7 @@ export class TreeSet<E> implements SortedSet<E> {
   static from<T>(elements: Iterable<T>, options?: TreeSetOptions<T>): TreeSet<T> {
     if (options !== undefined) requireOptions(options, 'TreeSet.from')
     const comparator = readComparator<T>(options, 'TreeSet.from')
-    if (!isIterable(elements)) throw notIterable('TreeSet.from', elements)
+    if (!isIterable(elements)) throw notIterable('TreeSet.from', elements, 'elements')
     const set = new TreeSet<T>(null, { comparator })
     set.engine.build(readElements(elements), 'TreeSet.from')
     return set

@@ -30,8 +30,8 @@ export function mappingHash(keyHash: number, valueHash: number): number {
 /**
  * Base class of every map.
  *
- * Subclasses implement `size`, `[Symbol.toStringTag]`, `owner`, `handles` (a live iterator over
- * one handle per mapping), `keyAt`, `valueAt`, `find` (the handle of a key, or `MISSING`) and
+ * Subclasses implement `size`, `[Symbol.toStringTag]`, `owner`, `handles` (an iterator over one
+ * handle per mapping), `keyAt`, `valueAt`, `find` (the handle of a key, or `MISSING`) and
  * `keyHash` (a stored key's hash under the map's key equality), and record every change through
  * `changes`.
  *
@@ -42,14 +42,22 @@ export abstract class AbstractMap<K, V> {
    * The change counter: `structural()` when mappings are added or removed, `replaced()` when a
    * value is written. Views share it.
    */
-  readonly changes: ChangeCounter = new ChangeCounter()
+  readonly changes: ChangeCounter
+
+  /** @param changes - The change counter; a new one by default, the map's own for a map view. */
+  constructor(changes: ChangeCounter = new ChangeCounter()) {
+    this.changes = changes
+  }
 
   abstract get size(): number
   abstract get [Symbol.toStringTag](): string
   /** The public map handed to callbacks: the object the caller holds. */
   abstract get owner(): MapCollection<K, V>
-  /** A live iterator over one handle per mapping, in insertion order. */
-  abstract handles(): Iterator<unknown>
+  /**
+   * An iterator over one handle per mapping, in the map's order: live for a map that iterates
+   * live, fail-fast otherwise, with `where` naming the method in its errors.
+   */
+  abstract handles(where: string): Iterator<unknown>
   abstract keyAt(handle: unknown): K
   abstract valueAt(handle: unknown): V
   /** Returns the handle of the mapping whose key equals `key`, or `MISSING`; errors name `where`. */
@@ -85,7 +93,7 @@ export abstract class AbstractMap<K, V> {
   }
 
   containsValue(value: V): boolean {
-    const handles = this.handles()
+    const handles = this.handles(this.at('containsValue'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       if (sameValueZero(this.valueAt(step.value), value)) return true
     }
@@ -93,15 +101,15 @@ export abstract class AbstractMap<K, V> {
   }
 
   keys(): IterableIterator<K> {
-    return new MappedLiveIterator(this.handles(), (handle) => this.keyAt(handle))
+    return new MappedLiveIterator(this.handles(this.at('keys')), (handle) => this.keyAt(handle))
   }
 
   values(): IterableIterator<V> {
-    return new MappedLiveIterator(this.handles(), (handle) => this.valueAt(handle))
+    return new MappedLiveIterator(this.handles(this.at('values')), (handle) => this.valueAt(handle))
   }
 
   entries(): IterableIterator<[K, V]> {
-    return new MappedLiveIterator(this.handles(), (handle): [K, V] => [
+    return new MappedLiveIterator(this.handles(this.at('entries')), (handle): [K, V] => [
       this.keyAt(handle),
       this.valueAt(handle),
     ])
@@ -114,7 +122,7 @@ export abstract class AbstractMap<K, V> {
   forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void {
     requireFunction(action, this.at('forEach'), 'action')
     const owner = this.owner
-    const handles = this.handles()
+    const handles = this.handles(this.at('forEach'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       apply(action, thisArg, [this.valueAt(step.value), this.keyAt(step.value), owner])
     }
@@ -135,7 +143,7 @@ export abstract class AbstractMap<K, V> {
       () => false,
       () => {
         const where = this.at('equals')
-        const handles = this.handles()
+        const handles = this.handles(where)
         // A fresh object per call: `that` may be user code, and must never see `MISSING`.
         const absent = {} as V
         for (let step = handles.next(); step.done !== true; step = handles.next()) {
@@ -164,7 +172,7 @@ export abstract class AbstractMap<K, V> {
   /** The 32-bit sum of the mappings' hashes, unguarded (the entry view's hash is the map's). */
   mappingHashes(hash: HashFunction): number {
     let sum = 0
-    const handles = this.handles()
+    const handles = this.handles(this.at('[hashCodeSymbol]'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       const handle = step.value
       sum = (sum + mappingHash(this.keyHash(handle, hash), hash(this.valueAt(handle)))) | 0
@@ -175,7 +183,7 @@ export abstract class AbstractMap<K, V> {
   /** The 32-bit sum of the keys' hashes: the hash of the key view. */
   keyHashes(hash: HashFunction): number {
     let sum = 0
-    const handles = this.handles()
+    const handles = this.handles(this.at('[hashCodeSymbol]'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       sum = (sum + this.keyHash(step.value, hash)) | 0
     }
@@ -188,7 +196,7 @@ export abstract class AbstractMap<K, V> {
 
   toJSON(): Array<[K, V]> {
     const out: Array<[K, V]> = []
-    const handles = this.handles()
+    const handles = this.handles(this.at('toJSON'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       out.push([this.keyAt(step.value), this.valueAt(step.value)])
     }

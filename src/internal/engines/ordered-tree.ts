@@ -1,4 +1,4 @@
-// The ordered tree behind `TreeSet`: an iterative red-black tree with parent pointers. Nothing here
+// The ordered tree behind `TreeSet` and `TreeMap`: an iterative red-black tree with parent pointers. Nothing here
 // recurses, so the depth of the call stack never grows with the size of the tree.
 //
 // Every operation finds first and writes after: a descent from the root makes all the comparisons
@@ -20,6 +20,30 @@ export const ABSENT = 2
 
 /** -1, 0 or 1, or `ABSENT`. */
 export type Comparison = -1 | 0 | 1 | typeof ABSENT
+
+/**
+ * Where a value belongs in the tree: the node that compares equal to it, or else the parent a new
+ * node hangs from (`null` for the root) and on which side.
+ *
+ * @internal
+ */
+export interface Place<E> {
+  readonly node: TreeNode<E> | null
+  readonly parent: TreeNode<E> | null
+  readonly left: boolean
+}
+
+/**
+ * Returns a function that orders values in the reverse of `order` (natural order when
+ * `undefined`).
+ *
+ * @internal
+ */
+export function reversing<E>(order: Comparator<E> | undefined): Comparator<E> {
+  return order === undefined
+    ? (a: E, b: E) => compareNatural(b, a, 'naturalOrder')
+    : (a: E, b: E) => order(b, a)
+}
 
 /**
  * A node of the tree.
@@ -125,10 +149,13 @@ export class OrderedTree<E> {
   readonly order: Comparator<E> | undefined
   /** The change counter of the collection the tree belongs to, shared with its views. */
   readonly changes: ChangeCounter
+  /** What the collection is called in messages: `set` or `map`. */
+  private readonly noun: string
 
-  constructor(order: Comparator<E> | undefined, changes: ChangeCounter) {
+  constructor(order: Comparator<E> | undefined, changes: ChangeCounter, noun = 'set') {
     this.order = order
     this.changes = changes
+    this.noun = noun
   }
 
   // ── Comparing ──
@@ -160,7 +187,9 @@ export class OrderedTree<E> {
 
   private checkStructure(where: string, expected: number): void {
     if (this.changes.structure !== expected) {
-      throw new ConcurrentModificationError(`${where}: the set was changed by the comparator`)
+      throw new ConcurrentModificationError(
+        `${where}: the ${this.noun} was changed by the comparator`,
+      )
     }
   }
 
@@ -242,32 +271,51 @@ export class OrderedTree<E> {
    * order, a value added to an empty tree is compared with itself first.
    */
   insert(value: E, where: string, expected: number): boolean {
+    const place = this.locate(value, where, expected)
+    if (place.node !== null) return false
+    this.link(new TreeNode(value), place)
+    return true
+  }
+
+  /**
+   * Finds where `value` belongs, making every comparison an insertion needs: the node equal to it,
+   * or where a new node would hang. In natural order, a value meeting an empty tree is compared
+   * with itself.
+   */
+  locate(value: E, where: string, expected: number): Place<E> {
     let parent: TreeNode<E> | null = null
     let c: -1 | 0 | 1 = 0
     let node = this.root
     if (node === null && this.order === undefined) this.compare(value, value, where, expected)
     while (node !== null) {
       c = this.compare(value, node.value, where, expected)
-      if (c === 0) return false
+      if (c === 0) return { node, parent: null, left: false }
       parent = node
       node = c < 0 ? node.left : node.right
     }
-    // Every comparison is done: from here on nothing can fail.
-    const added = new TreeNode(value)
+    return { node: null, parent, left: c < 0 }
+  }
+
+  /**
+   * Links the new node `added` at `place` (found by `locate` with no change since) and
+   * rebalances. No comparisons, so nothing here can fail.
+   */
+  link(added: TreeNode<E>, place: Place<E>): void {
+    const parent = place.parent
     added.parent = parent
     if (parent === null) this.root = added
-    else if (c < 0) parent.left = added
+    else if (place.left) parent.left = added
     else parent.right = added
     this.count++
     this.fixAfterInsert(added)
-    return true
   }
 
   /**
    * Fills an empty tree with `values`, which must be in strictly ascending order, as a balanced
-   * tree. No comparisons.
+   * tree. No comparisons. `make(index)` makes the node of `values[index]`; a plain node by
+   * default.
    */
-  buildSorted(values: readonly E[]): void {
+  buildSorted(values: readonly E[], make?: (index: number) => TreeNode<E>): void {
     const size = values.length
     if (size === 0) return
     const red = redLevel(size)
@@ -276,7 +324,7 @@ export class OrderedTree<E> {
       const frame = stack.pop() as BuildFrame<E>
       if (frame.hi < frame.lo) continue
       const mid = (frame.lo + frame.hi) >>> 1
-      const node = new TreeNode(values[mid] as E)
+      const node = make === undefined ? new TreeNode(values[mid] as E) : make(mid)
       node.red = frame.level === red
       node.parent = frame.parent
       if (frame.parent === null) this.root = node
@@ -289,14 +337,17 @@ export class OrderedTree<E> {
     this.count = size
   }
 
-  /** Fills an empty tree with a node-for-node copy of `source`'s tree. No comparisons. */
-  copyFrom(source: OrderedTree<E>): void {
+  /**
+   * Fills an empty tree with a node-for-node copy of `source`'s tree. No comparisons.
+   * `clone(node)` makes the copy of a node; a plain node with the same value by default.
+   */
+  copyFrom(source: OrderedTree<E>, clone?: (node: TreeNode<E>) => TreeNode<E>): void {
     if (source.root === null) return
     const stack: CopyFrame<E>[] = [{ source: source.root, parent: null, left: false }]
     while (stack.length > 0) {
       const frame = stack.pop() as CopyFrame<E>
       const from = frame.source
-      const node = new TreeNode(from.value)
+      const node = clone === undefined ? new TreeNode(from.value) : clone(from)
       node.red = from.red
       node.parent = frame.parent
       if (frame.parent === null) this.root = node
@@ -499,14 +550,16 @@ export class OrderedTree<E> {
 
 /**
  * A fail-fast iterator over the nodes from `start` up to, but not including, `end`, in ascending
- * order or, when `descending`, in descending order.
+ * order or, when `descending`, in descending order. It yields `project(node)`: the node's value
+ * by default.
  *
  * @internal
  */
-export class TreeIterator<E> extends FailFastIterator<E> {
+export class TreeIterator<E, T = E> extends FailFastIterator<T> {
   private node: TreeNode<E> | null
   private readonly end: TreeNode<E> | null
   private readonly descending: boolean
+  private readonly project: ((node: TreeNode<E>) => T) | undefined
 
   constructor(
     start: TreeNode<E> | null,
@@ -514,34 +567,41 @@ export class TreeIterator<E> extends FailFastIterator<E> {
     descending: boolean,
     changes: ChangeCounter,
     where: string,
+    project?: (node: TreeNode<E>) => T,
   ) {
     super(changes, where)
     this.node = start
     this.end = end
     this.descending = descending
+    this.project = project
   }
 
-  protected step(): IteratorResult<E> {
+  protected step(): IteratorResult<T> {
     const node = this.node
     if (node === null || node === this.end) return done()
     this.node = this.descending ? predecessor(node) : successor(node)
-    return { done: false, value: node.value }
+    return {
+      done: false,
+      value: this.project === undefined ? (node.value as unknown as T) : this.project(node),
+    }
   }
 }
 
 /**
  * A fail-fast cursor over the nodes from `start` up to, but not including, `end`; `remove()`
  * unlinks the node `next()` last returned. The next node is found before anything is removed, and
- * removal moves nodes rather than values, so the cursor carries on from where it was.
+ * removal moves nodes rather than values, so the cursor carries on from where it was. It returns
+ * `project(node)`: the node's value by default.
  *
  * @internal
  */
-export class TreeCursor<E> extends FailFastCursor<E> implements Cursor<E> {
+export class TreeCursor<E, T = E> extends FailFastCursor<T> implements Cursor<T> {
   private next_: TreeNode<E> | null
   private last: TreeNode<E> | null = null
   private readonly end: TreeNode<E> | null
   private readonly descending: boolean
   private readonly tree: OrderedTree<E>
+  private readonly project: ((node: TreeNode<E>) => T) | undefined
 
   constructor(
     tree: OrderedTree<E>,
@@ -549,23 +609,25 @@ export class TreeCursor<E> extends FailFastCursor<E> implements Cursor<E> {
     end: TreeNode<E> | null,
     descending: boolean,
     where: string,
+    project?: (node: TreeNode<E>) => T,
   ) {
     super(tree.changes, where)
     this.tree = tree
     this.next_ = start
     this.end = end
     this.descending = descending
+    this.project = project
   }
 
   protected hasMore(): boolean {
     return this.next_ !== null && this.next_ !== this.end
   }
 
-  protected advance(): E {
+  protected advance(): T {
     const node = this.next_ as TreeNode<E>
     this.last = node
     this.next_ = this.descending ? predecessor(node) : successor(node)
-    return node.value
+    return this.project === undefined ? (node.value as unknown as T) : this.project(node)
   }
 
   protected removeLast(): void {

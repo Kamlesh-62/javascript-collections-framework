@@ -174,8 +174,8 @@ when it changes are unspecified.
 [`LinkedHashSet`](linked-hash-sets.md) behaves as a `HashSet` and can also be read and changed at
 both ends (`getFirst`, `removeLast`, `addFirst` that inserts or moves, a live reversed view).
 
-A [`HashMap`](maps.md)'s `keySet()` and `entrySet()` are sets too, live views of its keys and
-entries.
+A [`HashMap`](maps.md)'s or [`TreeMap`](sorted-maps.md)'s `keySet()` and `entrySet()` are sets
+too, live views of its keys and entries (a `TreeMap`'s key set is a sorted set).
 
 `isSetCollection(value)` recognises a set from any copy of the package (native `Set` is not one);
 `instanceof HashSet` recognises a `HashSet`. Type parameters as `SetCollection<E>` rather than

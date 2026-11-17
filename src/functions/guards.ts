@@ -9,6 +9,7 @@ import type { ReadonlyList, ReadonlySequencedCollection } from '../interfaces/li
 import type { ReadonlyMapCollection } from '../interfaces/map'
 import type { ReadonlyDeque, ReadonlyQueue } from '../interfaces/queue'
 import type { ReadonlySetCollection } from '../interfaces/set'
+import type { ReadonlySortedMap } from '../interfaces/sorted-map'
 import type { ReadonlySortedSet } from '../interfaces/sorted-set'
 import {
   DEQUE_BRAND,
@@ -18,6 +19,7 @@ import {
   QUEUE_BRAND,
   SEQUENCED_COLLECTION_BRAND,
   SET_COLLECTION_BRAND,
+  SORTED_MAP_BRAND,
   SORTED_SET_BRAND,
 } from '../internal/brand'
 import { COLLECTION_BRAND } from '../internal/output'
@@ -189,4 +191,25 @@ export function isMapCollection(value: unknown): value is ReadonlyMapCollection<
  */
 export function isSortedSet(value: unknown): value is ReadonlySortedSet<unknown> {
   return isBranded(value, SORTED_SET_BRAND)
+}
+
+/**
+ * Returns whether `value` is a sorted map from this library — a `TreeMap`, one of its range views
+ * or a reversed view — of the same major version, from any loaded copy of the package. A `HashMap`,
+ * native `Map` and the key set of a sorted map (a sorted set) are not.
+ *
+ * Time: O(1), plus any getter or proxy trap that reading a property of `value` runs.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is a library sorted map.
+ * @throws whatever a getter or proxy trap on `value` throws while the property is read.
+ *
+ * @example
+ * ```ts
+ * isSortedMap(new TreeMap([[1, 'a']])) // true
+ * isSortedMap(new HashMap([[1, 'a']])) // false
+ * ```
+ */
+export function isSortedMap(value: unknown): value is ReadonlySortedMap<unknown, unknown> {
+  return isBranded(value, SORTED_MAP_BRAND)
 }

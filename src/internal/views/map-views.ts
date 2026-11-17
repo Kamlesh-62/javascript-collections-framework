@@ -1,7 +1,6 @@
-// The live views of a hash map — its keys, its entries and its values — and the entry handle. Each
-// view reads and changes the map's engine directly and shares its change counter; none can add.
+// The live views of a hash map — its keys, its entries and its values. Each view reads and changes
+// the map's engine directly and shares its change counter; none can add.
 
-import { IllegalStateError, UnsupportedOperationError } from '../../errors/errors'
 import type { Cursor } from '../../interfaces/collection'
 import type { MapEntry } from '../../interfaces/map'
 import type { SetCollection } from '../../interfaces/set'
@@ -9,104 +8,11 @@ import { isBranded, MAP_ENTRY_BRAND } from '../brand'
 import type { HashMapEngine } from '../engines/hash-map-engine'
 import { normalise } from '../engines/hash-support'
 import { MISSING } from '../engines/map-stores'
-import { equals, equalsSymbol, type HashFunction, hashCodeSymbol } from '../equality'
-import { MappedLiveIterator, NativeLiveIterator } from '../iteration'
-import { INSPECT, type InspectOptions, inspectMapping, mappingToString } from '../output'
+import { equals, type HashFunction } from '../equality'
+import { MappedLiveIterator } from '../iteration'
 import { AbstractCollection } from '../skeletons/abstract-collection'
-import { mappingHash } from '../skeletons/abstract-map'
 import { AbstractSet } from '../skeletons/abstract-set'
-
-function unsupportedAdd(where: string, method = 'add'): UnsupportedOperationError {
-  return new UnsupportedOperationError(
-    `${where}.${method}: a map view cannot add; set the mapping on the map`,
-  )
-}
-
-/**
- * One mapping of a hash map: a handle on (map, key). It keeps the stored handle and probe of its
- * mapping, so reading and writing never call `key` or `hash`, and it remembers the value it last
- * returned or wrote, which it returns once the key is gone.
- *
- * @internal
- */
-export class MapEntryHandle<K, V> implements MapEntry<K, V> {
-  readonly key: K
-  private handle: unknown
-  private last: V
-  private readonly probe: unknown
-  private readonly engine: HashMapEngine<K, V>
-
-  constructor(engine: HashMapEngine<K, V>, handle: unknown, probe: unknown, value: V) {
-    this.engine = engine
-    this.handle = handle
-    this.probe = probe
-    this.key = engine.keyAt(handle)
-    this.last = value
-  }
-
-  /** Marks every map entry, across loaded copies. */
-  get [MAP_ENTRY_BRAND](): true {
-    return true
-  }
-
-  /** The handle of this entry's mapping now, or `MISSING` while its key is absent. */
-  private current(where: string): unknown {
-    const handle = this.engine.relocate(this.handle, this.key, this.probe, where)
-    if (handle !== MISSING) this.handle = handle
-    return handle
-  }
-
-  get value(): V {
-    const handle = this.current('MapEntry.value')
-    if (handle !== MISSING) this.last = this.engine.valueAt(handle)
-    return this.last
-  }
-
-  setValue(value: V): V {
-    const handle = this.current('MapEntry.setValue')
-    if (handle === MISSING) {
-      throw new IllegalStateError('MapEntry.setValue: the mapping was removed from the map')
-    }
-    const old = this.engine.overwrite(handle, value)
-    this.last = value
-    return old
-  }
-
-  [Symbol.iterator](): IterableIterator<K | V> {
-    return new NativeLiveIterator<K | V>([this.key, this.value][Symbol.iterator]())
-  }
-
-  equals(other: unknown): boolean {
-    if (other === this) return true
-    if (!isBranded(other, MAP_ENTRY_BRAND)) return false
-    const that = other as MapEntry<K, V>
-    return equals(this.key, that.key) && equals(this.value, that.value)
-  }
-
-  [equalsSymbol](other: unknown): boolean {
-    return this.equals(other)
-  }
-
-  [hashCodeSymbol](hash: HashFunction): number {
-    return mappingHash(hash(this.key), hash(this.value))
-  }
-
-  toString(): string {
-    return mappingToString(this, this.key, this.value)
-  }
-
-  toJSON(): [K, V] {
-    return [this.key, this.value]
-  }
-
-  [INSPECT](
-    _depth: number | null,
-    options: InspectOptions,
-    inspect: (value: unknown, options: InspectOptions) => string,
-  ): string {
-    return inspectMapping(this.key, this.value, options, inspect)
-  }
-}
+import { unsupportedAdd } from './map-entry'
 
 /**
  * The live view of a hash map's keys, under the map's key equality.

@@ -27,13 +27,14 @@ export interface MapEntry<K, V> extends Iterable<K | V> {
   readonly key: K
   /**
    * The current value of the mapping while its key is present in the map; afterwards, the value
-   * this entry last returned or wrote. Time: O(1) average.
+   * this entry last returned or wrote. Time: as the map documents — O(1) average for a `HashMap`;
+   * O(1) while the mapping is stored and O(log n) once it has left the map for a `TreeMap`.
    */
   readonly value: V
   /**
    * Writes `value` to the mapping in the map and returns the value it replaced.
    *
-   * Time: O(1) average.
+   * Time: as the map documents (as `value`).
    *
    * @param value - The new value.
    * @returns The previous value.
@@ -44,7 +45,7 @@ export interface MapEntry<K, V> extends Iterable<K | V> {
    * Returns whether `other` is an entry whose key and value are equal to this entry's under
    * `equals`.
    *
-   * Time: O(1) plus the protocol methods.
+   * Time: as reading `value`, plus the protocol methods.
    *
    * @param other - Any value.
    * @returns `true` when `other` is an equal entry.
@@ -52,12 +53,12 @@ export interface MapEntry<K, V> extends Iterable<K | V> {
   equals(other: unknown): boolean
   /** The value-equality protocol; delegates to `equals`. Time: as `equals`. */
   [equalsSymbol](other: unknown): boolean
-  /** The value-equality protocol: the same for equal entries. Time: O(1) plus the calls. */
+  /** The value-equality protocol: the same for equal entries. Time: as `value`, plus the calls. */
   [hashCodeSymbol](hash: HashFunction): number
   /**
    * Returns the mapping as text, e.g. `'a' => 1`.
    *
-   * Time: O(length of the output).
+   * Time: as `value`, plus O(length of the output).
    *
    * @returns The text.
    */
@@ -65,7 +66,7 @@ export interface MapEntry<K, V> extends Iterable<K | V> {
   /**
    * Returns `[key, value]`, so `JSON.stringify` writes an entry as a pair.
    *
-   * Time: O(1).
+   * Time: as `value`.
    *
    * @returns A new two-element array.
    */
@@ -210,7 +211,8 @@ export interface ReadonlyMapCollection<K, V> extends Iterable<[K, V]> {
    * Returns whether `other` is a map with the same size that maps every key of this map to an equal
    * value, and whose keys this map all maps to equal values.
    *
-   * Time: O(n) average, plus the lookups and the protocol methods.
+   * Time: as the map documents — O(n) average for a `HashMap`, O(n log n) for a `TreeMap` — plus
+   * the protocol methods.
    *
    * @param other - Any value.
    * @returns `true` when `other` is an equal map.
@@ -278,7 +280,8 @@ export interface MapCollection<K, V> extends ReadonlyMapCollection<K, V> {
   /**
    * Sets every mapping of `entries` in order, after reading and checking them all.
    *
-   * Time: O(m) average for `m` mappings.
+   * Time: as the map documents — O(m) average for a `HashMap`, O(m log(n + m)) for a `TreeMap` —
+   * for `m` mappings.
    *
    * @param entries - `[key, value]` pairs, map entries, a native `Map` or a map.
    * @throws TypeError when `entries` is not iterable or an item is not a pair or an entry.

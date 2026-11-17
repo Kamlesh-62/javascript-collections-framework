@@ -216,3 +216,7 @@ an object's properties.
 and neither are the views); a map is not a `Collection`, so `isCollection(map)` is `false`.
 `instanceof HashMap` recognises a `HashMap`. Type parameters as `MapCollection<K, V>` rather than
 `HashMap<K, V>`.
+
+For mappings kept in key order, with nearest-key queries and range views, see
+[sorted maps and `TreeMap`](sorted-maps.md); its `SortedMap<K, V>` type extends
+`MapCollection<K, V>`, and a `TreeMap` equals a `HashMap` with the same mappings.

@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 16
+export const MINIMUM_CLASSES = 17
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -15,6 +15,7 @@ export const REQUIRED_GUARDS = [
   'isSetCollection',
   'isSortedSet',
   'isMapCollection',
+  'isSortedMap',
 ]
 
 /**
@@ -137,6 +138,29 @@ function treeSets(copy) {
   return [set, set.subSet(1, 3), set.reversed()]
 }
 
+/**
+ * A `TreeMap` made by one copy, one of its range views and its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function treeMaps(copy) {
+  const TreeMap = /** @type {new (entries?: Iterable<unknown>) => any} */ (copy.TreeMap)
+  const map = new TreeMap([
+    [1, 'a'],
+    [2, 'b'],
+  ])
+  return [map, map.subMap(1, 2), map.reversed()]
+}
+
+/**
+ * The key sets of a `TreeMap` made by one copy, of its range view and of its reversed view.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function treeMapKeySets(copy) {
+  return treeMaps(copy).map((/** @type {any} */ map) => map.keySet())
+}
+
 /** Guard name → the values from a copy that the other copy's guard must accept. */
 export const SAMPLES = {
   isCollection: (/** @type {Namespace} */ copy) => [
@@ -146,12 +170,14 @@ export const SAMPLES = {
     ...linkedHashSets(copy),
     ...priorityQueues(copy),
     ...treeSets(copy),
+    ...treeMapKeySets(copy),
   ],
   isSequencedCollection: (/** @type {Namespace} */ copy) => [
     ...lists(copy),
     ...allDeques(copy),
     ...linkedHashSets(copy),
     ...treeSets(copy),
+    ...treeMapKeySets(copy),
   ],
   isList: lists,
   isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
@@ -160,9 +186,11 @@ export const SAMPLES = {
     ...hashSets(copy),
     ...linkedHashSets(copy),
     ...treeSets(copy),
+    ...treeMapKeySets(copy),
   ],
-  isSortedSet: treeSets,
-  isMapCollection: hashMaps,
+  isSortedSet: (/** @type {Namespace} */ copy) => [...treeSets(copy), ...treeMapKeySets(copy)],
+  isMapCollection: (/** @type {Namespace} */ copy) => [...hashMaps(copy), ...treeMaps(copy)],
+  isSortedMap: treeMaps,
 }
 
 /**

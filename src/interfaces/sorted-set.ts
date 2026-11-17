@@ -11,11 +11,12 @@ import type { ReadonlySequencedSet, SequencedSet } from './sequenced-set'
 import type { ReadonlySetCollection, SetCollection } from './set'
 
 /**
- * The inclusive flags of `subSet`.
+ * The inclusive flags of `subSet` and `subMap`.
  *
  * @example
  * ```ts
  * set.subSet(1, 5, { fromInclusive: false, toInclusive: true }) // members in (1, 5]
+ * map.subMap(1, 5, { toInclusive: true })                       // mappings with keys in [1, 5]
  * ```
  */
 export interface SubSetOptions {
@@ -26,15 +27,19 @@ export interface SubSetOptions {
 }
 
 /**
- * The inclusive flag of `headSet` and `tailSet`.
+ * The inclusive flag of `headSet`, `tailSet`, `headMap` and `tailMap`.
  *
  * @example
  * ```ts
- * set.headSet(5, { inclusive: true }) // members up to and including 5
+ * set.headSet(5, { inclusive: true })  // members up to and including 5
+ * map.tailMap(5, { inclusive: false }) // mappings with keys after 5
  * ```
  */
 export interface BoundOptions {
-  /** Whether the bound itself is in range. Default `false` for `headSet`, `true` for `tailSet`. */
+  /**
+   * Whether the bound itself is in range. Default `false` for `headSet` and `headMap`, `true` for
+   * `tailSet` and `tailMap`.
+   */
   inclusive?: boolean | undefined
 }
 

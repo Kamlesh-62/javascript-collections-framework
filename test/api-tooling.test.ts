@@ -785,3 +785,35 @@ describe('published shape of LinkedHashSet', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of TreeMap', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows TreeMap with no protected members, the sorted-map types and the guard, and no internal names [016 S8-AC5]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class TreeMap<K, V> implements SortedMap<K, V>')
+    expect(report).toContain('interface TreeMapOptions<K>')
+    expect(report).toContain('interface ReadonlySortedMap<K, V>')
+    expect(report).toContain('interface SortedMap<K, V>')
+    expect(report).toContain('declare function isSortedMap(')
+    expect(report).not.toMatch(
+      /AbstractSortedMap|MapTree|MapNode|TreeMapEngine|TreeSubMap|ReversedTreeMap|TreeMapKeySet|TreeMapEntrySet|TreeMapValues/,
+    )
+    const start = report.indexOf('declare class TreeMap')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private readonly engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records TreeMap and isSortedMap imported alone [016 S8-AC5]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    for (const name of ['TreeMap', 'isSortedMap']) {
+      const entry = report.entries.find((e) => e.name === name)
+      expect(entry?.minified, name).toBeGreaterThan(0)
+      expect(entry?.gzip, name).toBeGreaterThan(0)
+    }
+  })
+})

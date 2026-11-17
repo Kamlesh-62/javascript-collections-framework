@@ -35,12 +35,41 @@ function caught(fn: () => unknown): unknown {
 const VALUES = [50, 10, 40, 20, 30]
 const SORTED = [10, 20, 30, 40, 50]
 
-export function describeSortedSet(name: string, make: SortedSetFactory): void {
+export interface SortedSetContractOptions {
+  /**
+   * Puts a member into the set some other way than `add`, for a view that cannot add (a sorted
+   * map's key set, filled through its map). `range` names the range view of the set the element
+   * goes through, as `[from, to]` with the default flags; the factory's set when omitted. With it,
+   * `add`, `addAll`, `addFirst` and `addLast` must throw `UnsupportedOperationError`.
+   */
+  insert?: (
+    set: SortedSet<number>,
+    element: number,
+    range?: readonly [from: number, to: number],
+  ) => void
+}
+
+export function describeSortedSet(
+  name: string,
+  make: SortedSetFactory,
+  options: SortedSetContractOptions = {},
+): void {
+  const insert = options.insert
+  /** Puts `element` into `set`, or into its range view `[from, to)` given as `range`. */
+  const put = (
+    set: SortedSet<number>,
+    element: number,
+    range?: readonly [from: number, to: number],
+  ): void => {
+    if (insert) insert(set, element, range)
+    else if (range) set.subSet(range[0], range[1]).add(element)
+    else set.add(element)
+  }
   describe(`${name} — sorted set contract`, () => {
     it('iterates its members in ascending order whatever the insertion order', () => {
       expect([...make(VALUES)]).toEqual(SORTED)
       const set = make()
-      for (const v of VALUES) set.add(v)
+      for (const v of VALUES) put(set, v)
       expect(set.toArray()).toEqual(SORTED)
       expect([...set.keys()]).toEqual(SORTED)
       expect(String(set)).toBe(`${name}(5) {10, 20, 30, 40, 50}`)
@@ -97,13 +126,28 @@ export function describeSortedSet(name: string, make: SortedSetFactory): void {
       expect(set.revision).toBe(revision)
     })
 
-    it('keeps the member already present when an equal one is added', () => {
+    it.skipIf(!!insert)('keeps the member already present when an equal one is added', () => {
       const set = make([1, 2])
       const revision = set.revision
       expect(set.add(2)).toBe(set)
       expect(set.revision).toBe(revision)
       expect(set.size).toBe(2)
     })
+
+    it.skipIf(!insert)(
+      'refuses add (even of a member), addAll, addFirst and addLast with UnsupportedOperationError, changing nothing',
+      () => {
+        const set = make([1, 2])
+        const revision = set.revision
+        expect(() => set.add(2)).toThrow(UnsupportedOperationError)
+        expect(() => set.add(3)).toThrow(UnsupportedOperationError)
+        expect(() => set.addAll([3])).toThrow(UnsupportedOperationError)
+        expect(() => set.addFirst(0)).toThrow(UnsupportedOperationError)
+        expect(() => set.addLast(9)).toThrow(UnsupportedOperationError)
+        expect(set.toArray()).toEqual([1, 2])
+        expect(set.revision).toBe(revision)
+      },
+    )
 
     it('gives live range views with inclusive flags', () => {
       const set = make(VALUES)
@@ -116,11 +160,11 @@ export function describeSortedSet(name: string, make: SortedSetFactory): void {
       expect(set.tailSet(30).toArray()).toEqual([30, 40, 50])
       expect(set.tailSet(30, { inclusive: false }).toArray()).toEqual([40, 50])
       const view = set.subSet(15, 45)
-      set.add(25)
+      put(set, 25)
       expect(view.toArray()).toEqual([20, 25, 30, 40])
       view.delete(30)
       expect(set.has(30)).toBe(false)
-      view.add(35)
+      put(set, 35, [15, 45])
       expect(set.has(35)).toBe(true)
       expect(view.size).toBe(4)
       expect(view.getFirst()).toBe(20)
@@ -132,7 +176,7 @@ export function describeSortedSet(name: string, make: SortedSetFactory): void {
     it('refuses out-of-range additions, inverted ranges and invalid options', () => {
       const set = make(VALUES)
       const view = set.subSet(20, 40)
-      expect(() => view.add(45)).toThrow(IllegalArgumentError)
+      expect(() => put(set, 45, [20, 40])).toThrow(IllegalArgumentError)
       expect(view.has(50)).toBe(false)
       expect(view.delete(50)).toBe(false)
       expect(set.size).toBe(5)
@@ -165,7 +209,7 @@ export function describeSortedSet(name: string, make: SortedSetFactory): void {
     it('fails fast when changed during iteration', () => {
       const set = make(VALUES)
       expect(() => {
-        for (const v of set) if (v === 20) set.add(25)
+        for (const v of set) if (v === 20) put(set, 25)
       }).toThrow(ConcurrentModificationError)
     })
 
