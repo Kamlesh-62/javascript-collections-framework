@@ -4,8 +4,7 @@
 
 import type { Comparator } from '../../functions/comparators'
 import type { SortedSet } from '../../interfaces/sorted-set'
-import type { OrderedTree } from '../engines/ordered-tree'
-import { compareNatural } from '../natural-order'
+import { type OrderedTree, reversing } from '../engines/ordered-tree'
 import { AbstractSortedSet, type Bound } from '../skeletons/abstract-sorted-set'
 
 /**
@@ -65,13 +64,7 @@ export class ReversedView<E> extends AbstractSortedSet<E> {
 
   /** A function that orders in reverse, the same one on every call to this view. */
   comparator(): Comparator<E> {
-    if (this.reversing === undefined) {
-      const order = this.tree.order
-      this.reversing =
-        order === undefined
-          ? (a: E, b: E) => compareNatural(b, a, 'naturalOrder')
-          : (a: E, b: E) => order(b, a)
-    }
+    if (this.reversing === undefined) this.reversing = reversing(this.tree.order)
     return this.reversing
   }
 

@@ -7,8 +7,9 @@ written against it works with any of them.
 > [`ArrayList`](lists.md), [`HashSet`](sets.md), [`TreeSet`](sorted-sets.md),
 > [`ArrayDeque`](deques.md), [`LinkedList`](linked-lists.md) and
 > [`PriorityQueue`](priority-queues.md). The other collection classes arrive in later releases and
-> all follow this contract. Maps such as [`HashMap`](maps.md) are not collections; their `keySet()`,
-> `entrySet()` and `valueCollection()` views are.
+> all follow this contract. Maps such as [`HashMap`](maps.md) and [`TreeMap`](sorted-maps.md) are
+> not collections; their `keySet()`, `entrySet()` and `valueCollection()` views are (a `TreeMap`'s
+> key set is a sorted set).
 
 ```ts
 import type { Collection, Cursor, ReadonlyCollection } from 'javascript-collections-framework'

@@ -258,3 +258,8 @@ true for natural order on numbers, strings and the other primitives).
 of the package; `isSetCollection` and `isSequencedCollection` recognise them too, and
 `instanceof TreeSet` recognises the set itself. Type parameters as `SortedSet<E>` rather than
 `TreeSet<E>`.
+
+The key set of a [`TreeMap`](sorted-maps.md) is a sorted set too: `map.keySet()` answers
+`floor`, `ceiling`, `getFirst` and the rest for the map's keys, removes through to the map, and
+equals a `TreeSet` with the same members. It cannot add; set mappings on the map. `SubSetOptions`
+and `BoundOptions` are also the options of `subMap`, `headMap` and `tailMap`.

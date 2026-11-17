@@ -16,6 +16,12 @@ export interface SequencedContractOptions {
    * that order when they are added.
    */
   addAtEnds?: 'supported' | 'unsupported'
+  /**
+   * Puts an element into the collection some other way than `add`, for a view that cannot add (a
+   * sorted map's key set, filled through its map). With it, `add` must throw
+   * `UnsupportedOperationError`; the default is `add`.
+   */
+  insert?: (collection: SequencedCollection<unknown>, element: unknown) => void
 }
 
 export function describeSequencedCollection(
@@ -24,6 +30,7 @@ export function describeSequencedCollection(
   options: SequencedContractOptions = {},
 ): void {
   const unsupported = options.addAtEnds === 'unsupported'
+  const insert = options.insert
   describe(`${name} — sequenced collection contract`, () => {
     it('getFirst and getLast return the ends [006 S1-AC5]', () => {
       const c = make([1, 2, 3])
@@ -80,11 +87,21 @@ export function describeSequencedCollection(
       const r = c.reversed()
       expect([...r]).toEqual([3, 2, 1])
       expect(r.getFirst()).toBe(3)
-      if (unsupported) r.add(4)
+      if (insert) insert(c, 4)
+      else if (unsupported) r.add(4)
       else r.addFirst(4)
       expect([...c]).toEqual([1, 2, 3, 4])
       r.removeLast()
       expect([...c]).toEqual([2, 3, 4])
+    })
+
+    it.skipIf(!insert)('add throws UnsupportedOperationError and changes nothing', () => {
+      const c = make([1, 2])
+      const revision = c.revision
+      expect(() => c.add(3)).toThrow(UnsupportedOperationError)
+      expect(() => c.reversed().add(3)).toThrow(UnsupportedOperationError)
+      expect([...c]).toEqual([1, 2])
+      expect(c.revision).toBe(revision)
     })
 
     it('reversing twice gives the original order', () => {

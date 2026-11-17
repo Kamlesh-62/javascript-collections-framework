@@ -10,47 +10,16 @@ import { ConcurrentModificationError } from '../../errors/errors'
 import type { Collection, Cursor } from '../../interfaces/collection'
 import type { MapCollection, MapEntry } from '../../interfaces/map'
 import type { SetCollection } from '../../interfaces/set'
-import { isBranded, MAP_ENTRY_BRAND } from '../brand'
-import { describeValue, isIterable, requireFunction } from '../checks'
+import { requireFunction } from '../checks'
 import type { HashFunction } from '../equality'
 import { apply } from '../intrinsics'
 import { LiveCursor, MappedLiveIterator } from '../iteration'
+import { readPairs } from '../map-input'
 import { AbstractMap } from '../skeletons/abstract-map'
-import { HashMapEntrySet, HashMapKeySet, HashMapValues, MapEntryHandle } from '../views/map-views'
+import { MapEntryHandle } from '../views/map-entry'
+import { HashMapEntrySet, HashMapKeySet, HashMapValues } from '../views/map-views'
 import { type HashEquality, normalise, Operation } from './hash-support'
 import { type MapStore, MISSING, newMapStore } from './map-stores'
-
-/**
- * Reads `entries` whole and checks every item before anything is stored: each must be an array of
- * length exactly 2 or a map entry.
- *
- * Time: O(m) for `m` items.
- *
- * @param entries - The argument as given.
- * @param where - The API to name in errors.
- * @returns The `[key, value]` pairs, in order.
- * @throws TypeError when `entries` is not iterable or an item is neither a pair nor an entry.
- * @internal
- */
-export function readPairs<K, V>(entries: unknown, where: string): Array<[K, V]> {
-  if (!isIterable(entries)) {
-    throw new TypeError(`${where}: entries is not iterable (${describeValue(entries)})`)
-  }
-  const pairs: Array<[K, V]> = []
-  for (const item of entries as Iterable<unknown>) {
-    if (Array.isArray(item) && item.length === 2) {
-      pairs.push([item[0] as K, item[1] as V])
-    } else if (isBranded(item, MAP_ENTRY_BRAND)) {
-      const entry = item as MapEntry<K, V>
-      pairs.push([entry.key, entry.value])
-    } else {
-      throw new TypeError(
-        `${where}: item ${pairs.length} is not a [key, value] pair or a map entry (${describeValue(item)})`,
-      )
-    }
-  }
-  return pairs
-}
 
 /** A mapping a cursor has reached: its handle and the value it had then. */
 type Reached<V> = readonly [unknown, V]
@@ -94,7 +63,7 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
     return this.store.size
   }
 
-  handles(): Iterator<unknown> {
+  handles(_where?: string): Iterator<unknown> {
     return this.store.handles()
   }
 

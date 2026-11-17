@@ -17,6 +17,8 @@ export { HashSet } from './collections/hash-set'
 export { LinkedList } from './collections/linked-list'
 export type { PriorityQueueOptions } from './collections/priority-queue'
 export { PriorityQueue } from './collections/priority-queue'
+export type { TreeMapOptions } from './collections/tree-map'
+export { TreeMap } from './collections/tree-map'
 export type { TreeSetOptions } from './collections/tree-set'
 export { TreeSet } from './collections/tree-set'
 // Errors
@@ -60,6 +62,7 @@ export {
   isQueue,
   isSequencedCollection,
   isSetCollection,
+  isSortedMap,
   isSortedSet,
 } from './functions/guards'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
@@ -74,6 +77,7 @@ export type {
 export type { MapCollection, MapEntry, ReadonlyMapCollection } from './interfaces/map'
 export type { Deque, Queue, ReadonlyDeque, ReadonlyQueue } from './interfaces/queue'
 export type { ReadonlySetCollection, SetCollection } from './interfaces/set'
+export type { ReadonlySortedMap, SortedMap } from './interfaces/sorted-map'
 export type {
   BoundOptions,
   ReadonlySortedSet,

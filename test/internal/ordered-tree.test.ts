@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { OrderedTree, type TreeNode } from '../../src/internal/engines/ordered-tree'
+import { MapNode, MapTree } from '../../src/internal/engines/map-tree'
+import {
+  OrderedTree,
+  TreeCursor,
+  TreeIterator,
+  type TreeNode,
+} from '../../src/internal/engines/ordered-tree'
 import { ChangeCounter } from '../../src/internal/revision'
 import { integer, seeded } from '../support/random'
 
@@ -126,5 +132,103 @@ describe('OrderedTree', () => {
       expect(t.find(value, 'test', 0, false)).toBe(node)
     }
     checkShape(t)
+  })
+})
+
+describe('OrderedTree — locate and link, node makers, projection', () => {
+  it('locate then link makes the same comparisons, in the same order, as insert [016 S1-AC7]', () => {
+    const random = seeded(7)
+    const values: number[] = []
+    for (let i = 0; i < 300; i++) values.push(integer(random, 0, 200))
+    const calls = (log: string[]) => (a: number, b: number) => {
+      log.push(`${a}:${b}`)
+      return a - b
+    }
+    const insertLog: string[] = []
+    const splitLog: string[] = []
+    const a = new OrderedTree<number>(calls(insertLog), new ChangeCounter())
+    const b = new OrderedTree<number>(calls(splitLog), new ChangeCounter())
+    for (const v of values) {
+      const added = a.insert(v, 'test', 0)
+      const place = b.locate(v, 'test', 0)
+      if (place.node === null) b.link(new MapNode(v, 0, 0), place)
+      expect(place.node === null).toBe(added)
+    }
+    expect(splitLog).toEqual(insertLog)
+    expect(checkShape(b)).toEqual(checkShape(a))
+  })
+
+  it('locate checks a value against itself in natural order on an empty tree, and changes nothing', () => {
+    const t = new OrderedTree<unknown>(undefined, new ChangeCounter())
+    expect(() => t.locate(null, 'test', 0)).toThrow()
+    expect(() => t.locate({}, 'test', 0)).toThrow()
+    const place = t.locate(1, 'test', 0)
+    expect(place).toEqual({ node: null, parent: null, left: false })
+    expect(t.count).toBe(0)
+  })
+
+  it('builds and copies with node makers, keeping values and shape [016 S5-AC5]', () => {
+    const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    const values = keys.map((k) => `v${k}`)
+    const m = new MapTree<number, string>(ascending, new ChangeCounter())
+    m.buildPairs(keys, values)
+    expect(checkShape(m as unknown as OrderedTree<number>)).toEqual(keys)
+    const copy = new MapTree<number, string>(ascending, new ChangeCounter())
+    copy.copyPairs(m)
+    expect(checkShape(copy as unknown as OrderedTree<number>)).toEqual(keys)
+    for (const k of keys) {
+      const node = copy.find(k, 'test', 0, false) as MapNode<number, string>
+      expect(node).toBeInstanceOf(MapNode)
+      expect(node.mapped).toBe(`v${k}`)
+      expect(copy.stored(node)).toBe(true)
+      expect(node).not.toBe(m.find(k, 'test', 0, false))
+    }
+  })
+
+  it('tells stored nodes from removed ones after remove, clear and re-adding [016 S3-AC5]', () => {
+    const changes = new ChangeCounter()
+    const m = new MapTree<number, string>(ascending, changes)
+    const add = (k: number) => {
+      const place = m.locate(k, 'test', changes.structure)
+      const node = m.newNode(k, `v${k}`)
+      m.link(node, place)
+      return node
+    }
+    const one = add(1)
+    const two = add(2)
+    const three = add(3)
+    expect([one, two, three].map((n) => m.stored(n))).toEqual([true, true, true])
+    m.remove(two)
+    expect([one, two, three].map((n) => m.stored(n))).toEqual([true, false, true])
+    m.clear()
+    expect([one, two, three].map((n) => m.stored(n))).toEqual([false, false, false])
+    const again = add(1)
+    expect(m.stored(again)).toBe(true)
+    expect(m.stored(one)).toBe(false)
+    expect(m.count).toBe(1)
+  })
+
+  it('names the map in the re-entrant comparator message', () => {
+    const changes = new ChangeCounter()
+    const m = new MapTree<number, string>((a, b) => {
+      changes.structural()
+      return a - b
+    }, changes)
+    m.link(m.newNode(1, 'a'), m.locate(1, 'test', 0))
+    expect(() => m.find(2, 'TreeMap.get', 0, false)).toThrow(
+      'TreeMap.get: the map was changed by the comparator',
+    )
+  })
+
+  it('projects nodes in iterators and cursors', () => {
+    const t = tree()
+    for (const v of [3, 1, 2]) t.insert(v, 'test', 0)
+    const doubled = new TreeIterator(t.first(), null, false, t.changes, 'test', (n) => n.value * 2)
+    expect([...doubled]).toEqual([2, 4, 6])
+    const cursor = new TreeCursor(t, t.last(), null, true, 'test', (n) => `#${n.value}`)
+    expect(cursor.next()).toBe('#3')
+    cursor.remove()
+    expect(cursor.next()).toBe('#2')
+    expect(checkShape(t)).toEqual([1, 2])
   })
 })

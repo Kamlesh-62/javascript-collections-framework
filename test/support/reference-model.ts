@@ -3,9 +3,16 @@
 // iterators and cursors with changes and compares them with native Set iterators.
 
 import { expect } from 'vitest'
-import { type Collection, type Cursor, NoSuchElementError } from '../../src/index'
+import {
+  type Collection,
+  type Cursor,
+  IllegalArgumentError,
+  type MapEntry,
+  NoSuchElementError,
+} from '../../src/index'
 import type { List } from '../../src/interfaces/list'
 import type { Deque } from '../../src/interfaces/queue'
+import type { SortedMap } from '../../src/interfaces/sorted-map'
 import type { SortedSet } from '../../src/interfaces/sorted-set'
 import { integer, pick, seeded } from './random'
 
@@ -820,4 +827,258 @@ export function runSortedSetReferenceModel<T>(options: {
     expect(set.size, at).toBe(array.length)
   }
   expect(set.toArray(), `sorted set reference model seed ${options.seed} final`).toEqual(array)
+}
+
+/**
+ * Runs seeded operations on a sorted map and on a native `Map` plus a sorted key array, checking
+ * that results, key order and size agree after every step: writes, lookups, the read-modify-write
+ * helpers, nearest entries, the ends and polls, range views read and written through (writes
+ * outside the range must throw), reversed views, and live entries read after later changes.
+ */
+export function runSortedMapReferenceModel<K>(options: {
+  seed: number
+  steps: number
+  make: () => SortedMap<K, number>
+  compare: (a: K, b: K) => number
+  key: (random: () => number) => K
+}): void {
+  const random = seeded(options.seed)
+  const { compare } = options
+  const map = options.make()
+  const values = new Map<K, number>()
+  let keys: K[] = []
+  /** The stored key equal to `k` under `compare`, or `undefined`. */
+  const stored = (k: K): K | undefined => keys.find((x) => compare(x, k) === 0)
+  const modelGet = (k: K): number | undefined => {
+    const s = stored(k)
+    return s === undefined ? undefined : values.get(s)
+  }
+  const modelSet = (k: K, v: number): number | undefined => {
+    const s = stored(k)
+    if (s !== undefined) {
+      const old = values.get(s)
+      values.set(s, v)
+      return old
+    }
+    let i = 0
+    while (i < keys.length && compare(keys[i] as K, k) < 0) i++
+    keys.splice(i, 0, k)
+    values.set(k, v)
+    return undefined
+  }
+  const modelDelete = (k: K): number | undefined => {
+    const s = stored(k)
+    if (s === undefined) return undefined
+    const old = values.get(s)
+    keys = keys.filter((x) => x !== s)
+    values.delete(s)
+    return old
+  }
+  const pairOf = (k: K | undefined): [K, number] | undefined =>
+    k === undefined ? undefined : [k, values.get(k) as number]
+  const pairOfEntry = (e: MapEntry<K, number> | undefined): [K, number] | undefined =>
+    e === undefined ? undefined : [e.key, e.value]
+  const last = (items: K[]): K | undefined => items[items.length - 1]
+  const watched: Array<{ entry: MapEntry<K, number>; key: K; value: number }> = []
+  const ops = [
+    'set',
+    'set',
+    'put',
+    'delete',
+    'remove',
+    'get',
+    'replace',
+    'getOrInsert',
+    'getOrInsertComputed',
+    'compute',
+    'merge',
+    'near',
+    'ends',
+    'poll',
+    'range',
+    'range',
+    'reversed',
+    'entries',
+    'clear',
+  ]
+  let next = 0
+  for (let step = 0; step < options.steps; step++) {
+    const at = `sorted map reference model seed ${options.seed} step ${step}`
+    const op = pick(random, ops)
+    const k = options.key(random)
+    const v = next++
+    switch (op) {
+      case 'set':
+        expect(map.set(k, v), at).toBe(map)
+        modelSet(k, v)
+        break
+      case 'put':
+        expect(map.put(k, v), at).toBe(modelSet(k, v))
+        break
+      case 'delete':
+        expect(map.delete(k), at).toBe(modelDelete(k) !== undefined)
+        break
+      case 'remove':
+        expect(map.remove(k), at).toBe(modelDelete(k))
+        break
+      case 'get':
+        expect(map.get(k), at).toBe(modelGet(k))
+        expect(map.has(k), at).toBe(stored(k) !== undefined)
+        break
+      case 'replace': {
+        const old = modelGet(k)
+        expect(map.replace(k, v), at).toBe(old)
+        if (old !== undefined) modelSet(k, v)
+        break
+      }
+      case 'getOrInsert': {
+        const old = modelGet(k)
+        expect(map.getOrInsert(k, v), at).toBe(old === undefined ? v : old)
+        if (old === undefined) modelSet(k, v)
+        break
+      }
+      case 'getOrInsertComputed': {
+        const old = modelGet(k)
+        expect(
+          map.getOrInsertComputed(k, () => v),
+          at,
+        ).toBe(old === undefined ? v : old)
+        if (old === undefined) modelSet(k, v)
+        break
+      }
+      case 'compute': {
+        const old = modelGet(k)
+        const remove = random() < 0.3
+        const result = map.compute(k, (current) => {
+          expect(current, at).toBe(old)
+          return remove ? undefined : v
+        })
+        expect(result, at).toBe(remove ? undefined : v)
+        if (remove) modelDelete(k)
+        else modelSet(k, v)
+        break
+      }
+      case 'merge': {
+        const old = modelGet(k)
+        const merged = map.merge(k, v, (a, b) => a + b)
+        const expected = old === undefined ? v : old + v
+        expect(merged, at).toBe(expected)
+        modelSet(k, expected)
+        break
+      }
+      case 'near':
+        expect(pairOfEntry(map.lowerEntry(k)), at).toEqual(
+          pairOf(last(keys.filter((x) => compare(x, k) < 0))),
+        )
+        expect(pairOfEntry(map.floorEntry(k)), at).toEqual(
+          pairOf(last(keys.filter((x) => compare(x, k) <= 0))),
+        )
+        expect(pairOfEntry(map.ceilingEntry(k)), at).toEqual(
+          pairOf(keys.find((x) => compare(x, k) >= 0)),
+        )
+        expect(pairOfEntry(map.higherEntry(k)), at).toEqual(
+          pairOf(keys.find((x) => compare(x, k) > 0)),
+        )
+        break
+      case 'ends':
+        expect(pairOfEntry(map.firstEntry()), at).toEqual(pairOf(keys[0]))
+        expect(pairOfEntry(map.lastEntry()), at).toEqual(pairOf(last(keys)))
+        break
+      case 'poll': {
+        const first = random() < 0.5
+        const expected = pairOf(first ? keys[0] : last(keys))
+        const polled = first ? map.pollFirstEntry() : map.pollLastEntry()
+        expect(pairOfEntry(polled), at).toEqual(expected)
+        if (expected !== undefined) modelDelete(expected[0])
+        break
+      }
+      case 'range': {
+        let from = k
+        let to = options.key(random)
+        if (compare(from, to) > 0) {
+          const t = from
+          from = to
+          to = t
+        }
+        const fromInclusive = random() < 0.5
+        const toInclusive = random() < 0.5
+        const kind = integer(random, 0, 2)
+        const view =
+          kind === 0
+            ? map.subMap(from, to, { fromInclusive, toInclusive })
+            : kind === 1
+              ? map.headMap(to, { inclusive: toInclusive })
+              : map.tailMap(from, { inclusive: fromInclusive })
+        const aboveFrom = (x: K) => {
+          const a = compare(x, from)
+          return a > 0 || (a === 0 && fromInclusive)
+        }
+        const belowTo = (x: K) => {
+          const b = compare(x, to)
+          return b < 0 || (b === 0 && toInclusive)
+        }
+        const check =
+          kind === 0 ? (x: K) => aboveFrom(x) && belowTo(x) : kind === 1 ? belowTo : aboveFrom
+        const expected = keys.filter(check)
+        expect([...view.keys()], at).toEqual(expected)
+        expect(view.size, at).toBe(expected.length)
+        expect([...view.reversed().keys()], at).toEqual(expected.slice().reverse())
+        const probe = options.key(random)
+        expect(pairOfEntry(view.floorEntry(probe)), at).toEqual(
+          pairOf(last(expected.filter((x) => compare(x, probe) <= 0))),
+        )
+        expect(pairOfEntry(view.higherEntry(probe)), at).toEqual(
+          pairOf(expected.find((x) => compare(x, probe) > 0)),
+        )
+        if (check(probe)) {
+          view.set(probe, v)
+          modelSet(probe, v)
+        } else {
+          expect(view.get(probe), at).toBeUndefined()
+          expect(view.has(probe), at).toBe(false)
+          expect(() => view.set(probe, v), at).toThrow(IllegalArgumentError)
+        }
+        if (random() < 0.3) {
+          const polled = view.pollFirstEntry()
+          expect(pairOfEntry(polled), at).toEqual(pairOf(keys.filter(check)[0]))
+          if (polled !== undefined) modelDelete(polled.key)
+        }
+        break
+      }
+      case 'reversed': {
+        const reversed = map.reversed()
+        expect([...reversed.keys()], at).toEqual(keys.slice().reverse())
+        expect(pairOfEntry(reversed.floorEntry(k)), at).toEqual(
+          pairOf(keys.find((x) => compare(x, k) >= 0)),
+        )
+        if (random() < 0.5) {
+          reversed.set(k, v)
+          modelSet(k, v)
+        }
+        break
+      }
+      case 'entries': {
+        const entry = map.ceilingEntry(k)
+        if (entry !== undefined) watched.push({ entry, key: entry.key, value: entry.value })
+        for (const w of watched) {
+          const s = stored(w.key)
+          if (s !== undefined) w.value = values.get(s) as number
+          expect(w.entry.value, at).toBe(w.value)
+        }
+        break
+      }
+      case 'clear':
+        if (integer(random, 0, 5) === 0) {
+          map.clear()
+          keys = []
+          values.clear()
+        }
+        break
+    }
+    expect(map.size, at).toBe(keys.length)
+    expect([...map.keys()], at).toEqual(keys)
+  }
+  expect(map.toJSON(), `sorted map reference model seed ${options.seed} final`).toEqual(
+    keys.map((k) => [k, values.get(k)]),
+  )
 }

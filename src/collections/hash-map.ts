@@ -9,7 +9,7 @@ import type { MapCollection, MapEntry } from '../interfaces/map'
 import type { SetCollection } from '../interfaces/set'
 import { brandedHasInstance, MAP_COLLECTION_BRAND } from '../internal/brand'
 import { describeValue, isIterable } from '../internal/checks'
-import { HashMapEngine, readPairs } from '../internal/engines/hash-map-engine'
+import { HashMapEngine } from '../internal/engines/hash-map-engine'
 import { readEquality } from '../internal/engines/hash-support'
 import { MISSING } from '../internal/engines/map-stores'
 import {
@@ -19,6 +19,7 @@ import {
   hashCodeSymbol,
   type KeyOf,
 } from '../internal/equality'
+import { readPairs } from '../internal/map-input'
 import { INSPECT } from '../internal/output'
 
 const HASH_MAP_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(

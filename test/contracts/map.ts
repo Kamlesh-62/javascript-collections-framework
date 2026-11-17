@@ -22,8 +22,43 @@ export type MapFactory = (
   initial?: Iterable<readonly [unknown, unknown]>,
 ) => MapCollection<unknown, unknown>
 
+export interface MapContractOptions {
+  /**
+   * How the map reacts to a structural change during iteration: like native `Map` (`'live'`, the
+   * default) or with `ConcurrentModificationError` on the next step (`'fail-fast'`).
+   */
+  iteration?: 'live' | 'fail-fast'
+  /**
+   * The order the map iterates in: the order keys were first set (`'insertion'`, the default), or
+   * ascending or descending key order. The keys the suite uses are strings of one kind, compared
+   * by code unit.
+   */
+  order?: 'insertion' | 'ascending' | 'descending'
+}
+
 /** Runs the map contract against `make`; `name` is the class name maps print with. */
-export function describeMapCollection(name: string, make: MapFactory): void {
+export function describeMapCollection(
+  name: string,
+  make: MapFactory,
+  options: MapContractOptions = {},
+): void {
+  const failFast = options.iteration === 'fail-fast'
+  const order = options.order ?? 'insertion'
+  const byKey = (a: unknown, b: unknown): number => {
+    const x = String(a)
+    const y = String(b)
+    const c = x < y ? -1 : x > y ? 1 : 0
+    return order === 'descending' ? -c : c
+  }
+  /** `pairs`, given in insertion order, in the order the map iterates them. */
+  const ordered = <T extends readonly [unknown, unknown]>(pairs: T[]): T[] =>
+    order === 'insertion' ? pairs : pairs.slice().sort((a, b) => byKey(a[0], b[0]))
+  /** The keys of `pairs` in iteration order. */
+  const keysOf = (pairs: Array<readonly [unknown, unknown]>): unknown[] =>
+    ordered(pairs).map((pair) => pair[0])
+  /** The values of `pairs` in iteration order. */
+  const valuesOf = (pairs: Array<readonly [unknown, unknown]>): unknown[] =>
+    ordered(pairs).map((pair) => pair[1])
   const abc = () =>
     make([
       ['a', 1],
@@ -57,10 +92,12 @@ export function describeMapCollection(name: string, make: MapFactory): void {
       it('set chains and keeps the position of a present key; put, remove, delete and replace return as documented [012 S2-AC1]', () => {
         const map = make()
         expect(map.set('a', 1).set('b', 2).set('a', 3)).toBe(map)
-        expect([...map]).toEqual([
-          ['a', 3],
-          ['b', 2],
-        ])
+        expect([...map]).toEqual(
+          ordered([
+            ['a', 3],
+            ['b', 2],
+          ]),
+        )
         expect(map.put('c', 4)).toBeUndefined()
         expect(map.put('c', 5)).toBe(4)
         expect(map.replace('c', 6)).toBe(5)
@@ -81,12 +118,14 @@ export function describeMapCollection(name: string, make: MapFactory): void {
         map.putAll(map)
         map.putAll(new Map([['c', 4]]))
         map.putAll(make([['d', 5]]).entrySet())
-        expect([...map]).toEqual([
-          ['a', 3],
-          ['b', 2],
-          ['c', 4],
-          ['d', 5],
-        ])
+        expect([...map]).toEqual(
+          ordered([
+            ['a', 3],
+            ['b', 2],
+            ['c', 4],
+            ['d', 5],
+          ]),
+        )
         const revision = map.revision
         expect(() => map.putAll([['e', 1], { 0: 'f', 1: 2 }] as never)).toThrow(TypeError)
         expect(() => map.putAll(1 as never)).toThrow(TypeError)
@@ -107,13 +146,25 @@ export function describeMapCollection(name: string, make: MapFactory): void {
         expect(map.getOrInsertComputed('c', compute)).toBe('c!')
         expect(calls).toBe(1)
         expect(() => map.getOrInsertComputed('a', 1 as never)).toThrow(TypeError)
-        expect([...map.keys()]).toEqual(['a', 'b', 'c'])
+        expect([...map.keys()]).toEqual(
+          keysOf([
+            ['a', 0],
+            ['b', 0],
+            ['c', 0],
+          ]),
+        )
       })
 
       it('replaceAll replaces every value in order [012 S2-AC9]', () => {
         const map = abc()
         map.replaceAll((value, key) => `${String(key)}${String(value)}`)
-        expect([...map.values()]).toEqual(['a1', 'b2', 'c3'])
+        expect([...map.values()]).toEqual(
+          valuesOf([
+            ['a', 'a1'],
+            ['b', 'b2'],
+            ['c', 'c3'],
+          ]),
+        )
       })
 
       it('clear removes every mapping and changes revision only when something changed [012 S2-AC10]', () => {
@@ -134,10 +185,12 @@ export function describeMapCollection(name: string, make: MapFactory): void {
         for (const word of ['a', 'b', 'a']) {
           counts.merge(word, 1, (old, one) => (old as number) + (one as number))
         }
-        expect([...counts]).toEqual([
-          ['a', 2],
-          ['b', 1],
-        ])
+        expect([...counts]).toEqual(
+          ordered([
+            ['a', 2],
+            ['b', 1],
+          ]),
+        )
         expect(counts.compute('c', (value) => (value === undefined ? 0 : 1))).toBe(0)
         expect(counts.computeIfPresent('b', () => undefined)).toBeUndefined()
         expect(counts.computeIfPresent('z', () => 1)).toBeUndefined()
@@ -165,8 +218,18 @@ export function describeMapCollection(name: string, make: MapFactory): void {
         expect(keys.delete('a')).toBe(true)
         expect(values.delete(2)).toBe(true)
         map.set('d', 4)
-        expect([...keys]).toEqual(['c', 'd'])
-        expect([...values]).toEqual([3, 4])
+        expect([...keys]).toEqual(
+          keysOf([
+            ['c', 3],
+            ['d', 4],
+          ]),
+        )
+        expect([...values]).toEqual(
+          valuesOf([
+            ['c', 3],
+            ['d', 4],
+          ]),
+        )
         expect(entries.size).toBe(2)
         for (const view of [keys, entries, values] as Array<{ add(v: unknown): unknown }>) {
           expect(() => view.add('x')).toThrow(UnsupportedOperationError)
@@ -188,49 +251,83 @@ export function describeMapCollection(name: string, make: MapFactory): void {
         expect(entry.toJSON()).toEqual(['b', 20])
       })
 
-      it('iterates live like a native Map while mappings are added and deleted [012 S4-AC7]', () => {
-        const map = abc()
-        const native = new Map<unknown, unknown>(map)
-        const run = (target: {
-          [Symbol.iterator](): Iterator<[unknown, unknown]>
-          set(k: unknown, v: unknown): unknown
-          delete(k: unknown): unknown
-        }) => {
-          const seen: unknown[] = []
-          let changed = false
-          for (const [key] of target as Iterable<[unknown, unknown]>) {
-            seen.push(key)
-            if (!changed) {
-              changed = true
-              target.delete('b')
-              target.set('d', 4)
-              target.delete('a')
-              target.set('a', 0)
+      it.skipIf(failFast)(
+        'iterates live like a native Map while mappings are added and deleted [012 S4-AC7]',
+        () => {
+          const map = abc()
+          const native = new Map<unknown, unknown>(map)
+          const run = (target: {
+            [Symbol.iterator](): Iterator<[unknown, unknown]>
+            set(k: unknown, v: unknown): unknown
+            delete(k: unknown): unknown
+          }) => {
+            const seen: unknown[] = []
+            let changed = false
+            for (const [key] of target as Iterable<[unknown, unknown]>) {
+              seen.push(key)
+              if (!changed) {
+                changed = true
+                target.delete('b')
+                target.set('d', 4)
+                target.delete('a')
+                target.set('a', 0)
+              }
             }
+            return seen
           }
-          return seen
-        }
-        expect(run(map)).toEqual(run(native))
-      })
+          expect(run(map)).toEqual(run(native))
+        },
+      )
     })
 
     describe('iteration', () => {
-      it('iterates new [key, value] arrays in insertion order and forEach passes (value, key, map) [012 S5-AC1]', () => {
+      it('iterates new [key, value] arrays in the map order and forEach passes (value, key, map) [012 S5-AC1]', () => {
         const map = abc()
+        const pairs: Array<[string, number]> = [
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ]
         expect([...map]).toEqual([...new Map(map)])
-        expect([...map.keys()]).toEqual(['a', 'b', 'c'])
-        expect([...map.values()]).toEqual([1, 2, 3])
+        expect([...map]).toEqual(ordered(pairs))
+        expect([...map.keys()]).toEqual(keysOf(pairs))
+        expect([...map.values()]).toEqual(valuesOf(pairs))
         expect([...map.entries()]).toEqual([...map])
         const calls: unknown[] = []
         map.forEach((value, key, owner) => {
           calls.push([value, key, owner === map])
         })
-        expect(calls).toEqual([
-          [1, 'a', true],
-          [2, 'b', true],
-          [3, 'c', true],
-        ])
+        expect(calls).toEqual(ordered(pairs).map(([key, value]) => [value, key, true]))
       })
+
+      it.skipIf(!failFast)(
+        'fails fast on a structural change during iteration, continues after a value write and stays done',
+        () => {
+          const map = abc()
+          const iterator = map[Symbol.iterator]()
+          iterator.next()
+          map.set(
+            keysOf([
+              ['a', 0],
+              ['b', 0],
+              ['c', 0],
+            ])[1],
+            20,
+          )
+          expect(iterator.next().done).toBe(false)
+          map.set('z', 26)
+          expect(() => iterator.next()).toThrow(ConcurrentModificationError)
+          const keys = map.keys()
+          map.delete('z')
+          expect(() => keys.next()).toThrow(ConcurrentModificationError)
+          const finished = map.values()
+          for (let step = finished.next(); step.done !== true; step = finished.next()) {
+            // run to the end
+          }
+          map.set('y', 25)
+          expect(finished.next().done).toBe(true)
+        },
+      )
     })
 
     describe('equality, hashing and output', () => {
@@ -272,15 +369,20 @@ export function describeMapCollection(name: string, make: MapFactory): void {
       })
 
       it('prints, inspects and writes JSON as pairs, and terminates on itself [012 S7-AC3]', () => {
-        const map = make([
+        const pairs: Array<[string, unknown]> = [
           ['a', 1],
-          [2, 'b'],
-        ])
-        expect(String(map)).toBe(`${name}(2) {'a' => 1, 2 => 'b'}`)
+          ['b', 'b'],
+        ]
+        const map = make(pairs)
+        const shown = ordered(pairs)
+        const text = (render: (key: string, value: unknown) => string) =>
+          shown.map(([key, value]) => render(key, value)).join(', ')
+        const quote = (v: unknown) => (typeof v === 'string' ? `'${v}'` : String(v))
+        expect(String(map)).toBe(`${name}(2) {${text((k, v) => `${quote(k)} => ${quote(v)}`)}}`)
         expect(String(make())).toBe(`${name}(0) {}`)
-        expect(inspect(map)).toBe(`${name}(2) { 'a' => 1, 2 => 'b' }`)
+        expect(inspect(map)).toBe(`${name}(2) { ${text((k, v) => `${quote(k)} => ${quote(v)}`)} }`)
         expect(Object.prototype.toString.call(map)).toBe(`[object ${name}]`)
-        expect(JSON.stringify(map)).toBe('[["a",1],[2,"b"]]')
+        expect(JSON.stringify(map)).toBe(JSON.stringify(shown))
         map.set('self', map)
         expect(String(map)).toContain('[Circular]')
         expect(map.equals(map)).toBe(true)

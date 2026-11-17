@@ -38,6 +38,13 @@ export interface Bound<E> {
   readonly inclusive: boolean
 }
 
+/**
+ * The bounds of a range in ascending order: low, then high.
+ *
+ * @internal
+ */
+export type Range<E> = readonly [Bound<E> | undefined, Bound<E> | undefined]
+
 /** Reads one inclusive flag: `undefined` gives the default; anything but a boolean is refused. */
 function readFlag(flag: unknown, fallback: boolean, where: string, name: string): boolean {
   if (flag === undefined) return fallback
@@ -108,7 +115,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   // ── The range ──
 
   /** Whether a range limits this set (always, for a range view). */
-  private get ranged(): boolean {
+  get ranged(): boolean {
     return this.low !== undefined || this.high !== undefined
   }
 
@@ -143,7 +150,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   }
 
   /** The least node in range, or `null`. */
-  private lowestNode(where: string, expected: number): TreeNode<E> | null {
+  lowestNode(where: string, expected: number): TreeNode<E> | null {
     const low = this.low
     const node =
       low === undefined
@@ -163,17 +170,17 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   }
 
   /** The first node in this set's direction, or `null`. */
-  private firstNode(where: string, expected: number): TreeNode<E> | null {
+  firstNode(where: string, expected: number): TreeNode<E> | null {
     return this.descending ? this.highestNode(where, expected) : this.lowestNode(where, expected)
   }
 
   /** The last node in this set's direction, or `null`. */
-  private lastNode(where: string, expected: number): TreeNode<E> | null {
+  lastNode(where: string, expected: number): TreeNode<E> | null {
     return this.descending ? this.lowestNode(where, expected) : this.highestNode(where, expected)
   }
 
   /** The node where a walk in this set's direction stops: the first one past the range, or `null`. */
-  private stopNode(where: string, expected: number): TreeNode<E> | null {
+  stopNode(where: string, expected: number): TreeNode<E> | null {
     if (this.descending) {
       const low = this.low
       return low === undefined
@@ -187,7 +194,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   }
 
   /** Every node in range, in this set's direction. */
-  private nodes(where: string, expected: number): TreeNode<E>[] {
+  nodes(where: string, expected: number): TreeNode<E>[] {
     const out: TreeNode<E>[] = []
     const stop = this.stopNode(where, expected)
     let node = this.firstNode(where, expected)
@@ -202,7 +209,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
    * The node holding `value`, or `null` when no member in range compares equal to it; in natural
    * order a value that cannot be compared is absent.
    */
-  private lookup(value: E, where: string, expected: number): TreeNode<E> | null {
+  lookup(value: E, where: string, expected: number): TreeNode<E> | null {
     if (!this.inRange(value, where, expected, true)) return null
     return this.tree.find(value, where, expected, true)
   }
@@ -272,6 +279,16 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   private navigate(element: E, before: boolean, inclusive: boolean, method: string): E | undefined {
     const where = `${this.className}.${method}`
     if (this.tree.order === undefined) requireElement(element, where)
+    const node = this.nearestNode(element, before, inclusive, where)
+    return node === null ? undefined : node.value
+  }
+
+  /**
+   * The node nearest `element` before (`before`) or after it in this set's order, counting an
+   * equal node when `inclusive`, or `null`. The caller has refused `null`/`undefined` in natural
+   * order.
+   */
+  nearestNode(element: E, before: boolean, inclusive: boolean, where: string): TreeNode<E> | null {
     const expected = this.changes.structure
     // In ascending terms: below means towards the least member.
     const below = before !== this.descending
@@ -289,7 +306,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
       node = this.tree.nearest(element, false, inclusive, where, expected)
       if (node !== null && this.tooHigh(node.value, where, expected, false)) node = null
     }
-    return node === null ? undefined : node.value
+    return node
   }
 
   [Symbol.iterator](): IterableIterator<E> {
@@ -360,14 +377,19 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   private insert(element: E, where: string): boolean {
     const value = this.normalise(element, where)
     const expected = this.changes.structure
+    this.requireInRange(value, where, expected)
+    if (!this.tree.insert(value, where, expected)) return false
+    this.changes.structural()
+    return true
+  }
+
+  /** Throws `IllegalArgumentError` when a range limits this set and `value` lies outside it. */
+  requireInRange(value: E, where: string, expected: number): void {
     if (this.ranged && !this.inRange(value, where, expected, false)) {
       throw new IllegalArgumentError(
         `${where}: ${describeValue(value)} is outside the range of the view`,
       )
     }
-    if (!this.tree.insert(value, where, expected)) return false
-    this.changes.structural()
-    return true
   }
 
   addFirst(_element: E): this {
@@ -474,7 +496,22 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
   // ── Range views ──
 
   subSet(from: E, to: E, options?: SubSetOptions | null): SortedSet<E> {
-    const where = `${this.className}.subSet`
+    const range = this.subRange(from, to, options, `${this.className}.subSet`)
+    return this.openRange(range[0], range[1])
+  }
+
+  headSet(to: E, options?: BoundOptions | null): SortedSet<E> {
+    const range = this.headRange(to, options, `${this.className}.headSet`)
+    return this.openRange(range[0], range[1])
+  }
+
+  tailSet(from: E, options?: BoundOptions | null): SortedSet<E> {
+    const range = this.tailRange(from, options, `${this.className}.tailSet`)
+    return this.openRange(range[0], range[1])
+  }
+
+  /** Reads the options of `subSet` (or `subMap`) and checks the range from `from` to `to`. */
+  subRange(from: E, to: E, options: unknown, where: string): Range<E> {
     const read = readOptions(options, where)
     const fromInclusive = readFlag(
       read === undefined ? undefined : read.fromInclusive,
@@ -488,15 +525,15 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
       where,
       'toInclusive',
     )
-    return this.range(
+    return this.checkRange(
       { value: from, inclusive: fromInclusive },
       { value: to, inclusive: toInclusive },
       where,
     )
   }
 
-  headSet(to: E, options?: BoundOptions | null): SortedSet<E> {
-    const where = `${this.className}.headSet`
+  /** Reads the options of `headSet` (or `headMap`) and checks the range up to `to`. */
+  headRange(to: E, options: unknown, where: string): Range<E> {
     const read = readOptions(options, where)
     const inclusive = readFlag(
       read === undefined ? undefined : read.inclusive,
@@ -504,11 +541,11 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
       where,
       'inclusive',
     )
-    return this.range(undefined, { value: to, inclusive }, where)
+    return this.checkRange(undefined, { value: to, inclusive }, where)
   }
 
-  tailSet(from: E, options?: BoundOptions | null): SortedSet<E> {
-    const where = `${this.className}.tailSet`
+  /** Reads the options of `tailSet` (or `tailMap`) and checks the range from `from`. */
+  tailRange(from: E, options: unknown, where: string): Range<E> {
     const read = readOptions(options, where)
     const inclusive = readFlag(
       read === undefined ? undefined : read.inclusive,
@@ -516,14 +553,19 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
       where,
       'inclusive',
     )
-    return this.range({ value: from, inclusive }, undefined, where)
+    return this.checkRange({ value: from, inclusive }, undefined, where)
   }
 
   /**
-   * Checks and opens the view from `from` to `to`, given in this set's order: each bound as an
-   * element, then that `from` is not after `to`, then that the range lies within this one.
+   * Checks the range from `from` to `to`, given in this set's order: each bound as an element,
+   * then that `from` is not after `to`, then that the range lies within this one. Returns the
+   * new range's bounds in ascending order.
    */
-  private range(from: Bound<E> | undefined, to: Bound<E> | undefined, where: string): SortedSet<E> {
+  private checkRange(
+    from: Bound<E> | undefined,
+    to: Bound<E> | undefined,
+    where: string,
+  ): Range<E> {
     const expected = this.changes.structure
     if (from !== undefined) this.checkBound(from.value, where, expected)
     if (to !== undefined) this.checkBound(to.value, where, expected)
@@ -538,7 +580,7 @@ export abstract class AbstractSortedSet<E> extends AbstractSet<E> implements Sor
     }
     if (low !== undefined) this.checkWithin(low, where, expected)
     if (high !== undefined) this.checkWithin(high, where, expected)
-    return this.openRange(low === undefined ? this.low : low, high === undefined ? this.high : high)
+    return [low === undefined ? this.low : low, high === undefined ? this.high : high]
   }
 
   /** In natural order, refuses a bound that could not be added as an element. */

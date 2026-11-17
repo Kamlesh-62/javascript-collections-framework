@@ -56,6 +56,7 @@ describe('the two-copy check', () => {
         'HashSet',
         'LinkedList',
         'PriorityQueue',
+        'TreeMap',
         'TreeSet',
       ].sort(),
     )
@@ -67,9 +68,10 @@ describe('the two-copy check', () => {
       'isQueue',
       'isSequencedCollection',
       'isSetCollection',
+      'isSortedMap',
       'isSortedSet',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 15 classes, 8 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 16 classes, 9 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -93,7 +95,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 14 classes recognised across copies; expected at least 15')
+    expect(failures).toContain('found 15 classes recognised across copies; expected at least 16')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -593,5 +595,109 @@ describe('sorted sets across two copies', () => {
     expect(result.lines).toContain('isSortedSet: recognised across copies; major 2 refused')
     const { isSortedSet: _dropped, ...without } = a
     expect(checkTwoCopies(without, b).failures).toContain('guard isSortedSet not found')
+  })
+})
+
+describe('sorted maps across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type SortedMapClass = new (
+    entries?: Iterable<unknown>,
+  ) => {
+    subMap(from: unknown, to: unknown): unknown
+    headMap(to: unknown): unknown
+    reversed(): unknown
+    keySet(): unknown
+    entrySet(): unknown
+    valueCollection(): unknown
+    equals(other: unknown): boolean
+  }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('isSortedMap accepts a TreeMap and its views from either copy; the sorted-map, sorted-set and map guards refuse each other’s values [016 S8-AC3]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const TreeMap = theirs.TreeMap as SortedMapClass
+      const map = new TreeMap([
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+      ])
+      const guard = (name: string) => mine[name] as (value: unknown) => boolean
+      const views = [map, map.subMap(1, 3), map.headMap(2), map.reversed()]
+      for (const value of views) {
+        expect(guard('isSortedMap')(value)).toBe(true)
+        expect(guard('isMapCollection')(value)).toBe(true)
+        expect(guard('isCollection')(value)).toBe(false)
+        expect(guard('isSortedSet')(value)).toBe(false)
+        expect(guard('isSetCollection')(value)).toBe(false)
+      }
+      const keySet = map.keySet()
+      expect(guard('isSortedSet')(keySet)).toBe(true)
+      expect(guard('isSequencedCollection')(keySet)).toBe(true)
+      expect(guard('isCollection')(map.valueCollection())).toBe(true)
+      expect(guard('isSetCollection')(map.entrySet())).toBe(true)
+      const TreeSet = theirs.TreeSet as new (elements: unknown[]) => unknown
+      const HashMap = theirs.HashMap as new (pairs: unknown[][]) => unknown
+      for (const value of [
+        new HashMap([[1, 'a']]),
+        new Map([[1, 'a']]),
+        new TreeSet([1]),
+        keySet,
+        map.entrySet(),
+        map.valueCollection(),
+        new (theirs.HashSet as new (e: unknown[]) => unknown)([1]),
+        new (theirs.ArrayList as new (e: unknown[]) => unknown)([1]),
+        new (theirs.ArrayDeque as new (e: unknown[]) => unknown)([1]),
+        new (theirs.PriorityQueue as new (e: unknown[]) => unknown)([1]),
+        {},
+        null,
+        undefined,
+      ]) {
+        expect(guard('isSortedMap')(value), String(value)).toBe(false)
+      }
+      expect(guard('isMapCollection')(new TreeSet([1]))).toBe(false)
+    }
+  })
+
+  it('instanceof TreeMap holds for a TreeMap from either copy and not for its views [016 S8-AC4]', async () => {
+    const [a, b] = await load()
+    const A = a.TreeMap as SortedMapClass
+    const B = b.TreeMap as SortedMapClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B([[1, 'a']]) instanceof A).toBe(true)
+    const map = new B([
+      [1, 'a'],
+      [2, 'b'],
+    ])
+    for (const value of [map.subMap(1, 2), map.reversed(), map.headMap(2), map.keySet()]) {
+      expect(value instanceof A).toBe(false)
+      expect(value instanceof B).toBe(false)
+    }
+    for (const value of [new (b.HashMap as SortedMapClass)(), new Map(), [], null, 1]) {
+      expect(value instanceof A).toBe(false)
+    }
+    expect(brandedValue(2, 'TreeMap') instanceof A).toBe(false)
+    expect(brandedValue(1, 'TreeMap') instanceof A).toBe(true)
+    expect(new A([[1, 'a']]).equals(new B([[1, 'a']]))).toBe(true)
+  })
+
+  it('the two-copy check covers TreeMap and isSortedMap [016 S8-AC5]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('TreeMap: recognised across copies; major 2 refused')
+    expect(result.lines).toContain('isSortedMap: recognised across copies; major 2 refused')
+    const { isSortedMap: _dropped, ...without } = a
+    expect(checkTwoCopies(without, b).failures).toContain('guard isSortedMap not found')
   })
 })
