@@ -29,6 +29,7 @@ import {
 import { type CollectionFactory, describeCollection } from './contracts/collection'
 import { describeMapCollection, type MapFactory } from './contracts/map'
 import { describeSequencedCollection } from './contracts/sequenced'
+import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
 import { describeSortedMap } from './contracts/sorted-map'
 import { describeSortedSet } from './contracts/sorted-set'
@@ -1953,6 +1954,29 @@ const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
           const map = maps.get(set) as SortedMap<number, string>
           const target = range === undefined ? map : map.subMap(range[0], range[1])
           target.set(element, `v${element}`)
+        },
+      },
+    )
+  }
+
+  // The sequenced-set suite on the key sets: they order their members and cannot add, so both
+  // modes apply.
+  for (const [name, make] of numberMaps) {
+    const maps = new WeakMap<object, SortedMap<number, string>>()
+    describeSequencedSet(
+      name,
+      (initial) => {
+        const map = make()
+        for (const e of initial ?? []) map.set(e as number, `v${e}`)
+        const keys = map.keySet()
+        maps.set(keys, map)
+        return keys
+      },
+      {
+        addAtEnds: 'unsupported',
+        insert: (set, element) => {
+          const map = maps.get(set) as SortedMap<number, string>
+          map.set(element as number, `v${element}`)
         },
       },
     )

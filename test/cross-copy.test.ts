@@ -54,6 +54,7 @@ describe('the two-copy check', () => {
         'ArrayList',
         'HashMap',
         'HashSet',
+        'LinkedHashSet',
         'LinkedList',
         'PriorityQueue',
         'TreeMap',
@@ -71,7 +72,7 @@ describe('the two-copy check', () => {
       'isSortedMap',
       'isSortedSet',
     ])
-    expect(result.lines.at(-1)).toBe('two copies: 16 classes, 9 guards — ok')
+    expect(result.lines.at(-1)).toBe('two copies: 17 classes, 9 guards — ok')
     expect(result.lines).toContain('isCollection: recognised across copies; major 2 refused')
     expect(result.lines.join('\n')).not.toContain('cross-copy no')
   })
@@ -95,7 +96,7 @@ describe('the two-copy check', () => {
     const [a, b] = await twoCopies()
     const { IllegalStateError: _dropped, isCollection: _guard, ...fewer } = a
     const failures = checkTwoCopies(fewer, b).failures
-    expect(failures).toContain('found 15 classes recognised across copies; expected at least 16')
+    expect(failures).toContain('found 16 classes recognised across copies; expected at least 17')
     expect(failures).toContain('guard isCollection not found')
     expect(checkTwoCopies({}, {}).ok).toBe(false)
   })
@@ -595,6 +596,79 @@ describe('sorted sets across two copies', () => {
     expect(result.lines).toContain('isSortedSet: recognised across copies; major 2 refused')
     const { isSortedSet: _dropped, ...without } = a
     expect(checkTwoCopies(without, b).failures).toContain('guard isSortedSet not found')
+  })
+})
+
+describe('linked hash sets across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type LinkedClass = new (
+    elements?: Iterable<unknown> | null,
+    options?: object,
+  ) => { reversed(): unknown }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it('the set, sequenced and collection guards accept a LinkedHashSet and its view from either copy; isList, isQueue and isSortedSet refuse them [013 S5-AC6]', async () => {
+    const [a, b] = await load()
+    for (const [mine, theirs] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const LinkedHashSet = theirs.LinkedHashSet as LinkedClass
+      const set = new LinkedHashSet([1, 2])
+      const samples = [
+        set,
+        set.reversed(),
+        new LinkedHashSet([1], { key: (v: unknown) => v }),
+        new LinkedHashSet([1], { equivalence: theirs.valueEquivalence }),
+      ]
+      const guard = (name: string) => mine[name] as (value: unknown) => boolean
+      for (const value of samples) {
+        expect(guard('isSetCollection')(value)).toBe(true)
+        expect(guard('isSequencedCollection')(value)).toBe(true)
+        expect(guard('isCollection')(value)).toBe(true)
+        for (const name of ['isList', 'isQueue', 'isDeque', 'isSortedSet', 'isMapCollection']) {
+          expect(guard(name)(value), name).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('instanceof LinkedHashSet holds across copies and not for its view or a HashSet; a LinkedHashSet is not a HashSet [013 S5-AC6]', async () => {
+    const [a, b] = await load()
+    const A = a.LinkedHashSet as LinkedClass
+    const B = b.LinkedHashSet as LinkedClass
+    expect(A).not.toBe(B)
+    expect(new A() instanceof B).toBe(true)
+    expect(new B([1], { key: (v: unknown) => v }) instanceof A).toBe(true)
+    const set = new B([1, 2])
+    expect(set.reversed() instanceof A).toBe(false)
+    expect(set.reversed() instanceof B).toBe(false)
+    const HashSetA = a.HashSet as LinkedClass
+    const HashSetB = b.HashSet as LinkedClass
+    expect(new HashSetB([1]) instanceof A).toBe(false)
+    expect(new HashSetA([1]) instanceof A).toBe(false)
+    expect(set instanceof HashSetA).toBe(false)
+    expect(new A() instanceof HashSetA).toBe(false)
+    for (const value of [new Set(), [], null, 1]) expect(value instanceof A).toBe(false)
+    expect(brandedValue(2, 'LinkedHashSet') instanceof A).toBe(false)
+    expect(brandedValue(1, 'LinkedHashSet') instanceof A).toBe(true)
+  })
+
+  it('the two-copy check covers LinkedHashSet and its view under the set and sequenced guards [013 S5-AC7]', async () => {
+    const [a, b] = await load()
+    const result = checkTwoCopies(a, b)
+    expect(result.failures).toEqual([])
+    expect(result.lines).toContain('LinkedHashSet: recognised across copies; major 2 refused')
+    expect(brandedClasses(a)).toContain('LinkedHashSet')
+    const { LinkedHashSet: _dropped, ...without } = a
+    const failures = checkTwoCopies(without, b).failures
+    expect(failures.some((line) => line.includes('LinkedHashSet'))).toBe(true)
   })
 })
 

@@ -9,7 +9,7 @@ import type { SetCollection } from '../interfaces/set'
 import { brandedHasInstance, SET_COLLECTION_BRAND } from '../internal/brand'
 import { describeValue, isIterable } from '../internal/checks'
 import { HashSetEngine } from '../internal/engines/hash-set-engine'
-import { readEquality } from '../internal/engines/hash-support'
+import { readEquality, readSetArguments } from '../internal/engines/hash-support'
 import {
   type Equivalence,
   equalsSymbol,
@@ -122,19 +122,8 @@ export class HashSet<E> implements SetCollection<E> {
     elementsOrOptions?: Iterable<E> | HashSetOptions<E> | null,
     options?: HashSetOptions<E> | null,
   ) {
-    let elements: Iterable<E> | undefined
-    let given: unknown = options
-    const first: unknown = elementsOrOptions
-    if (first === undefined || first === null) {
-      // empty
-    } else if (isIterable(first)) {
-      elements = first as Iterable<E>
-    } else if (typeof first === 'object' && (options === undefined || options === null)) {
-      given = first
-    } else {
-      throw notIterable('HashSet', first)
-    }
-    this.engine = new HashSetEngine<E>(this, readEquality<E>(given, 'HashSet'))
+    const { elements, equality } = readSetArguments<E>(elementsOrOptions, options, 'HashSet')
+    this.engine = new HashSetEngine<E>(this, equality)
     if (elements !== undefined) this.engine.addInitial(elements, 'HashSet')
   }
 

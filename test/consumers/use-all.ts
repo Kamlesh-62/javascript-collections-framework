@@ -15,6 +15,7 @@ import type {
   HashMapOptions,
   HashSetOptions,
   KeyOf,
+  LinkedHashSetOptions,
   LinkedListNode,
   List,
   ListCursor,
@@ -28,10 +29,12 @@ import type {
   ReadonlyMapCollection,
   ReadonlyQueue,
   ReadonlySequencedCollection,
+  ReadonlySequencedSet,
   ReadonlySetCollection,
   ReadonlySortedMap,
   ReadonlySortedSet,
   SequencedCollection,
+  SequencedSet,
   SetCollection,
   SortedMap,
   SortedSet,
@@ -64,6 +67,7 @@ import {
   isSetCollection,
   isSortedMap,
   isSortedSet,
+  LinkedHashSet,
   LinkedList,
   NoSuchElementError,
   NullElementError,
@@ -243,8 +247,20 @@ export function firstSorted(value: unknown): unknown {
   return readable.isEmpty() ? undefined : readable.getFirst()
 }
 
-const newestFirst: TreeMapOptions<number> = { comparator: (a, b) => b - a }
-export const levels: SortedMap<number, string> = new TreeMap([[100, 'low']], newestFirst).set(
+const byLowerCase: LinkedHashSetOptions<string> = { key: (s) => s.toLowerCase() }
+export const history: SequencedSet<string> = new LinkedHashSet(['a', 'b'], byLowerCase)
+  .addFirst('B')
+  .addLast('c')
+export const oldestFirst: LinkedHashSet<number> = LinkedHashSet.from([3, 1, 2]).copy()
+export const newestFirst: ReadonlySequencedSet<string> = history.reversed()
+export const oldest: number = oldestFirst.removeFirst()
+export const sortedAsSequenced: SequencedSet<string> = new TreeSet(['b', 'a'])
+history.forEach((item, same, set) => {
+  set.has(item + same)
+})
+
+const highestFirst: TreeMapOptions<number> = { comparator: (a, b) => b - a }
+export const levels: SortedMap<number, string> = new TreeMap([[100, 'low']], highestFirst).set(
   500,
   'mid',
 )

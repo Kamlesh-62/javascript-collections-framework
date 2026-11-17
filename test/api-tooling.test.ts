@@ -755,6 +755,37 @@ describe('published shape of TreeSet', () => {
   })
 })
 
+describe('published shape of LinkedHashSet', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows LinkedHashSet with no protected members and the sequenced-set types, and no internal names [013 S5-AC7]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class LinkedHashSet<E> implements SequencedSet<E>')
+    expect(report).toContain('interface LinkedHashSetOptions<E>')
+    expect(report).toContain('interface ReadonlySequencedSet<E>')
+    expect(report).toContain('interface SequencedSet<E>')
+    expect(report).toMatch(/interface ReadonlySortedSet<E> extends ReadonlySequencedSet<E>/)
+    expect(report).toMatch(/interface SortedSet<E> extends SequencedSet<E>, ReadonlySortedSet<E>/)
+    expect(report).not.toMatch(
+      /AbstractLinkedSet|LinkedHashTable|LinkedRecord|ReversedLinkedHashSet|LinkedHashSetEngine/,
+    )
+    const start = report.indexOf('declare class LinkedHashSet')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records LinkedHashSet imported alone [013 S5-AC7]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'LinkedHashSet')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})
+
 describe('published shape of TreeMap', () => {
   const root = new URL('..', import.meta.url)
   const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
