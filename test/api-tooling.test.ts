@@ -694,3 +694,31 @@ describe('published shape of HashSet', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of HashMap', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows HashMap with no protected members and the map types [012 S9-AC5]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    expect(report).toContain('declare class HashMap<K, V> implements MapCollection<K, V>')
+    expect(report).toContain('interface MapCollection<K, V> extends ReadonlyMapCollection<K, V>')
+    expect(report).toContain('interface MapEntry<K, V>')
+    expect(report).toContain('interface HashMapOptions<K>')
+    expect(report).toContain('declare function isMapCollection(')
+    expect(report).not.toMatch(/AbstractMap|HashMapEngine|MapStore|MapEntryHandle|HashMapKeySet/)
+    const start = report.indexOf('declare class HashMap')
+    const body = report.slice(start, report.indexOf('\n}', start))
+    expect(body.match(/\bprivate\b[^;]*;/g)).toEqual(['private engine;'])
+    expect(body).not.toMatch(/\bprotected\b/)
+  })
+
+  it('the size report records HashMap imported alone [012 S9-AC5]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    const entry = report.entries.find((e) => e.name === 'HashMap')
+    expect(entry?.minified).toBeGreaterThan(0)
+    expect(entry?.gzip).toBeGreaterThan(0)
+  })
+})

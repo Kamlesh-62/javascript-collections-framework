@@ -5,7 +5,7 @@
 const BRAND_PREFIX = 'javascript-collections-framework/'
 
 /** The minimum the check must find, so a broken discovery cannot pass by finding nothing. */
-export const MINIMUM_CLASSES = 13
+export const MINIMUM_CLASSES = 14
 export const REQUIRED_GUARDS = [
   'isCollection',
   'isSequencedCollection',
@@ -13,6 +13,7 @@ export const REQUIRED_GUARDS = [
   'isQueue',
   'isDeque',
   'isSetCollection',
+  'isMapCollection',
 ]
 
 /**
@@ -75,6 +76,26 @@ function hashSets(copy) {
 }
 
 /**
+ * A `HashMap` made by one copy on each of its three paths: default, `key` and `equivalence`.
+ * @param {Namespace} copy
+ * @returns {unknown[]}
+ */
+function hashMaps(copy) {
+  const HashMap = /** @type {new (entries?: Iterable<unknown>, options?: object) => any} */ (
+    copy.HashMap
+  )
+  const pairs = [
+    ['a', 1],
+    ['b', 2],
+  ]
+  return [
+    new HashMap(pairs),
+    new HashMap(pairs, { key: (/** @type {unknown} */ key) => key }),
+    new HashMap(pairs, { equivalence: copy.valueEquivalence }),
+  ]
+}
+
+/**
  * A `PriorityQueue` made by one copy.
  * @param {Namespace} copy
  * @returns {unknown[]}
@@ -99,6 +120,7 @@ export const SAMPLES = {
   isQueue: (/** @type {Namespace} */ copy) => [...allDeques(copy), ...priorityQueues(copy)],
   isDeque: allDeques,
   isSetCollection: hashSets,
+  isMapCollection: hashMaps,
 }
 
 /**

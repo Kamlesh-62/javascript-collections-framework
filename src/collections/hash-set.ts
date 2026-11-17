@@ -8,25 +8,20 @@ import type { Cursor } from '../interfaces/collection'
 import type { SetCollection } from '../interfaces/set'
 import { brandedHasInstance, SET_COLLECTION_BRAND } from '../internal/brand'
 import { describeValue, isIterable } from '../internal/checks'
-import { HashSetEngine, type HashSetEquality } from '../internal/engines/hash-set-engine'
+import { HashSetEngine } from '../internal/engines/hash-set-engine'
+import { readEquality } from '../internal/engines/hash-support'
 import {
   type Equivalence,
   equalsSymbol,
   type HashFunction,
   hashCodeSymbol,
   type KeyOf,
-  sameValueZeroEquivalence,
-  valueEquivalence,
 } from '../internal/equality'
-import { checkEquivalence } from '../internal/equivalence'
-import { checkKey } from '../internal/key'
 import { COLLECTION_BRAND, INSPECT } from '../internal/output'
 
 const HASH_SET_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/HashSet',
 )
-
-const SAME_VALUE_ZERO = { kind: 'native' } as const
 
 /**
  * Options for a `HashSet`. At most one of `key` and `equivalence` may be given; with neither, members
@@ -53,27 +48,6 @@ export interface HashSetOptions<E> {
 
 function notIterable(where: string, value: unknown): TypeError {
   return new TypeError(`${where}: elements is not iterable (${describeValue(value)})`)
-}
-
-/** Reads `options` once: `key` and `equivalence` are each read a single time and checked. */
-function readEquality<E>(options: unknown, where: string): HashSetEquality<E> {
-  if (options === undefined || options === null) return SAME_VALUE_ZERO
-  if (typeof options !== 'object') {
-    throw new TypeError(`${where}: options is not an object (${describeValue(options)})`)
-  }
-  const record = options as { key?: unknown; equivalence?: unknown }
-  const key = record.key
-  const equivalence = record.equivalence
-  if (key !== undefined && equivalence !== undefined) {
-    throw new TypeError(`${where}: key and equivalence cannot both be given`)
-  }
-  if (key !== undefined) return { kind: 'keyed', key: checkKey<E>(key, where) as KeyOf<E> }
-  if (equivalence === undefined || equivalence === sameValueZeroEquivalence) return SAME_VALUE_ZERO
-  return {
-    kind: 'buckets',
-    equivalence: checkEquivalence(equivalence, where),
-    builtIn: equivalence === valueEquivalence,
-  }
 }
 
 /**

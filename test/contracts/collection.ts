@@ -13,6 +13,7 @@ import {
   isCollection,
   NoSuchElementError,
   NullElementError,
+  UnsupportedOperationError,
 } from '../../src/index'
 
 export interface CollectionContractOptions {
@@ -47,6 +48,12 @@ export interface CollectionContractOptions {
    * order compare sorted copies, so they check which elements are present and how many times.
    */
   order?: 'insertion' | 'unspecified'
+  /**
+   * Puts an element into the collection some other way than `add`, for a view that cannot add (a
+   * map's key or value view, filled through its map). With it, `add` and `addAll` of new elements
+   * must throw `UnsupportedOperationError` and change nothing; the default is `add`.
+   */
+  insert?: (collection: Collection<unknown>, element: unknown) => void
 }
 
 /** Builds a new collection holding `initial`, in order. */
@@ -83,6 +90,12 @@ export function describeCollection(
   const failFast = options.iteration === 'fail-fast'
   const [open, close] = options.brackets === 'set' ? ['{', '}'] : ['[', ']']
   const unordered = options.order === 'unspecified'
+  const insert = options.insert
+  /** Puts `element` into `c`: through `add`, or through the `insert` option. */
+  const put = (c: Collection<unknown>, element: unknown): void => {
+    if (insert) insert(c, element)
+    else c.add(element)
+  }
   /** The values in the order the assertions compare: as given, or sorted when order is free. */
   const ordered = (values: Iterable<unknown>): unknown[] =>
     unordered ? [...values].sort(byKindThenValue) : [...values]
@@ -179,7 +192,21 @@ export function describeCollection(
     })
 
     describe('change', () => {
-      it('add returns the collection, so calls chain [004 S2-AC1]', () => {
+      it.skipIf(!insert)(
+        'add and addAll of a new element throw UnsupportedOperationError and change nothing [004 S2-AC1]',
+        () => {
+          const c = make([1])
+          const revision = c.revision
+          expect(() => c.add(2)).toThrow(UnsupportedOperationError)
+          expect(() => c.addAll([2])).toThrow(UnsupportedOperationError)
+          expect(() => c.addAll(c)).toThrow(UnsupportedOperationError)
+          expect(c.addAll([])).toBe(false)
+          expectElements(c, [1])
+          expect(c.revision).toBe(revision)
+        },
+      )
+
+      it.skipIf(!!insert)('add returns the collection, so calls chain [004 S2-AC1]', () => {
         const c = make()
         expect(c.add(1)).toBe(c)
         c.add(2).add(3)
@@ -204,14 +231,17 @@ export function describeCollection(
         }
       })
 
-      it('addAll adds in order and reports whether anything was added [004 S2-AC3]', () => {
-        const c = make([1])
-        expect(c.addAll([2, 3])).toBe(true)
-        if (unordered) expectElements(c, [1, 2, 3])
-        else expect([...c].slice(-2)).toEqual([2, 3])
-        expect(c.addAll([])).toBe(false)
-        if (options.brackets === 'set') expect(c.addAll([1, 2])).toBe(false)
-      })
+      it.skipIf(!!insert)(
+        'addAll adds in order and reports whether anything was added [004 S2-AC3]',
+        () => {
+          const c = make([1])
+          expect(c.addAll([2, 3])).toBe(true)
+          if (unordered) expectElements(c, [1, 2, 3])
+          else expect([...c].slice(-2)).toEqual([2, 3])
+          expect(c.addAll([])).toBe(false)
+          if (options.brackets === 'set') expect(c.addAll([1, 2])).toBe(false)
+        },
+      )
 
       it('removeAll removes every element equal to one in the argument [004 S2-AC4]', () => {
         const c = make([1, 2, 3, 4])
@@ -229,7 +259,9 @@ export function describeCollection(
 
       it('reads the whole argument first: self is safe and a throwing iterable changes nothing [004 S2-AC6]', () => {
         const c = make([1, 2])
-        if (options.brackets === 'list') {
+        if (insert) {
+          // covered by the UnsupportedOperationError case
+        } else if (options.brackets === 'list') {
           c.addAll(c)
           expectElements(c, [1, 2, 1, 2])
         } else {
@@ -287,7 +319,7 @@ export function describeCollection(
         const c = make([1, 2, 3])
         expect(() =>
           c.removeIf((element) => {
-            if (element === 2) c.add(99)
+            if (element === 2) put(c, 99)
             return true
           }),
         ).toThrow(ConcurrentModificationError)
@@ -310,7 +342,7 @@ export function describeCollection(
           expect(seen.has(c.revision)).toBe(false)
           seen.add(c.revision)
         }
-        c.add(3)
+        put(c, 3)
         changed()
         c.delete(1)
         changed()
@@ -383,7 +415,7 @@ export function describeCollection(
           c = options.withEquality([1, 2, 3], (a, b) => {
             if (armed && c !== undefined) {
               armed = false
-              c.add(fresh++) // a new value, so even a set changes structure
+              put(c, fresh++) // a new value, so even a set changes structure
             }
             return a === b
           })
@@ -403,7 +435,7 @@ export function describeCollection(
         const it = c[Symbol.iterator]()
         expect([it.next().value, it.next().value, it.next().value]).toEqual([...c])
         expect(it.next()).toEqual({ done: true, value: undefined })
-        c.add(4)
+        put(c, 4)
         expect(it.next()).toEqual({ done: true, value: undefined })
       })
 
@@ -426,7 +458,7 @@ export function describeCollection(
           const c = make([1, 2, 3])
           const it = c[Symbol.iterator]()
           it.next()
-          c.add(4)
+          put(c, 4)
           expect(() => it.next()).toThrow(ConcurrentModificationError)
         })
 
@@ -434,7 +466,7 @@ export function describeCollection(
           const c = make([1, 2, 3])
           expect(() =>
             c.forEach((e) => {
-              if (e === 3) c.add(4)
+              if (e === 3) put(c, 4)
             }),
           ).toThrow(ConcurrentModificationError)
         })
@@ -463,9 +495,9 @@ export function describeCollection(
             if (e === 1 && !changed) {
               changed = true
               c.delete(2)
-              c.add(4)
+              put(c, 4)
               c.delete(1)
-              c.add(1)
+              put(c, 1)
             }
           }
           const native = new Set([1, 2, 3])
@@ -489,7 +521,7 @@ export function describeCollection(
             after.push(e)
             if (e === 1 && d.size === 2) {
               d.clear()
-              d.add(5)
+              put(d, 5)
             }
           })
           expect(after).toEqual([1, 5])
@@ -501,7 +533,7 @@ export function describeCollection(
         for (const e of c) {
           if (e === 1) break
         }
-        c.add(9)
+        put(c, 9)
         expect(c.delete(2)).toBe(true)
         expect(c.has(9)).toBe(true)
       })
@@ -514,7 +546,7 @@ export function describeCollection(
             for (const _ of target) {
               if (!added) {
                 added = true
-                target.add({}) // a new value, so even a set changes structure
+                put(target, {}) // a new value, so even a set changes structure
               }
             }
             return false
@@ -526,9 +558,9 @@ export function describeCollection(
         const expected = options.iteration === 'fail-fast'
         const c = make([1, 2])
         expect(throwsOnChange(c)).toBe(expected)
-        c.add(3)
+        put(c, 3)
         c.clear()
-        c.add(4)
+        put(c, 4)
         expect(throwsOnChange(c)).toBe(expected)
         expect(throwsOnChange(make([5]))).toBe(expected)
       })
@@ -594,7 +626,7 @@ export function describeCollection(
           const c = make([1, 2, 3])
           const cursor = c.cursor()
           cursor.next()
-          c.add(4)
+          put(c, 4)
           expect(() => cursor.next()).toThrow(ConcurrentModificationError)
           expect(() => cursor.remove()).toThrow(ConcurrentModificationError)
         })
@@ -609,10 +641,10 @@ export function describeCollection(
           c.delete(2)
           expect(cursor.next()).toBe(2) // returned although deleted since
           c.delete(3)
-          c.add(3) // re-added before reached: yielded once, at its new place
+          put(c, 3) // re-added before reached: yielded once, at its new place
           expect(cursor.next()).toBe(3)
           expect(cursor.hasNext()).toBe(false)
-          c.add(9)
+          put(c, 9)
           expect(cursor.hasNext()).toBe(false) // finished for good
           expect(() => cursor.next()).toThrow(NoSuchElementError)
         })
@@ -622,7 +654,7 @@ export function describeCollection(
         const c = make([1, 2])
         const cursor = c.cursor()
         cursor.next()
-        c.add(3)
+        put(c, 3)
         expect(() => cursor.hasNext()).not.toThrow()
         expect(() => make().cursor().hasNext()).not.toThrow()
       })
@@ -709,14 +741,14 @@ export function describeCollection(
 
       it('handles a collection that contains itself without unbounded recursion [004 S5-AC5]', () => {
         const a = make([1])
-        a.add(a)
+        put(a, a)
         expect(a.equals(a)).toBe(true)
         expect(typeof hashCode(a)).toBe('number')
         expect(String(a)).toContain('[Circular]')
         expect(inspect(a, { depth: null })).toContain('[Circular]')
         expect(inspect(a)).toContain('[Circular]')
         const b = make([1])
-        b.add(b)
+        put(b, b)
         expect(() => a.equals(b)).not.toThrow()
         expect(a.equals(b)).toBe(b.equals(a))
       })
@@ -741,13 +773,13 @@ export function describeCollection(
 
       it('prints [Circular] for a collection already being printed [004 S6-AC2]', () => {
         const c = make([1])
-        c.add(c)
+        put(c, c)
         expect(String(c)).toContain('[Circular]')
         const array: unknown[] = [1]
         array.push(array)
         expect(String(make([array]))).toContain('[1, [Circular]]')
         const d = make([1])
-        d.add({ toString: () => String(d) })
+        put(d, { toString: () => String(d) })
         expect(String(d)).toContain('[Circular]')
       })
 
@@ -823,7 +855,7 @@ export function describeCollection(
 
       it('lets JSON.stringify of a self-containing collection fail instead of running forever [004 S6-AC5]', () => {
         const c = make([1])
-        c.add(c)
+        put(c, c)
         expect(() => JSON.stringify(c)).toThrow()
       })
 

@@ -126,3 +126,80 @@ export function inspectCollection(
     return `${tag}(${collection.size}) ${body}`
   })
 }
+
+/** What printing needs from a map: its size, tag and `[key, value]` pairs. @internal */
+export interface PrintableMap {
+  readonly size: number
+  readonly [Symbol.toStringTag]: string
+  [Symbol.iterator](): Iterator<readonly [unknown, unknown]>
+}
+
+/**
+ * Renders one mapping for `toString`: `key => value`, each part as {@link renderElement} renders
+ * an element; `[Circular]` when `owner` (an entry) is already being printed.
+ *
+ * @internal
+ */
+export function mappingToString(owner: object, key: unknown, value: unknown): string {
+  return printGuard(owner, CIRCULAR, () => `${renderElement(key)} => ${renderElement(value)}`)
+}
+
+/**
+ * Renders a map: `ClassName(size) {k1 => v1, k2 => v2}`, `[Circular]` when it is already being
+ * printed.
+ *
+ * @internal
+ */
+export function mapToString(map: PrintableMap): string {
+  return printGuard(map, CIRCULAR, () => {
+    const parts: string[] = []
+    const pairs = map[Symbol.iterator]()
+    for (let step = pairs.next(); step.done !== true; step = pairs.next()) {
+      parts.push(`${renderElement(step.value[0])} => ${renderElement(step.value[1])}`)
+    }
+    return `${map[Symbol.toStringTag]}(${map.size}) {${parts.join(', ')}}`
+  })
+}
+
+/**
+ * Node's custom inspect hook body for a map: `ClassName(size) { k1 => v1 }`, keys and values
+ * formatted by Node's `inspect` one level deeper; `[ClassName]` beyond the depth limit;
+ * `[Circular]` for a map already being inspected.
+ *
+ * @internal
+ */
+export function inspectMap(
+  map: PrintableMap,
+  depth: number | null,
+  options: InspectOptions,
+  inspect: (value: unknown, options: InspectOptions) => string,
+): string {
+  const tag = map[Symbol.toStringTag]
+  if (depth !== null && depth < 0) return `[${tag}]`
+  return printGuard(map, CIRCULAR, () => {
+    const childOptions = Object.assign({}, options, { depth: depth === null ? null : depth - 1 })
+    const parts: string[] = []
+    const pairs = map[Symbol.iterator]()
+    for (let step = pairs.next(); step.done !== true; step = pairs.next()) {
+      parts.push(
+        `${inspect(step.value[0], childOptions)} => ${inspect(step.value[1], childOptions)}`,
+      )
+    }
+    return `${tag}(${map.size}) ${parts.length === 0 ? '{}' : `{ ${parts.join(', ')} }`}`
+  })
+}
+
+/**
+ * Node's custom inspect hook body for a map entry: `key => value`, each formatted by Node's
+ * `inspect` with the remaining depth.
+ *
+ * @internal
+ */
+export function inspectMapping(
+  key: unknown,
+  value: unknown,
+  options: InspectOptions,
+  inspect: (value: unknown, options: InspectOptions) => string,
+): string {
+  return `${inspect(key, options)} => ${inspect(value, options)}`
+}

@@ -6,12 +6,14 @@
 
 import type { ReadonlyCollection } from '../interfaces/collection'
 import type { ReadonlyList, ReadonlySequencedCollection } from '../interfaces/list'
+import type { ReadonlyMapCollection } from '../interfaces/map'
 import type { ReadonlyDeque, ReadonlyQueue } from '../interfaces/queue'
 import type { ReadonlySetCollection } from '../interfaces/set'
 import {
   DEQUE_BRAND,
   isBranded,
   LIST_BRAND,
+  MAP_COLLECTION_BRAND,
   QUEUE_BRAND,
   SEQUENCED_COLLECTION_BRAND,
   SET_COLLECTION_BRAND,
@@ -143,4 +145,25 @@ export function isDeque(value: unknown): value is ReadonlyDeque<unknown> {
  */
 export function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown> {
   return isBranded(value, SET_COLLECTION_BRAND)
+}
+
+/**
+ * Returns whether `value` is a map from this library — a `HashMap` or any other map — of the same
+ * major version, from any loaded copy of the package. Native `Map` is not, and neither are the
+ * views a map returns (they are collections).
+ *
+ * Time: O(1), plus any getter or proxy trap that reading a property of `value` runs.
+ *
+ * @param value - Any value.
+ * @returns `true` when `value` is a library map.
+ * @throws whatever a getter or proxy trap on `value` throws while the property is read.
+ *
+ * @example
+ * ```ts
+ * isMapCollection(new HashMap([['a', 1]])) // true
+ * isMapCollection(new Map([['a', 1]]))     // false
+ * ```
+ */
+export function isMapCollection(value: unknown): value is ReadonlyMapCollection<unknown, unknown> {
+  return isBranded(value, MAP_COLLECTION_BRAND)
 }
