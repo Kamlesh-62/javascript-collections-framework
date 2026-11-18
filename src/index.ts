@@ -69,6 +69,15 @@ export {
   isSortedMap,
   isSortedSet,
 } from './functions/guards'
+// Immutable collections
+export {
+  copyOfList,
+  copyOfMap,
+  copyOfSet,
+  listOf,
+  mapOf,
+  setOf,
+} from './functions/immutable'
 // Sets and maps
 export { newSetFromMap } from './functions/sets'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'

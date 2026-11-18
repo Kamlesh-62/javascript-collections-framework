@@ -877,3 +877,35 @@ describe('published shape of newSetFromMap', () => {
     expect(entry?.gzip).toBeGreaterThan(0)
   })
 })
+
+describe('published shape of the immutable factories', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows six functions returning read-only interfaces, with no classes or internal names [018 S4-AC4]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    for (const signature of [
+      'declare function listOf<E>(...elements: E[]): ReadonlyList<E>;',
+      'declare function setOf<E>(...elements: E[]): ReadonlySetCollection<E>;',
+      'declare function copyOfList<E>(elements: Iterable<E>): ReadonlyList<E>;',
+    ]) {
+      expect(report).toContain(signature)
+    }
+    expect(report).toMatch(/declare function mapOf<K, V>\([^)]*\): ReadonlyMapCollection<K, V>;/)
+    expect(report).toMatch(/declare function copyOfSet<E>\([^)]*\): ReadonlySetCollection<E>;/)
+    expect(report).toMatch(
+      /declare function copyOfMap<K, V>\([^;]*\): ReadonlyMapCollection<K, V>;/,
+    )
+    expect(report).not.toMatch(/\bImmutable(List|Set|Map)\b|\bReadOnly(List|Set|Map|Collection)\b/)
+  })
+
+  it('the size report records each factory imported alone [018 S4-AC4]', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; minified: number; gzip: number }>
+    }
+    for (const name of ['listOf', 'setOf', 'mapOf', 'copyOfList', 'copyOfSet', 'copyOfMap']) {
+      const entry = report.entries.find((e) => e.name === name)
+      expect(entry?.gzip, name).toBeGreaterThan(0)
+    }
+  })
+})

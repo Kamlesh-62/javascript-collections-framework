@@ -120,7 +120,10 @@ linked collections keep the native order). The output of `Map.groupBy` can be pa
 `newSetFromMap(map)` returns a `SetCollection` whose members are the keys of `map`. The map must be
 an empty library map (from any loaded copy of the same major version), or an empty range or
 reversed view of one; a non-empty map throws `IllegalArgumentError`, and anything else — a native
-`Map`, a set, a map's `keySet()` or `entrySet()`, `null` — throws `TypeError`.
+`Map`, a set, a map's `keySet()` or `entrySet()`, `null` — throws `TypeError`. An empty
+[immutable map](immutable.md) is accepted, but the set cannot add: `add` throws
+`UnsupportedOperationError` (`ImmutableMap.getOrInsert: the collection cannot be changed`), and
+its removals throw as the map's `keySet()` does.
 
 ### Recipes
 

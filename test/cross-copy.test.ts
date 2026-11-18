@@ -945,3 +945,52 @@ describe('sets from maps across two copies', () => {
     )
   })
 })
+
+describe('immutable collections across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type Equatable = { equals(o: unknown): boolean }
+  type Factory = (...args: unknown[]) => Equatable
+  type Guard = (value: unknown) => boolean
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it("immutable results from one copy pass the other copy's guards [018 S5-AC4]", async () => {
+    const [a, b] = await load()
+    const list = (a.listOf as Factory)(1, 2)
+    const set = (a.setOf as Factory)(1, 2)
+    const map = (a.mapOf as Factory)(['a', 1])
+    for (const copy of [a, b]) {
+      expect((copy.isList as Guard)(list)).toBe(true)
+      expect((copy.isSequencedCollection as Guard)(list)).toBe(true)
+      expect((copy.isSetCollection as Guard)(set)).toBe(true)
+      expect((copy.isSetCollection as Guard)(list)).toBe(false)
+      expect((copy.isMapCollection as Guard)(map)).toBe(true)
+      expect((copy.isCollection as Guard)(map)).toBe(false)
+    }
+  })
+
+  it("immutable results equal the other copy's collections both ways [018 S5-AC1] [018 S5-AC2] [018 S5-AC3]", async () => {
+    const [a, b] = await load()
+    const pairs = [
+      ['a', 1],
+      ['b', 2],
+    ]
+    const cases: Array<[Equatable, Equatable]> = [
+      [(a.listOf as Factory)(1, 2), new (b.ArrayList as new (e: unknown[]) => Equatable)([1, 2])],
+      [(a.setOf as Factory)(1, 2), new (b.HashSet as new (e: unknown[]) => Equatable)([2, 1])],
+      [(a.copyOfMap as Factory)(pairs), new (b.HashMap as new (e: unknown[]) => Equatable)(pairs)],
+    ]
+    for (const [ours, theirs] of cases) {
+      expect(ours.equals(theirs)).toBe(true)
+      expect(theirs.equals(ours)).toBe(true)
+      expect((a.hashCode as (v: unknown) => number)(ours)).toBe(
+        (a.hashCode as (v: unknown) => number)(theirs),
+      )
+    }
+  })
+})

@@ -19,6 +19,8 @@ for (const word of ['a', 'b', 'a']) counts.merge(word, 1, (n, one) => n + one)
 String(counts) // "HashMap(2) {'a' => 2, 'b' => 1}"
 ```
 
+For a map that cannot change, see [immutable maps](immutable.md) (`mapOf`, `copyOfMap`).
+
 ## A drop-in for `Map`
 
 | Native `Map`                                           | `HashMap`                                                        |

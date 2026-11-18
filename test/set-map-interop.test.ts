@@ -5,23 +5,28 @@ import {
   ArrayDeque,
   ArrayList,
   ClassCastError,
+  copyOfMap,
   equals,
   equalsSymbol,
   HashMap,
   HashSet,
   hashCode,
   hashCodeSymbol,
+  IllegalArgumentError,
   LinkedHashMap,
   LinkedHashSet,
   type MapCollection,
   type MapEntry,
+  mapOf,
   NullElementError,
   newSetFromMap,
   PriorityQueue,
   type SetCollection,
   sameValueZeroEquivalence,
+  setOf,
   TreeMap,
   TreeSet,
+  UnsupportedOperationError,
   valueEquivalence,
 } from '../src/index'
 import { describeSetCollection } from './contracts/set'
@@ -712,4 +717,63 @@ describe('native Set and Map interop', () => {
       expect([...new LinkedHashMap(groups).keys()]).toEqual(['odd', 'even'])
     },
   )
+})
+
+describe('immutable sets and maps among the others', () => {
+  it('an immutable set equals every kind of set with the same members, both ways [018 S5-AC2]', () => {
+    const immutable = setOf('a', 'b')
+    const peers = [
+      new HashSet(['b', 'a']),
+      new LinkedHashSet(['a', 'b']),
+      new TreeSet<string>(['a', 'b']),
+      new HashMap([
+        ['a', 1],
+        ['b', 2],
+      ]).keySet(),
+      newSetFromMap(new HashMap<string, boolean>()).add('a').add('b'),
+    ]
+    for (const peer of peers) {
+      expect(immutable.equals(peer)).toBe(true)
+      expect(peer.equals(immutable)).toBe(true)
+      expect(hashCode(immutable)).toBe(hashCode(peer))
+    }
+  })
+
+  it('an immutable map equals every kind of map with equal mappings, both ways [018 S5-AC3]', () => {
+    const pairs: Array<[string, number]> = [
+      ['a', 1],
+      ['b', 2],
+    ]
+    const immutable = copyOfMap(pairs)
+    for (const peer of [
+      new HashMap(pairs),
+      new LinkedHashMap(pairs),
+      new TreeMap<string, number>(pairs),
+    ]) {
+      expect(immutable.equals(peer)).toBe(true)
+      expect(peer.equals(immutable)).toBe(true)
+      expect(hashCode(immutable)).toBe(hashCode(peer))
+      expect(immutable.entrySet().equals(peer.entrySet())).toBe(true)
+      expect(peer.entrySet().equals(immutable.entrySet())).toBe(true)
+    }
+    const target = new HashMap<string, number>()
+    target.putAll(immutable)
+    expect(target.equals(immutable)).toBe(true)
+  })
+
+  it('newSetFromMap accepts an empty immutable map, whose set cannot add; a non-empty one is refused [018 S5-AC8]', () => {
+    const set = newSetFromMap(mapOf() as never as MapCollection<string, boolean>)
+    expect(set.size).toBe(0)
+    expect(() => set.add('a')).toThrow(UnsupportedOperationError)
+    expect(() => set.add('a')).toThrow('ImmutableMap.getOrInsert: the collection cannot be changed')
+    expect(() => set.addAll(['a'])).toThrow(UnsupportedOperationError)
+    expect(set.addAll([])).toBe(false)
+    expect(() => set.delete('a')).toThrow(
+      'ImmutableMapKeySet.delete: the collection cannot be changed',
+    )
+    expect(() => set.clear()).toThrow('ImmutableMapKeySet.clear: the collection cannot be changed')
+    expect(() => newSetFromMap(mapOf([1, 1]) as never as MapCollection<number, boolean>)).toThrow(
+      IllegalArgumentError,
+    )
+  })
 })
