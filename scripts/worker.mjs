@@ -16,7 +16,7 @@ const originals = {
   set: new HashSet(['Ann', 'Bo'], caseless),
 }
 
-const worker = new Worker(new URL('./lib/worker-child.mjs', import.meta.url))
+const worker = new Worker(new URL('./worker-child.mjs', import.meta.url))
 const failures = []
 try {
   const reply = await new Promise((resolve, reject) => {
