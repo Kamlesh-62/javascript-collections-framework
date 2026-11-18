@@ -5,7 +5,7 @@
 import type { MapCollection, MapEntry } from '../../interfaces/map'
 import { isBranded, MAP_COLLECTION_BRAND } from '../brand'
 import { requireFunction } from '../checks'
-import { createGuard } from '../cycle'
+import { createGuard, rememberEqual } from '../cycle'
 import { MISSING } from '../engines/map-stores'
 import { equals, type HashFunction, hashCodeSymbol, sameValueZero } from '../equality'
 import { apply, imul } from '../intrinsics'
@@ -141,23 +141,25 @@ export abstract class AbstractMap<K, V> {
     if (!isBranded(other, MAP_COLLECTION_BRAND)) return false
     const that = other as MapCollection<K, V>
     if (that.size !== this.size) return false
-    return equalsGuard(
-      this,
-      () => false,
-      () => {
-        const where = this.at('equals')
-        const handles = this.handles(where)
-        const entries = that.entrySet()
-        for (let step = handles.next(); step.done !== true; step = handles.next()) {
-          if (!entries.has(this.entryAt(step.value))) return false
-        }
-        const pairs = that[Symbol.iterator]()
-        for (let step = pairs.next(); step.done !== true; step = pairs.next()) {
-          const handle = this.find(step.value[0], where)
-          if (handle === MISSING || !equals(step.value[1], this.valueAt(handle))) return false
-        }
-        return true
-      },
+    return rememberEqual(this.owner, that, () =>
+      equalsGuard(
+        this,
+        () => false,
+        () => {
+          const where = this.at('equals')
+          const handles = this.handles(where)
+          const entries = that.entrySet()
+          for (let step = handles.next(); step.done !== true; step = handles.next()) {
+            if (!entries.has(this.entryAt(step.value))) return false
+          }
+          const pairs = that[Symbol.iterator]()
+          for (let step = pairs.next(); step.done !== true; step = pairs.next()) {
+            const handle = this.find(step.value[0], where)
+            if (handle === MISSING || !equals(step.value[1], this.valueAt(handle))) return false
+          }
+          return true
+        },
+      ),
     )
   }
 

@@ -65,7 +65,8 @@ Using collections with React, Vue, Svelte or other frameworks, or sending them t
 workers: see [docs/frameworks.md](docs/frameworks.md).
 
 See [`docs/`](docs/README.md). What each release may change is in
-[versioning](docs/versioning.md).
+[versioning](docs/versioning.md). What is tested, at what scale, and what is not, is in
+[how this library is tested](docs/testing.md).
 
 ## Security
 

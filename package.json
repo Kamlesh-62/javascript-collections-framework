@@ -86,6 +86,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:stress": "vitest run --config vitest.stress.config.ts",
     "lint": "biome check .",
     "format": "biome check --write .",
     "check:package": "publint --strict && attw --pack .",

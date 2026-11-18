@@ -123,7 +123,8 @@ String(set) // "HashSet(2) {1, 2}"
 Strings are quoted, `-0` stays visible, arrays and nested collections print the same way, functions
 print as `[Function: name]`, and a collection that contains itself prints `[Circular]` in its place.
 Other objects print with their own `toString`, as `Array.prototype.join` does. In Node, `console.log`
-shows the class name, size and elements in Node's own style.
+shows the class name, size and elements in Node's own style. Nested collections print one level of
+the call stack per level of nesting: extremely deep nesting throws the engine's `RangeError`.
 
 `JSON.stringify(collection)` writes an array of the elements. A collection that contains itself
 cannot be written as JSON: `JSON.stringify` fails with the engine's error.

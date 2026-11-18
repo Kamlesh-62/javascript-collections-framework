@@ -11,6 +11,7 @@
   "include": [
     ".",
     "../src",
+    "../vitest.stress.config.ts",
     "../scripts/check-syntax.mjs",
     "../scripts/lib",
     "../scripts/api-report.mjs",

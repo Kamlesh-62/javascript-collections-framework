@@ -3,7 +3,7 @@
 
 import type { SetCollection } from '../../interfaces/set'
 import { isBranded, SET_COLLECTION_BRAND } from '../brand'
-import { createGuard } from '../cycle'
+import { createGuard, rememberEqual } from '../cycle'
 import { type HashFunction, hashCodeSymbol } from '../equality'
 import { apply } from '../intrinsics'
 import { MappedLiveIterator } from '../iteration'
@@ -83,14 +83,16 @@ export abstract class AbstractSet<E> extends AbstractCollection<E> implements Se
     if (!isBranded(other, SET_COLLECTION_BRAND)) return false
     const that = other as SetCollection<unknown>
     if (that.size !== this.size) return false
-    return equalsGuard(
-      this,
-      () => false,
-      () => {
-        for (const element of this) if (!that.has(element)) return false
-        for (const element of that) if (!this.hasMember(element as E, 'equals')) return false
-        return true
-      },
+    return rememberEqual(this.owner, that, () =>
+      equalsGuard(
+        this,
+        () => false,
+        () => {
+          for (const element of this) if (!that.has(element)) return false
+          for (const element of that) if (!this.hasMember(element as E, 'equals')) return false
+          return true
+        },
+      ),
     )
   }
 
