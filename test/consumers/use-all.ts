@@ -52,6 +52,9 @@ import {
   ConcurrentModificationError,
   compareSymbol,
   comparing,
+  copyOfList,
+  copyOfMap,
+  copyOfSet,
   equals,
   equalsSymbol,
   HashMap,
@@ -73,6 +76,8 @@ import {
   LinkedHashMap,
   LinkedHashSet,
   LinkedList,
+  listOf,
+  mapOf,
   NoSuchElementError,
   NullElementError,
   naturalOrder,
@@ -82,6 +87,7 @@ import {
   PriorityQueue,
   reverseOrder,
   sameValueZeroEquivalence,
+  setOf,
   TreeMap,
   TreeSet,
   thenComparing,
@@ -311,3 +317,11 @@ export const readonlySorted: ReadonlySequencedMap<number, string> = levels
 export const recentlySeen: SetCollection<string> = newSetFromMap(
   new LinkedHashMap<string, boolean>({ accessOrder: true, maxSize: 2 }),
 )
+export const weekdays: ReadonlyList<string> = listOf('mon', 'tue')
+export const copiedWeekdays: ReadonlyList<string> = copyOfList(['mon', 'tue'])
+export const vowels: ReadonlySetCollection<string> = setOf('a', 'e')
+export const caselessNames: ReadonlySetCollection<string> = copyOfSet(['Ann', 'ann'], {
+  key: (s) => s.toLowerCase(),
+})
+export const limits: ReadonlyMapCollection<string, number> = mapOf(['small', 10], ['large', 100])
+export const copiedLimits: ReadonlyMapCollection<string, number> = copyOfMap(new Map([['a', 1]]))

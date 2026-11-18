@@ -130,9 +130,11 @@ describe('isCollection', () => {
 })
 
 describe('shared harnesses', () => {
-  it('the contract suite carries a tagged test for every rule that applies to a collection [004 S8-AC1]', async () => {
+  it('the contract suites carry a tagged test for every rule that applies to a collection [004 S8-AC1]', async () => {
     const { readFileSync } = await import('node:fs')
-    const text = readFileSync(new URL('./contracts/collection.ts', import.meta.url), 'utf8')
+    const text = ['./contracts/collection.ts', './contracts/readonly-collection.ts']
+      .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
+      .join('\n')
     const counts: Record<number, number> = { 1: 5, 2: 14, 3: 9, 4: 9, 5: 6, 6: 7, 7: 1 }
     for (const [story, count] of Object.entries(counts)) {
       for (let ac = 1; ac <= count; ac++) expect(text).toContain(`[004 S${story}-AC${ac}]`)

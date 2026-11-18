@@ -49,6 +49,7 @@ Or without a build step:
 | Maps              | [`HashMap`](docs/maps.md), [`LinkedHashMap`](docs/linked-hash-maps.md), [`TreeMap`](docs/sorted-maps.md)         |
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md), [`PriorityQueue`](docs/priority-queues.md) |
 | Sets from maps    | [`newSetFromMap`](docs/sets-and-maps.md#newsetfrommap)                                                           |
+| Immutable         | [`listOf`, `setOf`, `mapOf`, `copyOfList`, `copyOfSet`, `copyOfMap`](docs/immutable.md)                          |
 
 ## Planned collections
 

@@ -37,6 +37,8 @@ User documentation for `javascript-collections-framework`.
 
 - [Sorted sets and `TreeSet`](sorted-sets.md) — members kept in order, nearest-match queries (`floor`, `ceiling`, …), live range and reversed views, comparator sameness, failures that change nothing, differences from a sorted array
 
+- [Immutable lists, sets and maps](immutable.md) — `listOf`, `setOf`, `mapOf` and the `copyOf…` factories, duplicates and `null` as in `Set`/`Map`, value-keyed copies, what immutable covers, views, equality with other collections, differences from `Object.freeze`
+
 - [Priority queues and `PriorityQueue`](priority-queues.md) — least element first in O(log n), comparators, iteration is not sorted, ties, failures that change nothing, differences from a sorted array
 
 Still to come: see the planned list in the [README](../README.md#planned-collections).
