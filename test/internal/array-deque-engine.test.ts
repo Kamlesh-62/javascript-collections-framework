@@ -82,6 +82,37 @@ describe('ArrayDequeEngine', () => {
     expect(bufferOf(deque).length).toBe(8)
   })
 
+  it('holds max(8, the smallest power of two at least its peak) slots, and 8 after any clear [036 S2-AC3]', () => {
+    const smallest = (peak: number) => {
+      let capacity = 8
+      while (capacity < peak) capacity *= 2
+      return capacity
+    }
+    for (const peak of [0, 1, 7, 8, 9, 16, 17, 100, 1000]) {
+      const deque = engine()
+      for (let i = 0; i < peak; i++) deque.add(i)
+      while (deque.size > 0) {
+        deque.poll()
+        expect(bufferOf(deque).length).toBe(smallest(peak))
+      }
+      const revision = deque.revision
+      deque.clear()
+      expect(bufferOf(deque).length).toBe(8)
+      expect(deque.revision).toBe(revision)
+      for (let i = 0; i < 5; i++) deque.add(i)
+      expect(bufferOf(deque).length).toBe(8)
+      deque.clear()
+      expect(bufferOf(deque).length).toBe(8)
+    }
+    const reversedClear = engine()
+    for (let i = 0; i < 100; i++) reversedClear.add(i)
+    while (reversedClear.size > 0) reversedClear.pop()
+    const revision = reversedClear.revision
+    reversedClear.reversed().clear()
+    expect(bufferOf(reversedClear).length).toBe(8)
+    expect(reversedClear.revision).toBe(revision)
+  })
+
   it('refuses to grow past its maximum and changes nothing [008 S6-AC8]', () => {
     const deque = engine(16)
     for (let i = 0; i < 16; i++) deque.add(i)

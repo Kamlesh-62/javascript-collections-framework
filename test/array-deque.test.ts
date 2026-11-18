@@ -2,6 +2,7 @@ import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { ArrayDeque } from '../src/collections/array-deque'
 import { ArrayList } from '../src/collections/array-list'
+import { LinkedList } from '../src/collections/linked-list'
 import {
   ConcurrentModificationError,
   hashCode,
@@ -416,6 +417,27 @@ describe('ArrayDeque — reference model', () => {
       runDequeReferenceModel({ seed, steps: 500, make: () => new ArrayDeque<number>() })
       runDequeReferenceModel({ seed, steps: 500, make: () => new ArrayDeque<number>().reversed() })
       runReferenceModel({ seed, steps: 300, make: () => new ArrayDeque<number>(), model: 'array' })
+    }
+  })
+})
+
+describe('clear on an empty deque', () => {
+  it('changes no revision on an empty ArrayDeque, its reversed view or a LinkedList [036 S2-AC3]', () => {
+    for (const make of [() => new ArrayDeque<number>(), () => new LinkedList<number>()]) {
+      const deque = make()
+      for (let i = 0; i < 100; i++) deque.add(i)
+      while (deque.size > 0) deque.poll()
+      const revision = deque.revision
+      const iterator = deque[Symbol.iterator]()
+      deque.clear()
+      deque.reversed().clear()
+      expect(deque.revision).toBe(revision)
+      expect(iterator.next().done).toBe(true)
+      deque.add(1)
+      expect([...deque]).toEqual([1])
+      deque.reversed().clear()
+      expect(deque.size).toBe(0)
+      expect(deque.revision).toBeGreaterThan(revision)
     }
   })
 })
