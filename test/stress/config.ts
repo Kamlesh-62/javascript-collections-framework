@@ -68,6 +68,48 @@ export const FAST = {
   cycles: 1,
 } as const
 
+/** The worst-case suites. */
+export const WORST = {
+  /** Elements in every input shape for sorts, heaps, trees and algorithms. */
+  elements: 100_000,
+  /** Distinct values given to a hash set or map whose hashes all collide. */
+  collidingValues: 2_000,
+  /** Elements in the target of a sub-list search. */
+  subListTarget: 100,
+  /** The smaller size at which each bound is counted per call. */
+  smallSize: 1_000,
+  /** The larger size: ten times the smaller. */
+  largeSize: 10_000,
+  /** Operations run with each inconsistent comparator. */
+  inconsistentSteps: 2_000,
+  /** Depth of each chain of nested views. */
+  viewDepth: 10_000,
+  /** Times the unmodifiable-view functions are applied in turn. */
+  wraps: 10_000,
+} as const
+
+/** The long-running suites (source only). */
+export const LONG = {
+  /** Grow-to-peak and drain-to-zero cycles per class. */
+  cycles: 20,
+  /** The size each cycle grows to. */
+  peak: 100_000,
+  /** Small collections created and dropped per class. */
+  smallCollections: 100_000,
+  /** The largest peak size of a small collection. */
+  smallPeak: 10,
+  /** The most slots an inspected engine array of a small collection may hold. */
+  smallSlots: 16,
+  /** Values given to a bucket table in the hash-flooding check. */
+  floodValues: 100_000,
+  /** Of those, values crafted to share one bucket under the first seed. */
+  craftedValues: 2_000,
+  /** Buckets the crafted values are aimed at. */
+  craftedBuckets: 4_096,
+  /** The longest chain allowed at the end. */
+  maxChain: 16,
+} as const
+
 /** The nightly job. */
 export const NIGHTLY = {
   /** Stops a hung run; never a pass condition. */

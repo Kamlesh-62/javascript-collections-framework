@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as config from './stress/config'
+import { REASONS, renderUnchecked } from './support/complexity'
 import { grouped, renderCountsTable } from './support/counts-table'
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
@@ -54,6 +55,8 @@ describe('the testing page', () => {
       ...Object.values(config.DEEP),
       ...Object.values(config.FAST),
       ...Object.values(config.NIGHTLY),
+      ...Object.values(config.WORST),
+      ...Object.values(config.LONG),
       config.RUNS.length,
     ]
     // Single digits also appear in formulas and ordinary prose; every larger count must not.
@@ -77,5 +80,32 @@ describe('the testing page', () => {
     expect(job).toContain(`timeout-minutes: ${config.NIGHTLY.timeoutMinutes}\n`)
     expect(job).toContain('run: pnpm build')
     expect(job).toContain('run: pnpm test:stress')
+  })
+
+  it('describes the worst-case and long-running suites, and lists every unchecked bound grouped by reason [036 S1-AC14]', () => {
+    expect(page).toContain('## Worst-case inputs')
+    expect(page).toContain('## Long-running use')
+    for (const kind of [
+      'Colliding hashes',
+      'Input shapes',
+      'Broken comparators',
+      'Deep views',
+      'Every documented bound',
+      'Growing and draining',
+      'Many small collections',
+      'Deque storage',
+    ]) {
+      expect(page, kind).toContain(`**${kind}.**`)
+    }
+    const start = page.indexOf('<!-- unchecked:start -->')
+    const end = page.indexOf('<!-- unchecked:end -->')
+    expect(start).toBeGreaterThan(0)
+    expect(end).toBeGreaterThan(start)
+    const list = page.slice(start + '<!-- unchecked:start -->'.length, end).trim()
+    expect(list).toBe(renderUnchecked())
+    for (const reason of Object.values(REASONS)) expect(list).toContain(`**${reason}.**`)
+    const notTested = page.slice(page.indexOf('## What is not tested'))
+    expect(notTested).not.toMatch(/worst case/i)
+    expect(notTested).toMatch(/garbage collection/)
   })
 })
