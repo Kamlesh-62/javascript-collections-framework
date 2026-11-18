@@ -56,6 +56,14 @@ class Span<E> {
   }
 }
 
+/** The names a list's views print with. @internal */
+export interface ViewLabels {
+  readonly subList: string
+  readonly reversed: string
+}
+
+const DEFAULT_LABELS: ViewLabels = { subList: 'SubList', reversed: 'ReversedList' }
+
 /**
  * A live view of another list: a sub-list (`SubList`) or a reversed list (`ReversedList`). Once
  * its span is stale, every method and `size` throw `ConcurrentModificationError`, while
@@ -67,16 +75,29 @@ class ListView<E> extends AbstractList<E> {
   private readonly span: Span<E>
   /** Whether index 0 of the view is the last element of the span. */
   private readonly backwards: boolean
-  private readonly tag: 'SubList' | 'ReversedList'
+  private readonly kind: 'SubList' | 'ReversedList'
+  /** The names views print with and start errors with, by kind. */
+  private readonly labels: ViewLabels
   /** The list `reversed()` or `subList()` was called on: what `reversed().reversed()` returns. */
   private readonly source: List<E>
 
-  constructor(span: Span<E>, backwards: boolean, tag: 'SubList' | 'ReversedList', source: List<E>) {
+  constructor(
+    span: Span<E>,
+    backwards: boolean,
+    kind: 'SubList' | 'ReversedList',
+    source: List<E>,
+    labels: ViewLabels,
+  ) {
     super(span.root.changeCounter)
     this.span = span
     this.backwards = backwards
-    this.tag = tag
+    this.kind = kind
+    this.labels = labels
     this.source = source
+  }
+
+  private get tag(): string {
+    return this.kind === 'SubList' ? this.labels.subList : this.labels.reversed
   }
 
   get [Symbol.toStringTag](): string {
@@ -164,13 +185,13 @@ class ListView<E> extends AbstractList<E> {
     const span = this.span
     const start = this.backwards ? span.start + span.length - to : span.start + from
     const inner = new Span(span.root, span, start, to - from)
-    return new ListView(inner, this.backwards, 'SubList', this)
+    return new ListView(inner, this.backwards, 'SubList', this, this.labels)
   }
 
   reversed(): List<E> {
     this.assertUsable()
-    if (this.tag === 'ReversedList') return this.source
-    return new ListView(this.span, !this.backwards, 'ReversedList', this)
+    if (this.kind === 'ReversedList') return this.source
+    return new ListView(this.span, !this.backwards, 'ReversedList', this, this.labels)
   }
 
   override [INSPECT](
@@ -188,9 +209,14 @@ class ListView<E> extends AbstractList<E> {
  *
  * @internal
  */
-export function subListOf<E>(root: AbstractList<E>, from: number, to: number): List<E> {
+export function subListOf<E>(
+  root: AbstractList<E>,
+  from: number,
+  to: number,
+  labels: ViewLabels = DEFAULT_LABELS,
+): List<E> {
   const whole = new Span(root, undefined, 0, 0)
-  return new ListView(new Span(root, whole, from, to - from), false, 'SubList', root.owner)
+  return new ListView(new Span(root, whole, from, to - from), false, 'SubList', root.owner, labels)
 }
 
 /**
@@ -198,6 +224,6 @@ export function subListOf<E>(root: AbstractList<E>, from: number, to: number): L
  *
  * @internal
  */
-export function reversedOf<E>(root: AbstractList<E>): List<E> {
-  return new ListView(new Span(root, undefined, 0, 0), true, 'ReversedList', root.owner)
+export function reversedOf<E>(root: AbstractList<E>, labels: ViewLabels = DEFAULT_LABELS): List<E> {
+  return new ListView(new Span(root, undefined, 0, 0), true, 'ReversedList', root.owner, labels)
 }

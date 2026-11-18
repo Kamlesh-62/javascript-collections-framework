@@ -48,6 +48,7 @@ import type {
 import {
   ArrayDeque,
   ArrayList,
+  asList,
   ClassCastError,
   ConcurrentModificationError,
   compareSymbol,
@@ -92,6 +93,15 @@ import {
   TreeSet,
   thenComparing,
   UnsupportedOperationError,
+  unmodifiableCollection,
+  unmodifiableList,
+  unmodifiableMap,
+  unmodifiableSequencedCollection,
+  unmodifiableSequencedMap,
+  unmodifiableSequencedSet,
+  unmodifiableSet,
+  unmodifiableSortedMap,
+  unmodifiableSortedSet,
   valueEquivalence,
 } from 'javascript-collections-framework'
 
@@ -325,3 +335,24 @@ export const caselessNames: ReadonlySetCollection<string> = copyOfSet(['Ann', 'a
 })
 export const limits: ReadonlyMapCollection<string, number> = mapOf(['small', 10], ['large', 100])
 export const copiedLimits: ReadonlyMapCollection<string, number> = copyOfMap(new Map([['a', 1]]))
+export const readOnlyQueue: ReadonlyCollection<number> = unmodifiableCollection(new ArrayDeque([1]))
+export const readOnlyDeque: ReadonlySequencedCollection<number> = unmodifiableSequencedCollection(
+  new ArrayDeque([1]),
+)
+export const readOnlyItems: ReadonlyList<string> = unmodifiableList(new ArrayList(['a']))
+export const readOnlyTags: ReadonlySetCollection<string> = unmodifiableSet(new HashSet(['a']))
+export const readOnlyRecent: ReadonlySequencedSet<string> = unmodifiableSequencedSet(
+  new LinkedHashSet(['a']),
+)
+export const readOnlyScores: ReadonlySortedSet<number> = unmodifiableSortedSet(new TreeSet([1]))
+export const readOnlyPrices: ReadonlyMapCollection<string, number> = unmodifiableMap(
+  new HashMap([['tea', 3]]),
+)
+export const readOnlyCache: ReadonlySequencedMap<string, number> = unmodifiableSequencedMap(
+  new LinkedHashMap([['a', 1]]),
+)
+export const readOnlyLevels: ReadonlySortedMap<number, string> = unmodifiableSortedMap(
+  new TreeMap([[1, 'low']]),
+)
+const scores = [3, 1, 2]
+export const scoreList: List<number> = asList(scores)

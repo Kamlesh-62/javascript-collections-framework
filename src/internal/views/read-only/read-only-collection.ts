@@ -1,10 +1,15 @@
-// A read-only collection over another collection, for views that compare by identity (a map's
-// values). Reads go to the source; every change is refused before its arguments are looked at.
+// Read-only collections that compare by identity, because their family has no value equality:
+// an unmodifiable collection or sequenced collection, and a map's value view. Reads, iteration,
+// `forEach` and cursors go to the source; every change is refused before its arguments are
+// looked at.
 
 import type { Cursor, ReadonlyCollection } from '../../../interfaces/collection'
+import type { ReadonlySequencedCollection, SequencedCollection } from '../../../interfaces/list'
+import { SEQUENCED_COLLECTION_BRAND } from '../../brand'
+import { apply } from '../../intrinsics'
 import { AbstractCollection } from '../../skeletons/abstract-collection'
 import { ReadOnlyCursor } from './read-only-cursor'
-import { refuse } from './refuse'
+import { empty, refuse } from './refuse'
 
 /**
  * A read-only view of `source`, printed with `tag`, equal only to itself.
@@ -13,7 +18,7 @@ import { refuse } from './refuse'
  */
 export class ReadOnlyCollection<E> extends AbstractCollection<E> {
   protected readonly iterationMode = 'live' as const
-  private readonly source: ReadonlyCollection<E>
+  protected readonly source: ReadonlyCollection<E>
   private readonly tag: string
 
   constructor(source: ReadonlyCollection<E>, tag: string) {
@@ -34,6 +39,10 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
     return this.source.revision
   }
 
+  override isEmpty(): boolean {
+    return this.source.isEmpty()
+  }
+
   [Symbol.iterator](): IterableIterator<E> {
     return this.source[Symbol.iterator]()
   }
@@ -42,8 +51,19 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
     return this.source.has(element)
   }
 
+  override toArray(): E[] {
+    return this.source.toArray()
+  }
+
+  override forEach(action: (element: E) => void, thisArg?: unknown): void {
+    this.requireFunction(action, 'forEach', 'action')
+    this.source.forEach((element) => {
+      apply(action, thisArg, [element])
+    })
+  }
+
   cursor(): Cursor<E> {
-    return new ReadOnlyCursor(this.source[Symbol.iterator](), `${this.className}.cursor`)
+    return new ReadOnlyCursor(this.source.cursor(), `${this.className}.cursor`)
   }
 
   add(_element: E): this {
@@ -72,5 +92,53 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
 
   override clear(): void {
     throw refuse(`${this.className}.clear`)
+  }
+}
+
+/**
+ * A read-only view of a sequenced collection: the ends and a reversed view, equal only to itself.
+ *
+ * @internal
+ */
+export class ReadOnlySequencedCollection<E>
+  extends ReadOnlyCollection<E>
+  implements SequencedCollection<E>
+{
+  /** Marks every sequenced collection for `isSequencedCollection`, across loaded copies. */
+  get [SEQUENCED_COLLECTION_BRAND](): true {
+    return true
+  }
+
+  getFirst(): E {
+    if (this.source.isEmpty()) throw empty(`${this.className}.getFirst`)
+    return (this.source as ReadonlySequencedCollection<E>).getFirst()
+  }
+
+  getLast(): E {
+    if (this.source.isEmpty()) throw empty(`${this.className}.getLast`)
+    return (this.source as ReadonlySequencedCollection<E>).getLast()
+  }
+
+  reversed(): SequencedCollection<E> {
+    return new ReadOnlySequencedCollection(
+      (this.source as ReadonlySequencedCollection<E>).reversed(),
+      this.className,
+    )
+  }
+
+  addFirst(_element: E): this {
+    throw refuse(`${this.className}.addFirst`)
+  }
+
+  addLast(_element: E): this {
+    throw refuse(`${this.className}.addLast`)
+  }
+
+  removeFirst(): E {
+    throw refuse(`${this.className}.removeFirst`)
+  }
+
+  removeLast(): E {
+    throw refuse(`${this.className}.removeLast`)
   }
 }

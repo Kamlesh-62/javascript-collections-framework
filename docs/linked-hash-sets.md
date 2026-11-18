@@ -16,6 +16,8 @@ recent.addFirst('z') // LinkedHashSet(3) {'z', 'c', 'a'}
 const newestFirst = [...recent.reversed()] // ['a', 'c', 'z']
 ```
 
+To hand out a read-only view, use [`unmodifiableSequencedSet`](unmodifiable.md).
+
 ## When to use it
 
 | Need                                                                   | Use                           |

@@ -134,6 +134,9 @@ A copy takes the target's default equality. To keep a `key` or `equivalence`, pa
 `HashSet.from(names, { key: (name) => name.toLowerCase() })`. `copyOf…` of an immutable
 collection with the same options may return that collection itself.
 
+For a read-only view of a collection that keeps changing, see
+[unmodifiable views](unmodifiable.md).
+
 `newSetFromMap` accepts an empty immutable map. The set it returns cannot add, because adding
 writes to the map.
 

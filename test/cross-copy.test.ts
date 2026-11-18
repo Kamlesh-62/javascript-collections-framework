@@ -994,3 +994,39 @@ describe('immutable collections across two copies', () => {
     }
   })
 })
+
+describe('unmodifiable views across two copies', () => {
+  type Namespace = Record<string, unknown>
+  type Guard = (value: unknown) => boolean
+  type Wrap = (value: unknown) => { equals(o: unknown): boolean }
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it("wraps the other copy's collections and is recognised by both copies [019 S2-AC3]", async () => {
+    const [a, b] = await load()
+    const list = new (b.ArrayList as new (e: unknown[]) => unknown)([1, 2])
+    const view = (a.unmodifiableList as Wrap)(list)
+    const sorted = (a.unmodifiableSortedMap as Wrap)(
+      new (b.TreeMap as new (e: unknown[]) => unknown)([[1, 'a']]),
+    )
+    for (const copy of [a, b]) {
+      expect((copy.isList as Guard)(view)).toBe(true)
+      expect((copy.isSortedMap as Guard)(sorted)).toBe(true)
+      expect((copy.isCollection as Guard)(sorted)).toBe(false)
+    }
+    expect(() => (b.unmodifiableSequencedMap as Wrap)(sorted)).not.toThrow()
+  })
+
+  it("equals the other copy's source both ways [019 S2-AC1]", async () => {
+    const [a, b] = await load()
+    const set = new (b.HashSet as new (e: unknown[]) => { equals(o: unknown): boolean })([1, 2])
+    const view = (a.unmodifiableSet as Wrap)(set)
+    expect(view.equals(set)).toBe(true)
+    expect(set.equals(view)).toBe(true)
+  })
+})

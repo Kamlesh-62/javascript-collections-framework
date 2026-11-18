@@ -78,8 +78,22 @@ export {
   mapOf,
   setOf,
 } from './functions/immutable'
+// Lists over arrays
+export { asList } from './functions/lists'
 // Sets and maps
 export { newSetFromMap } from './functions/sets'
+// Unmodifiable views
+export {
+  unmodifiableCollection,
+  unmodifiableList,
+  unmodifiableMap,
+  unmodifiableSequencedCollection,
+  unmodifiableSequencedMap,
+  unmodifiableSequencedSet,
+  unmodifiableSet,
+  unmodifiableSortedMap,
+  unmodifiableSortedSet,
+} from './functions/unmodifiable'
 export type { Collection, Cursor, ReadonlyCollection } from './interfaces/collection'
 export type { LinkedListNode } from './interfaces/linked-list-node'
 export type {

@@ -15,7 +15,8 @@ tags.delete('b') // true
 const members = [...tags] // ['a', 'c']
 ```
 
-For a set that cannot change, see [immutable sets](immutable.md) (`setOf`, `copyOfSet`).
+For a set that cannot change, see [immutable sets](immutable.md) (`setOf`, `copyOfSet`). For a read-only view of a set
+that keeps changing, see [unmodifiable views](unmodifiable.md).
 
 ## A drop-in for `Set`
 

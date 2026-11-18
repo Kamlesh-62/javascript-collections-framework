@@ -909,3 +909,47 @@ describe('published shape of the immutable factories', () => {
     }
   })
 })
+
+describe('published shape of unmodifiable views and asList', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows ten functions with interface return types and no classes or internal names [019 S2-AC4]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    for (const signature of [
+      'declare function unmodifiableList<E>(list: ReadonlyList<E>): ReadonlyList<E>;',
+      'declare function unmodifiableSortedSet<E>(set: ReadonlySortedSet<E>): ReadonlySortedSet<E>;',
+      'declare function asList<E>(array: E[]): List<E>;',
+    ]) {
+      expect(report).toContain(signature)
+    }
+    for (const name of [
+      'unmodifiableCollection',
+      'unmodifiableSequencedCollection',
+      'unmodifiableSet',
+      'unmodifiableSequencedSet',
+      'unmodifiableMap',
+      'unmodifiableSequencedMap',
+      'unmodifiableSortedMap',
+    ]) {
+      expect(report).toMatch(new RegExp(`declare function ${name}<`))
+    }
+    expect(report).not.toMatch(
+      /\bReadOnly(List|Set|Map|Collection|SortedSet|SortedMap)\b|\bArrayListView\b|\bArrayLengthCounter\b/,
+    )
+  })
+
+  it('the size report records each function imported alone', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; gzip: number }>
+    }
+    for (const name of [
+      'asList',
+      'unmodifiableList',
+      'unmodifiableSortedMap',
+      'unmodifiableCollection',
+    ]) {
+      expect(report.entries.find((e) => e.name === name)?.gzip, name).toBeGreaterThan(0)
+    }
+  })
+})

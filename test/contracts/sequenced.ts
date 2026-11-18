@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { NoSuchElementError, UnsupportedOperationError } from '../../src/index'
 import type { SequencedCollection } from '../../src/interfaces/list'
+import { describeReadonlySequenced } from './readonly-sequenced'
 
 /** Builds a new sequenced collection holding `initial`, in order. */
 export type SequencedFactory = (initial?: Iterable<unknown>) => SequencedCollection<unknown>
@@ -31,29 +32,9 @@ export function describeSequencedCollection(
 ): void {
   const unsupported = options.addAtEnds === 'unsupported'
   const insert = options.insert
+  describeReadonlySequenced(name, make)
+
   describe(`${name} — sequenced collection contract`, () => {
-    it('getFirst and getLast return the ends [006 S1-AC5]', () => {
-      const c = make([1, 2, 3])
-      expect(c.getFirst()).toBe(1)
-      expect(c.getLast()).toBe(3)
-    })
-
-    it('getFirst and getLast throw NoSuchElementError when empty [006 S1-AC6]', () => {
-      const c = make()
-      expect(() => c.getFirst()).toThrow(NoSuchElementError)
-      expect(() => c.getLast()).toThrow(NoSuchElementError)
-      expect(
-        (() => {
-          try {
-            c.getFirst()
-          } catch (error) {
-            return (error as Error).message
-          }
-          return ''
-        })().startsWith(`${name}.getFirst: `),
-      ).toBe(true)
-    })
-
     if (unsupported) {
       it('addFirst and addLast throw UnsupportedOperationError and change nothing [015 S2-AC4]', () => {
         const c = make([2])
@@ -102,11 +83,6 @@ export function describeSequencedCollection(
       expect(() => c.reversed().add(3)).toThrow(UnsupportedOperationError)
       expect([...c]).toEqual([1, 2])
       expect(c.revision).toBe(revision)
-    })
-
-    it('reversing twice gives the original order', () => {
-      const c = make([1, 2, 3])
-      expect([...c.reversed().reversed()]).toEqual([1, 2, 3])
     })
   })
 }

@@ -39,6 +39,8 @@ User documentation for `javascript-collections-framework`.
 
 - [Immutable lists, sets and maps](immutable.md) — `listOf`, `setOf`, `mapOf` and the `copyOf…` factories, duplicates and `null` as in `Set`/`Map`, value-keyed copies, what immutable covers, views, equality with other collections, differences from `Object.freeze`
 
+- [Unmodifiable views and lists over arrays](unmodifiable.md) — read-only windows that show the owner's changes (`unmodifiableList`, `unmodifiableSortedMap`, …), what they refuse, live entries, access order, equality and type checks; `asList` over an array: write-through, direct changes and their limits, frozen arrays, differences from `Array`
+
 - [Priority queues and `PriorityQueue`](priority-queues.md) — least element first in O(log n), comparators, iteration is not sorted, ties, failures that change nothing, differences from a sorted array
 
 Still to come: see the planned list in the [README](../README.md#planned-collections).

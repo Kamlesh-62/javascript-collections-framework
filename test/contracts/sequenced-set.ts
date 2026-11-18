@@ -4,8 +4,9 @@
 // implementation's test file runs it through `describeSequencedSet`.
 
 import { describe, expect, it } from 'vitest'
-import { hashCode, isSetCollection, UnsupportedOperationError } from '../../src/index'
+import { UnsupportedOperationError } from '../../src/index'
 import type { SequencedSet } from '../../src/interfaces/sequenced-set'
+import { describeReadonlySequencedSet } from './readonly-sequenced-set'
 
 /** Builds a new sequenced set iterating `initial`, first occurrence winning. */
 export type SequencedSetFactory = (initial?: Iterable<unknown>) => SequencedSet<unknown>
@@ -57,20 +58,9 @@ export function describeSequencedSet(
     else owner.add(element)
   }
 
-  describe(`${name} — sequenced set contract`, () => {
-    it('reversed() is a set in the opposite order with the same size, members, equality and hash [013 S5-AC3]', () => {
-      const set = make([1, 2, 3])
-      const view = set.reversed()
-      expect(isSetCollection(view)).toBe(true)
-      expect(elements(view)).toEqual([3, 2, 1])
-      expect(view.size).toBe(3)
-      expect(view.has(probe(2))).toBe(true)
-      expect(view.has(probe(4))).toBe(false)
-      expect(view.equals(set)).toBe(true)
-      expect(set.equals(view)).toBe(true)
-      expect(hashCode(view)).toBe(hashCode(set))
-    })
+  describeReadonlySequencedSet(name, make, options)
 
+  describe(`${name} — sequenced set contract`, () => {
     it('reversed().reversed() iterates as the original and its changes reach the set [013 S5-AC3]', () => {
       const set = make([1, 2, 3])
       const twice = set.reversed().reversed()
