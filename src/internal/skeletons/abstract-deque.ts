@@ -91,6 +91,9 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   abstract compact(flags: readonly boolean[]): void
   /** Removes every element of a non-empty deque. */
   abstract clearAll(): void
+
+  /** Returns spare storage of an empty deque to its smallest size; not a structural change. */
+  releaseStorage(): void {}
   /** Throws `IllegalStateError` when `count` more elements would not fit; changes nothing. */
   abstract ensureRoom(count: number, where: string): void
   abstract reversed(): Deque<E>
@@ -200,6 +203,7 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
 
   override clear(): void {
     if (this.size > 0) this.clearAll()
+    else this.releaseStorage()
   }
 
   protected override removeMarked(flags: readonly boolean[]): void {

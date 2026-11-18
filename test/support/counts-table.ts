@@ -1,7 +1,7 @@
 // Renders the counts table of docs/testing.md from test/stress/config.ts, so the page states
 // exactly what runs.
 
-import type { DEEP, FAST, NIGHTLY, RUNS, SCALE } from '../stress/config'
+import type { DEEP, FAST, LONG, NIGHTLY, RUNS, SCALE, WORST } from '../stress/config'
 
 export interface CountsConfig {
   readonly SCALE: typeof SCALE
@@ -9,6 +9,8 @@ export interface CountsConfig {
   readonly FAST: typeof FAST
   readonly NIGHTLY: typeof NIGHTLY
   readonly RUNS: typeof RUNS
+  readonly WORST: typeof WORST
+  readonly LONG: typeof LONG
 }
 
 /** `1234567` as `1,234,567`, independent of the locale. */
@@ -24,7 +26,7 @@ export function grouped(n: number): string {
 
 /** The Markdown table that sits between the counts markers on the testing page. */
 export function renderCountsTable(config: CountsConfig): string {
-  const { SCALE, DEEP, FAST, NIGHTLY, RUNS } = config
+  const { SCALE, DEEP, FAST, NIGHTLY, RUNS, WORST, LONG } = config
   const rows: Array<[string, string]> = [
     ['Elements in each scale, view and output test', grouped(SCALE.elements)],
     [
@@ -43,6 +45,25 @@ export function renderCountsTable(config: CountsConfig): string {
     ['Iterators and cursors held open at once (deep runs)', grouped(DEEP.maxOpen)],
     ['Seeds × steps per run in the fast subset', `${grouped(FAST.seeds)} × ${grouped(FAST.steps)}`],
     ['Elements per collection with both builds loaded', grouped(SCALE.twoCopiesElements)],
+    ['Elements in each worst-case input shape', grouped(WORST.elements)],
+    ['Distinct values whose hashes all collide', grouped(WORST.collidingValues)],
+    ['Elements in the target of a sub-list search (worst case)', grouped(WORST.subListTarget)],
+    [
+      'Sizes at which the growth of each bound is counted',
+      `${grouped(WORST.smallSize)} and ${grouped(WORST.largeSize)}`,
+    ],
+    ['Operations per inconsistent comparator', grouped(WORST.inconsistentSteps)],
+    ['Depth of each chain of nested views', grouped(WORST.viewDepth)],
+    ['Unmodifiable-view functions applied in turn', grouped(WORST.wraps)],
+    ['Grow-and-drain cycles per class (long-running)', grouped(LONG.cycles)],
+    ['Size each cycle grows to (long-running)', grouped(LONG.peak)],
+    ['Small collections created per class (long-running)', grouped(LONG.smallCollections)],
+    ['Largest size of a small collection', grouped(LONG.smallPeak)],
+    ['Storage limit checked for each small collection (array slots)', grouped(LONG.smallSlots)],
+    ['Values in the hash-flooding check', grouped(LONG.floodValues)],
+    ['Of those, values crafted to share one bucket', grouped(LONG.craftedValues)],
+    ['Buckets the crafted values are aimed at', grouped(LONG.craftedBuckets)],
+    ['Longest bucket chain allowed after flooding', grouped(LONG.maxChain)],
     ['Nightly stress job timeout', `${grouped(NIGHTLY.timeoutMinutes)} minutes`],
   ]
   const width = Math.max(...rows.map((r) => r[0].length), 'What'.length)

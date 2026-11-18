@@ -1,8 +1,9 @@
 // The live list views: a sub-list (a window `[from, to)`) and a reversed list. Every view reads and
 // writes the root list (the one that is not a view) directly, through a span — a span of the
-// root's indexes — and a direction, so an operation costs the same however deeply views are
-// nested, and nothing recurses. Views share the root's change counter, so `revision` and fail-fast
-// checks are the root's.
+// root's indexes — and a direction, so reads and `set` cost the same however deeply views are
+// nested; a change of size also updates each enclosing span, one step per level, in a loop, and
+// nothing recurses. Views share the root's change counter, so `revision` and fail-fast checks are
+// the root's.
 
 import { ConcurrentModificationError } from '../../errors/errors'
 import type { List } from '../../interfaces/list'

@@ -96,15 +96,15 @@ exactly as it was and the error propagates.
 
 ## Cost of the other operations
 
-| Operation                                          | Time                                                                                           |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `sort`                                             | O(n log n), at most `n·⌈log₂ n⌉` comparisons, O(n) extra space                                 |
-| `subList`, `reversed`, `listCursor`, `cursor`      | O(1)                                                                                           |
-| cursor `next`, `previous`, `set`                   | O(1)                                                                                           |
-| cursor `insert`, `remove`                          | as `insert` / `removeAt` at the cursor's position                                              |
-| an operation on a sub-list                         | as the same operation on the list at the mapped index, however deeply views are nested         |
-| an operation on a reversed view                    | as the mirrored operation on the list: the view's `add` costs what the list's `addFirst` costs |
-| `forEach`, `toArray`, `equals`, `toString`, `copy` | O(n)                                                                                           |
+| Operation                                          | Time                                                                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sort`                                             | O(n log n), at most `n·⌈log₂ n⌉` comparisons, O(n) extra space                                                                              |
+| `subList`, `reversed`, `listCursor`, `cursor`      | O(1)                                                                                                                                        |
+| cursor `next`, `previous`, `set`                   | O(1)                                                                                                                                        |
+| cursor `insert`, `remove`                          | as `insert` / `removeAt` at the cursor's position                                                                                           |
+| an operation on a sub-list                         | as the same operation on the list at the mapped index; a change of size also updates each enclosing sub-list, one step per level of nesting |
+| an operation on a reversed view                    | as the mirrored operation on the list: the view's `add` costs what the list's `addFirst` costs                                              |
+| `forEach`, `toArray`, `equals`, `toString`, `copy` | O(n)                                                                                                                                        |
 
 ## Iterating and cursors
 

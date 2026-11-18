@@ -39,6 +39,7 @@ import {
   ReadOnlySet,
   ReadOnlySortedSet,
 } from '../internal/views/read-only/read-only-set'
+import { type ReadOnlyKind, readOnlyParts } from '../internal/views/read-only/registry'
 import { UNMODIFIABLE_TAGS } from '../internal/views/read-only/tags'
 
 /** Throws `TypeError` unless `value` carries every brand in `brands`. */
@@ -59,15 +60,37 @@ function requireFamily(
 }
 
 /**
+ * `value` itself when it is a view the function of `kind` printing `tag` would return; otherwise a
+ * new view from `make`, over the source of any other read-only view this copy built (keeping the
+ * way that view hands out members), or over `value`.
+ */
+function unwrapOrWrap<T, M>(
+  value: T,
+  kind: ReadOnlyKind,
+  tag: string,
+  make: (source: T, reveal: ((member: M) => M) | undefined) => T,
+): T {
+  const parts = readOnlyParts(value)
+  if (parts === undefined) return make(value, undefined)
+  if (parts.unmodifiable && parts.kind === kind && parts.printed === tag) return value
+  return make(parts.source as T, parts.reveal as ((member: M) => M) | undefined)
+}
+
+/**
  * Returns a read-only view of `collection`: reads, iteration and cursors go to the collection, so
  * the owner's changes show through, and every method that would change it throws
  * `UnsupportedOperationError`. The view compares by identity (`equals` is `true` only for itself),
  * because a collection of any family can be wrapped.
  *
+ * When `collection` is already a view this function returns (printed as `UnmodifiableCollection`),
+ * it is returned unchanged. When it is any other unmodifiable view or immutable collection from
+ * this copy of the library, the new view reads that collection's source instead, and entries it
+ * hands out stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the collection's costs.
  *
  * @param collection - A collection from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableCollection`.
+ * @returns `collection` itself, or an unmodifiable view printed as `UnmodifiableCollection`.
  * @throws TypeError when `collection` is not a collection from this library.
  *
  * @example
@@ -88,17 +111,29 @@ export function unmodifiableCollection<E>(
     'collection',
     'a collection',
   )
-  return new ReadOnlyCollection(collection, UNMODIFIABLE_TAGS.collection)
+  return unwrapOrWrap(
+    collection,
+    'collection',
+    UNMODIFIABLE_TAGS.collection,
+    (source, reveal: ((member: E) => E) | undefined) =>
+      new ReadOnlyCollection(source, UNMODIFIABLE_TAGS.collection, reveal),
+  )
 }
 
 /**
  * Returns a read-only view of a sequenced collection: as {@link unmodifiableCollection}, with the
  * ends (`getFirst`, `getLast`) and a reversed view. It compares by identity.
  *
+ * When `collection` is already a view this function returns (printed as
+ * `UnmodifiableSequencedCollection`), it is returned unchanged. When it is any other unmodifiable
+ * view or immutable collection from this copy of the library, the new view reads that collection's
+ * source instead, and entries it hands out stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the collection's costs.
  *
  * @param collection - A sequenced collection from this library (a list, deque or sequenced set).
- * @returns An unmodifiable view, printed as `UnmodifiableSequencedCollection`.
+ * @returns `collection` itself, or an unmodifiable view printed as
+ *   `UnmodifiableSequencedCollection`.
  * @throws TypeError when `collection` is not a sequenced collection from this library.
  *
  * @example
@@ -117,7 +152,13 @@ export function unmodifiableSequencedCollection<E>(
     'collection',
     'a sequenced collection',
   )
-  return new ReadOnlySequencedCollection(collection, UNMODIFIABLE_TAGS.sequencedCollection)
+  return unwrapOrWrap(
+    collection,
+    'sequenced-collection',
+    UNMODIFIABLE_TAGS.sequencedCollection,
+    (source, reveal: ((member: E) => E) | undefined) =>
+      new ReadOnlySequencedCollection(source, UNMODIFIABLE_TAGS.sequencedCollection, reveal),
+  )
 }
 
 /**
@@ -126,10 +167,15 @@ export function unmodifiableSequencedCollection<E>(
  * views, and its cursors — throws `UnsupportedOperationError` before its arguments are checked.
  * The view equals, and hashes like, the list.
  *
+ * When `list` is already a view this function returns (printed as `UnmodifiableList`, its sub-lists
+ * and reversed views included), it is returned unchanged. When it is any other unmodifiable view or
+ * immutable collection from this copy of the library, the new view reads that collection's source
+ * instead, and entries it hands out stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the list's costs.
  *
  * @param list - A list from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableList`.
+ * @returns `list` itself, or an unmodifiable view printed as `UnmodifiableList`.
  * @throws TypeError when `list` is not a list from this library.
  *
  * @example
@@ -142,7 +188,13 @@ export function unmodifiableSequencedCollection<E>(
  */
 export function unmodifiableList<E>(list: ReadonlyList<E>): ReadonlyList<E> {
   requireFamily(list, [LIST_BRAND], 'unmodifiableList', 'list', 'a list')
-  return new ReadOnlyList(list, UNMODIFIABLE_TAGS)
+  // Lists never register a `reveal`: their members are handed out as they are.
+  return unwrapOrWrap(
+    list,
+    'list',
+    UNMODIFIABLE_TAGS.list,
+    (source) => new ReadOnlyList(source, UNMODIFIABLE_TAGS),
+  )
 }
 
 /**
@@ -150,10 +202,15 @@ export function unmodifiableList<E>(list: ReadonlyList<E>): ReadonlyList<E> {
  * owner's changes show through, and every method that would change it throws
  * `UnsupportedOperationError`. The view equals, and hashes like, the set.
  *
+ * When `set` is already a view this function returns (printed as `UnmodifiableSet`), it is returned
+ * unchanged. When it is any other unmodifiable view or immutable collection from this copy of the
+ * library, the new view reads that collection's source instead, and entries it hands out stay
+ * read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the set's costs.
  *
  * @param set - A set from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableSet`.
+ * @returns `set` itself, or an unmodifiable view printed as `UnmodifiableSet`.
  * @throws TypeError when `set` is not a set from this library.
  *
  * @example
@@ -164,17 +221,28 @@ export function unmodifiableList<E>(list: ReadonlyList<E>): ReadonlyList<E> {
  */
 export function unmodifiableSet<E>(set: ReadonlySetCollection<E>): ReadonlySetCollection<E> {
   requireFamily(set, [SET_COLLECTION_BRAND], 'unmodifiableSet', 'set', 'a set')
-  return new ReadOnlySet(set, UNMODIFIABLE_TAGS.set)
+  return unwrapOrWrap(
+    set,
+    'set',
+    UNMODIFIABLE_TAGS.set,
+    (source, reveal: ((member: E) => E) | undefined) =>
+      new ReadOnlySet(source, UNMODIFIABLE_TAGS.set, reveal),
+  )
 }
 
 /**
  * Returns a read-only view of a sequenced set: as {@link unmodifiableSet}, with the ends and a
  * reversed view.
  *
+ * When `set` is already a view this function returns (printed as `UnmodifiableSequencedSet`), it is
+ * returned unchanged. When it is any other unmodifiable view or immutable collection from this copy
+ * of the library, the new view reads that collection's source instead, and entries it hands out
+ * stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the set's costs.
  *
  * @param set - A sequenced set from this library (a `LinkedHashSet`, a sorted set, …).
- * @returns An unmodifiable view, printed as `UnmodifiableSequencedSet`.
+ * @returns `set` itself, or an unmodifiable view printed as `UnmodifiableSequencedSet`.
  * @throws TypeError when `set` is not a sequenced set from this library.
  *
  * @example
@@ -190,17 +258,28 @@ export function unmodifiableSequencedSet<E>(set: ReadonlySequencedSet<E>): Reado
     'set',
     'a sequenced set',
   )
-  return new ReadOnlySequencedSet(set, UNMODIFIABLE_TAGS.sequencedSet)
+  return unwrapOrWrap(
+    set,
+    'sequenced-set',
+    UNMODIFIABLE_TAGS.sequencedSet,
+    (source, reveal: ((member: E) => E) | undefined) =>
+      new ReadOnlySequencedSet(source, UNMODIFIABLE_TAGS.sequencedSet, reveal),
+  )
 }
 
 /**
  * Returns a read-only view of a sorted set: as {@link unmodifiableSet}, with navigation
  * (`floor`, `ceiling`, …), the comparator, and range and reversed views that are unmodifiable too.
  *
+ * When `set` is already a view this function returns (printed as `UnmodifiableSortedSet`), it is
+ * returned unchanged. When it is any other unmodifiable view or immutable collection from this copy
+ * of the library, the new view reads that collection's source instead, and entries it hands out
+ * stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the set's costs.
  *
  * @param set - A sorted set from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableSortedSet`.
+ * @returns `set` itself, or an unmodifiable view printed as `UnmodifiableSortedSet`.
  * @throws TypeError when `set` is not a sorted set from this library.
  *
  * @example
@@ -210,7 +289,13 @@ export function unmodifiableSequencedSet<E>(set: ReadonlySequencedSet<E>): Reado
  */
 export function unmodifiableSortedSet<E>(set: ReadonlySortedSet<E>): ReadonlySortedSet<E> {
   requireFamily(set, [SORTED_SET_BRAND], 'unmodifiableSortedSet', 'set', 'a sorted set')
-  return new ReadOnlySortedSet(set, UNMODIFIABLE_TAGS.sortedSet)
+  return unwrapOrWrap(
+    set,
+    'sorted-set',
+    UNMODIFIABLE_TAGS.sortedSet,
+    (source, reveal: ((member: E) => E) | undefined) =>
+      new ReadOnlySortedSet(source, UNMODIFIABLE_TAGS.sortedSet, reveal),
+  )
 }
 
 /**
@@ -220,10 +305,15 @@ export function unmodifiableSortedSet<E>(set: ReadonlySortedSet<E>): ReadonlySor
  * equals, and hashes like, the map. On an access-ordered `LinkedHashMap`, `get` through the view is
  * an access, as on the map.
  *
+ * When `map` is already a view this function returns (printed as `UnmodifiableMap`), it is returned
+ * unchanged. When it is any other unmodifiable view or immutable collection from this copy of the
+ * library, the new view reads that collection's source instead, and entries it hands out stay
+ * read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the map's costs.
  *
  * @param map - A map from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableMap`.
+ * @returns `map` itself, or an unmodifiable view printed as `UnmodifiableMap`.
  * @throws TypeError when `map` is not a map from this library.
  *
  * @example
@@ -238,17 +328,28 @@ export function unmodifiableMap<K, V>(
   map: ReadonlyMapCollection<K, V>,
 ): ReadonlyMapCollection<K, V> {
   requireFamily(map, [MAP_COLLECTION_BRAND], 'unmodifiableMap', 'map', 'a map')
-  return new ReadOnlyMap(map, UNMODIFIABLE_TAGS)
+  // Maps never register a `reveal`: they wrap their entries themselves.
+  return unwrapOrWrap(
+    map,
+    'map',
+    UNMODIFIABLE_TAGS.map,
+    (source) => new ReadOnlyMap(source, UNMODIFIABLE_TAGS),
+  )
 }
 
 /**
  * Returns a read-only view of a sequenced map: as {@link unmodifiableMap}, with the first and last
  * entries, a reversed view, and sequenced key, entry and value views.
  *
+ * When `map` is already a view this function returns (printed as `UnmodifiableSequencedMap`), it is
+ * returned unchanged. When it is any other unmodifiable view or immutable collection from this copy
+ * of the library, the new view reads that collection's source instead, and entries it hands out
+ * stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the map's costs.
  *
  * @param map - A sequenced map from this library (a `LinkedHashMap`, a sorted map, …).
- * @returns An unmodifiable view, printed as `UnmodifiableSequencedMap`.
+ * @returns `map` itself, or an unmodifiable view printed as `UnmodifiableSequencedMap`.
  * @throws TypeError when `map` is not a sequenced map from this library.
  *
  * @example
@@ -266,7 +367,13 @@ export function unmodifiableSequencedMap<K, V>(
     'map',
     'a sequenced map',
   )
-  return new ReadOnlySequencedMap(map, UNMODIFIABLE_TAGS)
+  // Maps never register a `reveal`: they wrap their entries themselves.
+  return unwrapOrWrap(
+    map,
+    'sequenced-map',
+    UNMODIFIABLE_TAGS.sequencedMap,
+    (source) => new ReadOnlySequencedMap(source, UNMODIFIABLE_TAGS),
+  )
 }
 
 /**
@@ -274,10 +381,15 @@ export function unmodifiableSequencedMap<K, V>(
  * navigation (`floorEntry`, `ceilingEntry`, …), the comparator, range views and a sorted key set,
  * all unmodifiable too.
  *
+ * When `map` is already a view this function returns (printed as `UnmodifiableSortedMap`), it is
+ * returned unchanged. When it is any other unmodifiable view or immutable collection from this copy
+ * of the library, the new view reads that collection's source instead, and entries it hands out
+ * stay read-only, so read-only wrappers never nest.
+ *
  * Time: O(1); each operation costs what the map's costs.
  *
  * @param map - A sorted map from this library.
- * @returns An unmodifiable view, printed as `UnmodifiableSortedMap`.
+ * @returns `map` itself, or an unmodifiable view printed as `UnmodifiableSortedMap`.
  * @throws TypeError when `map` is not a sorted map from this library.
  *
  * @example
@@ -288,5 +400,11 @@ export function unmodifiableSequencedMap<K, V>(
  */
 export function unmodifiableSortedMap<K, V>(map: ReadonlySortedMap<K, V>): ReadonlySortedMap<K, V> {
   requireFamily(map, [SORTED_MAP_BRAND], 'unmodifiableSortedMap', 'map', 'a sorted map')
-  return new ReadOnlySortedMap(map, UNMODIFIABLE_TAGS)
+  // Maps never register a `reveal`: they wrap their entries themselves.
+  return unwrapOrWrap(
+    map,
+    'sorted-map',
+    UNMODIFIABLE_TAGS.sortedMap,
+    (source) => new ReadOnlySortedMap(source, UNMODIFIABLE_TAGS),
+  )
 }

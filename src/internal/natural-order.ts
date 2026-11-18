@@ -15,6 +15,8 @@ import { createWeakMap, getTime, weakMapGet, weakMapSet } from './intrinsics'
  * between major versions, so classes keep working across upgrades. Implementations must order
  * consistently: if `a` is before `b`, then `b` is after `a`, and the order is transitive.
  *
+ * Time: O(1) to read; the method's cost is the implementer's.
+ *
  * @example
  * ```ts
  * class Money implements Comparable<Money> {

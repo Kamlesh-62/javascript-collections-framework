@@ -63,6 +63,11 @@ rooms.firstEntry()?.key === first // true
 A comparator that accepts `null` (such as `nullsFirst()`) lets the map store and find a `null`
 key.
 
+A comparator that gives different answers for the same two keys at different times still leaves
+the map usable: every operation finishes, `size` matches what iteration visits, and only keys that
+were set are present. Which keys count as duplicates, and their order, are then unspecified: the
+map can hold a key twice.
+
 | Constructor form                  | Gives                                             |
 | --------------------------------- | ------------------------------------------------- |
 | `new TreeMap()`                   | an empty map in natural key order                 |

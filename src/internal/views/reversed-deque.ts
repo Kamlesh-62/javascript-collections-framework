@@ -69,6 +69,10 @@ export class ReversedDeque<E> extends AbstractDeque<E> {
     this.source.clearAll()
   }
 
+  override releaseStorage(): void {
+    this.source.releaseStorage()
+  }
+
   ensureRoom(count: number, where: string): void {
     this.source.ensureRoom(count, where)
   }

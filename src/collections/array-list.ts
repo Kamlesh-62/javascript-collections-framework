@@ -742,7 +742,8 @@ export class ArrayList<E> implements List<E> {
    * removed, or a sort) other than through the view, the view throws
    * `ConcurrentModificationError`.
    *
-   * Time: O(1); each operation on the view costs what it costs on this list at the mapped index.
+   * Time: O(1); each operation on the view costs what it costs on this list at the mapped index;
+   * a change of size also updates each enclosing sub-list, one step per level of nesting.
    *
    * @param from - Start of the range, inclusive.
    * @param to - End of the range, exclusive.

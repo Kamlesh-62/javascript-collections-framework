@@ -20,6 +20,7 @@ import { ReadOnlyCollection, ReadOnlySequencedCollection } from './read-only-col
 import { ReadOnlyEntry } from './read-only-entry'
 import { ReadOnlySequencedSet, ReadOnlySet, ReadOnlySortedSet } from './read-only-set'
 import { refuse } from './refuse'
+import { type ReadOnlyKind, registerReadOnly } from './registry'
 import type { ReadOnlyTags } from './tags'
 
 /** Wraps a source entry so it cannot be written. @internal */
@@ -46,10 +47,22 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   protected readonly tags: ReadOnlyTags
   private readonly role: MapRole
 
-  constructor(source: ReadonlyMapCollection<K, V>, tags: ReadOnlyTags, role: MapRole = 'map') {
+  /**
+   * @param kind - The family the view registers as; each library subclass passes its own.
+   * @param exact - The class whose instances register as `kind`; an instance of any other class,
+   *   such as a subclass defined outside the library, is not registered.
+   */
+  constructor(
+    source: ReadonlyMapCollection<K, V>,
+    tags: ReadOnlyTags,
+    role: MapRole = 'map',
+    kind: ReadOnlyKind = 'map',
+    exact: unknown = ReadOnlyMap,
+  ) {
     this.source = source
     this.tags = tags
     this.role = role
+    registerReadOnly(this, new.target === exact ? kind : undefined, source, tags[role])
   }
 
   /** Marks every map for `isMapCollection`, across loaded copies. */
@@ -233,8 +246,10 @@ export class ReadOnlySequencedMap<K, V> extends ReadOnlyMap<K, V> implements Seq
     source: ReadonlySequencedMap<K, V>,
     tags: ReadOnlyTags,
     role: MapRole = 'sequencedMap',
+    kind: ReadOnlyKind = 'sequenced-map',
+    exact: unknown = ReadOnlySequencedMap,
   ) {
-    super(source, tags, role)
+    super(source, tags, role, kind, exact)
   }
 
   /** Marks every sequenced map, across loaded copies. */
@@ -302,7 +317,7 @@ export class ReadOnlySequencedMap<K, V> extends ReadOnlyMap<K, V> implements Seq
  */
 export class ReadOnlySortedMap<K, V> extends ReadOnlySequencedMap<K, V> implements SortedMap<K, V> {
   constructor(source: ReadonlySortedMap<K, V>, tags: ReadOnlyTags) {
-    super(source, tags, 'sortedMap')
+    super(source, tags, 'sortedMap', 'sorted-map', ReadOnlySortedMap)
   }
 
   /** Marks every sorted map for `isSortedMap`, across loaded copies. */

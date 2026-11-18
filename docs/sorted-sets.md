@@ -59,6 +59,11 @@ users.has({ id: 1, name: 'someone else' }) // true: same id
 
 A comparator that accepts `null` (such as `nullsFirst()`) lets the set store and find `null`.
 
+A comparator that gives different answers for the same two elements at different times still
+leaves the set usable: every operation finishes, `size` matches what iteration visits, and only
+elements that were added are present. Which elements count as duplicates, and their order, are
+then unspecified: the set can hold an element twice.
+
 | Constructor form                   | Gives                                              |
 | ---------------------------------- | -------------------------------------------------- |
 | `new TreeSet()`                    | an empty set in natural order                      |

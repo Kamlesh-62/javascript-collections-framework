@@ -188,10 +188,14 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
   }
 
   clearAll(): void {
-    this.buffer = newBuffer(MIN_CAPACITY)
-    this.head = 0
+    this.releaseStorage()
     this.length = 0
     this.changes.structural()
+  }
+
+  override releaseStorage(): void {
+    this.buffer = newBuffer(MIN_CAPACITY)
+    this.head = 0
   }
 
   reversed(): Deque<E> {

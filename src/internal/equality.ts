@@ -14,6 +14,8 @@ import { apply } from './intrinsics'
  * is `Symbol.for('javascript-collections-framework.equals')` and does not change between major
  * versions.
  *
+ * Time: O(1) to read; the method's cost is the implementer's.
+ *
  * @example
  * ```ts
  * class Point implements Equatable {
@@ -38,6 +40,8 @@ export const equalsSymbol: unique symbol = /*#__PURE__*/ Symbol.for(
  * for nested values. Equal objects (by {@link equalsSymbol}) must return the same number. The key
  * is `Symbol.for('javascript-collections-framework.hashCode')` and does not change between major
  * versions.
+ *
+ * Time: O(1) to read; the method's cost is the implementer's.
  *
  * @example
  * ```ts
