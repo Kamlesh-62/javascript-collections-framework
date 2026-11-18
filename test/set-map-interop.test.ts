@@ -27,6 +27,10 @@ import {
   TreeMap,
   TreeSet,
   UnsupportedOperationError,
+  unmodifiableMap,
+  unmodifiableSequencedMap,
+  unmodifiableSet,
+  unmodifiableSortedSet,
   valueEquivalence,
 } from '../src/index'
 import { describeSetCollection } from './contracts/set'
@@ -775,5 +779,47 @@ describe('immutable sets and maps among the others', () => {
     expect(() => newSetFromMap(mapOf([1, 1]) as never as MapCollection<number, boolean>)).toThrow(
       IllegalArgumentError,
     )
+  })
+})
+
+describe('unmodifiable views among the others', () => {
+  it('a set view equals every kind of set with the same members, both ways [019 S2-AC1]', () => {
+    const view = unmodifiableSet(new HashSet(['a', 'b']))
+    for (const peer of [
+      new LinkedHashSet(['b', 'a']),
+      new TreeSet<string>(['a', 'b']),
+      setOf('a', 'b'),
+      unmodifiableSortedSet(new TreeSet(['a', 'b'])),
+    ]) {
+      expect(view.equals(peer)).toBe(true)
+      expect(peer.equals(view)).toBe(true)
+      expect(hashCode(view)).toBe(hashCode(peer))
+    }
+  })
+
+  it('a map view equals every kind of map with equal mappings, both ways [019 S2-AC1]', () => {
+    const pairs: Array<[string, number]> = [
+      ['a', 1],
+      ['b', 2],
+    ]
+    const view = unmodifiableMap(new TreeMap<string, number>(pairs))
+    for (const peer of [new HashMap(pairs), new LinkedHashMap(pairs), copyOfMap(pairs)]) {
+      expect(view.equals(peer)).toBe(true)
+      expect(peer.equals(view)).toBe(true)
+      expect(hashCode(view)).toBe(hashCode(peer))
+    }
+  })
+
+  it('newSetFromMap accepts an empty unmodifiable map, whose set cannot add [019 S1-AC9]', () => {
+    const set = newSetFromMap(
+      unmodifiableSequencedMap(new LinkedHashMap<string, boolean>()) as never as MapCollection<
+        string,
+        boolean
+      >,
+    )
+    expect(() => set.add('a')).toThrow(
+      'UnmodifiableSequencedMap.getOrInsert: the collection cannot be changed',
+    )
+    expect(() => set.delete('a')).toThrow(UnsupportedOperationError)
   })
 })

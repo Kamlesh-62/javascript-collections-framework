@@ -16,24 +16,12 @@ import { readPairs } from '../internal/map-input'
 import { ReadOnlyList } from '../internal/views/read-only/read-only-list'
 import { ReadOnlyMap } from '../internal/views/read-only/read-only-map'
 import { ReadOnlySet } from '../internal/views/read-only/read-only-set'
-
-const LIST_TAGS = {
-  list: 'ImmutableList',
-  subList: 'ImmutableSubList',
-  reversed: 'ImmutableReversedList',
-}
-
-const MAP_TAGS = {
-  map: 'ImmutableMap',
-  keySet: 'ImmutableMapKeySet',
-  entrySet: 'ImmutableMapEntrySet',
-  values: 'ImmutableMapValues',
-}
+import { IMMUTABLE_TAGS } from '../internal/views/read-only/tags'
 
 /** The list a factory returns; its views are plain read-only lists. */
 class ImmutableList<E> extends ReadOnlyList<E> {
   constructor(source: ArrayList<E>) {
-    super(source, LIST_TAGS)
+    super(source, IMMUTABLE_TAGS)
   }
 }
 
@@ -52,7 +40,7 @@ class ImmutableMap<K, V> extends ReadOnlyMap<K, V> {
   readonly equality: unknown
 
   constructor(source: HashMap<K, V>, equality: unknown) {
-    super(source, MAP_TAGS)
+    super(source, IMMUTABLE_TAGS)
     this.equality = equality
   }
 }

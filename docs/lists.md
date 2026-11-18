@@ -15,7 +15,9 @@ list.get(5) // throws IndexOutOfBoundsError
 
 `ArrayList` follows the [shared collection contract](collections.md): `size`, `has`, `add`,
 `delete`, `forEach`, iteration, cursors, `revision`, `equals`, printing and JSON. For a list that
-cannot change, see [immutable lists](immutable.md) (`listOf`, `copyOfList`).
+cannot change, see [immutable lists](immutable.md) (`listOf`, `copyOfList`); for a read-only view of
+a list that keeps changing, or a list over an existing array, see
+[unmodifiable views and `asList`](unmodifiable.md).
 
 ## Creating a list
 

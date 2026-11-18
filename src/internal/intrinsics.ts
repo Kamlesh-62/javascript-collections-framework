@@ -107,3 +107,9 @@ export const weakSetAdd: <T extends object>(self: WeakSet<T>, value: T) => unkno
 /** `WeakSet.prototype.delete(set, value)`. @internal */
 export const weakSetDelete: <T extends object>(self: WeakSet<T>, value: T) => boolean =
   /*#__PURE__*/ (() => uncurry(WeakSet.prototype.delete))() as never
+
+/** `Object.isFrozen`. @internal */
+export const isFrozen: (value: object) => boolean = /*#__PURE__*/ (() => Object.isFrozen)()
+
+/** `Object.isExtensible`. @internal */
+export const isExtensible: (value: object) => boolean = /*#__PURE__*/ (() => Object.isExtensible)()

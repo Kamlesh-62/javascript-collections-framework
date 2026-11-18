@@ -9,13 +9,12 @@ import {
   ConcurrentModificationError,
   IllegalArgumentError,
   IllegalStateError,
-  isCollection,
-  isMapCollection,
   isSortedSet,
   type MapEntry,
   UnsupportedOperationError,
 } from '../../src/index'
 import type { SortedMap } from '../../src/interfaces/sorted-map'
+import { describeReadonlySortedMap } from './readonly-sorted-map'
 
 /**
  * Builds a new sorted map in ascending numeric key order holding `initial`. It must accept every
@@ -39,6 +38,8 @@ function keyOf(entry: MapEntry<number, string> | undefined): number | undefined 
 export function describeSortedMap(name: string, make: SortedMapFactory): void {
   const filled = () => make(pairs(KEYS))
 
+  describeReadonlySortedMap(name, make)
+
   describe(`${name} — sorted map contract`, () => {
     it('iterates its mappings in ascending key order whatever the insertion order', () => {
       expect([...filled().keys()]).toEqual(SORTED)
@@ -47,38 +48,6 @@ export function describeSortedMap(name: string, make: SortedMapFactory): void {
       expect([...map]).toEqual(pairs(SORTED))
       expect([...map.values()]).toEqual(SORTED.map((k) => `v${k}`))
       expect(String(make(pairs([2, 1])))).toBe(`${name}(2) {1 => 'v1', 2 => 'v2'}`)
-    })
-
-    it('reports a comparator consistent with its order', () => {
-      const comparator = make().comparator()
-      if (comparator !== undefined) {
-        expect(comparator(1, 2)).toBeLessThan(0)
-        expect(comparator(2, 1)).toBeGreaterThan(0)
-        expect(comparator(2, 2)).toBe(0)
-      }
-    })
-
-    it('returns the first, last and nearest entries like a sorted array, or undefined', () => {
-      const map = filled()
-      expect(keyOf(map.firstEntry())).toBe(10)
-      expect(keyOf(map.lastEntry())).toBe(50)
-      expect(map.firstEntry()?.value).toBe('v10')
-      for (let probe = 0; probe <= 60; probe += 5) {
-        expect(keyOf(map.lowerEntry(probe)), `lower ${probe}`).toBe(
-          SORTED.filter((k) => k < probe).pop(),
-        )
-        expect(keyOf(map.floorEntry(probe)), `floor ${probe}`).toBe(
-          SORTED.filter((k) => k <= probe).pop(),
-        )
-        expect(keyOf(map.ceilingEntry(probe)), `ceiling ${probe}`).toBe(
-          SORTED.find((k) => k >= probe),
-        )
-        expect(keyOf(map.higherEntry(probe)), `higher ${probe}`).toBe(SORTED.find((k) => k > probe))
-      }
-      const empty = make()
-      expect(empty.firstEntry()).toBeUndefined()
-      expect(empty.lastEntry()).toBeUndefined()
-      expect(empty.floorEntry(1)).toBeUndefined()
     })
 
     it('polls the ends as live entries that read their value and refuse writes until the key is back', () => {
@@ -182,17 +151,6 @@ export function describeSortedMap(name: string, make: SortedMapFactory): void {
       expect(() => {
         for (const [k] of map) if (k === 20) map.set(25, 'x')
       }).toThrow(ConcurrentModificationError)
-    })
-
-    it('is recognised as a sorted map and a map, and not as a collection or sorted set', () => {
-      const map = make(pairs([1]))
-      expect(isSortedMap(map)).toBe(true)
-      expect(isMapCollection(map)).toBe(true)
-      expect(isCollection(map)).toBe(false)
-      expect(isSortedSet(map)).toBe(false)
-      expect(isSortedMap(map.reversed())).toBe(true)
-      expect(isSortedMap(map.headMap(1))).toBe(true)
-      expect(isSortedMap(map.keySet())).toBe(false)
     })
   })
 }

@@ -16,6 +16,8 @@ cache.set('c', 3) // evicts 'b', the least recently used
 ;[...cache.keys()] // ['a', 'c']
 ```
 
+To hand out a read-only view, use [`unmodifiableSequencedMap`](unmodifiable.md).
+
 ## When to use it
 
 | Need                                                                    | Use                                              |

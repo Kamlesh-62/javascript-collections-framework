@@ -1,41 +1,39 @@
-// Cursors over read-only collections: they walk like any cursor and refuse every change before
-// looking at their state, so `remove()` before `next()` is refused rather than misused.
+// Cursors of read-only collections: each wraps the source collection's own cursor, so it moves,
+// fails fast or follows live changes exactly as the source's does, and refuses every change before
+// looking at its state.
 
-import { NoSuchElementError } from '../../../errors/errors'
 import type { Cursor } from '../../../interfaces/collection'
-import type { ListCursor, ReadonlyList } from '../../../interfaces/list'
+import type { ListCursor } from '../../../interfaces/list'
 import { refuse } from './refuse'
 
 /**
- * A forward cursor over an iterator, looking one element ahead so `hasNext` can answer.
+ * A forward cursor over a source cursor; with `reveal`, each element is passed through it.
  *
  * @internal
  */
 export class ReadOnlyCursor<E> implements Cursor<E> {
-  private readonly iterator: Iterator<E>
+  private readonly source: Cursor<E>
   private readonly where: string
-  private ahead: IteratorResult<E> | undefined
+  private readonly reveal: ((element: E) => E) | undefined
 
   /**
-   * @param iterator - The elements to walk.
-   * @param where - The name errors start with: `<Tag>.cursor`.
+   * @param source - The source collection's cursor.
+   * @param where - The name refusals start with: `<Tag>.cursor`.
+   * @param reveal - Maps each element before it is returned.
    */
-  constructor(iterator: Iterator<E>, where: string) {
-    this.iterator = iterator
+  constructor(source: Cursor<E>, where: string, reveal?: (element: E) => E) {
+    this.source = source
     this.where = where
-    this.ahead = undefined
+    this.reveal = reveal
   }
 
   hasNext(): boolean {
-    if (this.ahead === undefined) this.ahead = this.iterator.next()
-    return this.ahead.done !== true
+    return this.source.hasNext()
   }
 
   next(): E {
-    if (!this.hasNext()) throw new NoSuchElementError(`${this.where}: no more elements`)
-    const value = (this.ahead as IteratorResult<E>).value as E
-    this.ahead = undefined
-    return value
+    const element = this.source.next()
+    return this.reveal === undefined ? element : this.reveal(element)
   }
 
   remove(): void {
@@ -44,50 +42,45 @@ export class ReadOnlyCursor<E> implements Cursor<E> {
 }
 
 /**
- * A list cursor over a read-only list, moving by index in both directions.
+ * A list cursor over a source list cursor.
  *
  * @internal
  */
 export class ReadOnlyListCursor<E> implements ListCursor<E> {
-  private readonly list: ReadonlyList<E>
+  private readonly source: ListCursor<E>
   private readonly where: string
-  private position: number
 
   /**
-   * @param list - The list to walk; the cursor reads it through `get`.
-   * @param position - The checked index of the first `next()`.
-   * @param where - The name errors start with: `<Tag>.cursor` or `<Tag>.listCursor`.
+   * @param source - The source list's cursor.
+   * @param where - The name refusals start with: `<Tag>.cursor` or `<Tag>.listCursor`.
    */
-  constructor(list: ReadonlyList<E>, position: number, where: string) {
-    this.list = list
-    this.position = position
+  constructor(source: ListCursor<E>, where: string) {
+    this.source = source
     this.where = where
   }
 
   hasNext(): boolean {
-    return this.position < this.list.size
+    return this.source.hasNext()
   }
 
   next(): E {
-    if (!this.hasNext()) throw new NoSuchElementError(`${this.where}: no more elements`)
-    return this.list.get(this.position++)
+    return this.source.next()
   }
 
   hasPrevious(): boolean {
-    return this.position > 0
+    return this.source.hasPrevious()
   }
 
   previous(): E {
-    if (!this.hasPrevious()) throw new NoSuchElementError(`${this.where}: no previous element`)
-    return this.list.get(--this.position)
+    return this.source.previous()
   }
 
   nextIndex(): number {
-    return this.position
+    return this.source.nextIndex()
   }
 
   previousIndex(): number {
-    return this.position - 1
+    return this.source.previousIndex()
   }
 
   remove(): void {

@@ -27,6 +27,8 @@ const latestFirst: SortedMap<number, string> = new TreeMap<number, string>({
 })
 ```
 
+To hand out a read-only view, use [`unmodifiableSortedMap`](unmodifiable.md).
+
 `TreeMap` has the whole map API of [`HashMap`](maps.md) — `size`, `get`, `set` returning the map,
 `has`, `delete`, `clear`, `keys`, `values`, `entries`, `forEach((value, key, map) => …)`,
 `getOrDefault`, `getOrInsert`, `getOrInsertComputed`, `compute`, `computeIfPresent`, `merge`,

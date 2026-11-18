@@ -1,5 +1,5 @@
-// The entry a read-only map hands out: a fixed key and value, equal to any entry with an equal
-// key and value. `setValue` is refused.
+// The entry a read-only map hands out: it wraps the source map's entry and reads it each time, so
+// it shows the value the source entry shows. `setValue` is refused.
 
 import type { MapEntry } from '../../../interfaces/map'
 import { isBranded, MAP_ENTRY_BRAND } from '../../brand'
@@ -10,17 +10,23 @@ import { mappingHash } from '../../skeletons/abstract-map'
 import { refuse } from './refuse'
 
 /**
- * A read-only map entry holding `key` and `value`.
+ * A read-only entry over a source entry.
  *
  * @internal
  */
 export class ReadOnlyEntry<K, V> implements MapEntry<K, V> {
-  readonly key: K
-  readonly value: V
+  private readonly source: MapEntry<K, V>
 
-  constructor(key: K, value: V) {
-    this.key = key
-    this.value = value
+  constructor(source: MapEntry<K, V>) {
+    this.source = source
+  }
+
+  get key(): K {
+    return this.source.key
+  }
+
+  get value(): V {
+    return this.source.value
   }
 
   /** Marks every map entry, across loaded copies. */

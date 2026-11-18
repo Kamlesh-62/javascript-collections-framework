@@ -11,12 +11,24 @@ import {
   type MapEntry,
   type ReadonlyCollection,
   type ReadonlyMapCollection,
+  type SequencedCollection,
+  type SequencedMap,
+  type SortedSet,
   UnsupportedOperationError,
 } from '../../src/index'
 import { caught } from './readonly-collection'
 
-/** Which table of mutators applies: lists, sets, a map's value view, or maps. */
-export type MutatorFamily = 'list' | 'set' | 'values' | 'map'
+/** Which table of mutators applies. */
+export type MutatorFamily =
+  | 'list'
+  | 'set'
+  | 'values'
+  | 'map'
+  | 'sequenced'
+  | 'sequenced-set'
+  | 'sorted-set'
+  | 'sequenced-map'
+  | 'sorted-map'
 
 /** Records whether any argument was used: a callback called or an iterable read. */
 class Spies {
@@ -45,6 +57,9 @@ type Collection = AnyCollection<unknown>
 type List = AnyList<unknown>
 type AnyMap = MapCollection<unknown, unknown>
 type ListCursor = AnyListCursor<unknown>
+type Sequenced = SequencedCollection<unknown>
+type Sorted = SortedSet<unknown>
+type SequencedAnyMap = SequencedMap<unknown, unknown>
 
 const COLLECTION_CALLS: readonly Call[] = [
   ['add', (c: Collection) => c.add(1)],
@@ -83,6 +98,25 @@ const LIST_CALLS: readonly Call[] = [
   ['sort', (l: List) => l.sort()],
   ['sort', (l: List, s: Spies) => l.sort(s.callback as never)],
   ['sort', (l: List) => l.sort('x' as never)],
+]
+
+const ENDS_CALLS: readonly Call[] = [
+  ['addFirst', (c: Sequenced) => c.addFirst(1)],
+  ['addLast', (c: Sequenced) => c.addLast(1)],
+  ['removeFirst', (c: Sequenced) => c.removeFirst()],
+  ['removeLast', (c: Sequenced) => c.removeLast()],
+]
+
+const POLL_CALLS: readonly Call[] = [
+  ['pollFirst', (s: Sorted) => s.pollFirst()],
+  ['pollLast', (s: Sorted) => s.pollLast()],
+]
+
+const SEQUENCED_MAP_CALLS: readonly Call[] = [
+  ['pollFirstEntry', (m: SequencedAnyMap) => m.pollFirstEntry()],
+  ['pollLastEntry', (m: SequencedAnyMap) => m.pollLastEntry()],
+  ['putFirst', (m: SequencedAnyMap) => m.putFirst('k', 1)],
+  ['putLast', (m: SequencedAnyMap) => m.putLast('k', 1)],
 ]
 
 const MAP_CALLS: readonly Call[] = [
@@ -127,12 +161,19 @@ export function describeUnsupportedMutators(
   make: () => ReadonlyCollection<unknown> | ReadonlyMapCollection<unknown, unknown>,
   family: MutatorFamily,
 ): void {
-  const calls =
-    family === 'map'
-      ? MAP_CALLS
-      : family === 'list'
-        ? [...COLLECTION_CALLS, ...LIST_CALLS]
-        : COLLECTION_CALLS
+  const tables: Record<MutatorFamily, ReadonlyArray<readonly Call[]>> = {
+    list: [COLLECTION_CALLS, LIST_CALLS],
+    set: [COLLECTION_CALLS],
+    values: [COLLECTION_CALLS],
+    map: [MAP_CALLS],
+    sequenced: [COLLECTION_CALLS, ENDS_CALLS],
+    'sequenced-set': [COLLECTION_CALLS, ENDS_CALLS],
+    'sorted-set': [COLLECTION_CALLS, ENDS_CALLS, POLL_CALLS],
+    'sequenced-map': [MAP_CALLS, SEQUENCED_MAP_CALLS],
+    'sorted-map': [MAP_CALLS, SEQUENCED_MAP_CALLS],
+  }
+  const calls = tables[family].flat()
+  const isMap = family === 'map' || family === 'sequenced-map' || family === 'sorted-map'
 
   describe(`${name} — refuses every change`, () => {
     it('throws UnsupportedOperationError first from every mutator and changes nothing [018 S4-AC1] [018 S4-AC5] [018 S4-AC6] [018 S6-AC3]', () => {
@@ -149,7 +190,7 @@ export function describeUnsupportedMutators(
       }
     })
 
-    if (family !== 'map') {
+    if (!isMap) {
       it('refuses changes through cursors, before and after next() [018 S4-AC2] [018 S4-AC6] [018 S6-AC3]', () => {
         const cursors: Array<[string, (c: ReadonlyCollection<unknown>) => ListCursor]> = [
           ['cursor', (c) => c.cursor() as ListCursor],

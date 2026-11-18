@@ -1,0 +1,5 @@
+---
+"javascript-collections-framework": minor
+---
+
+Add unmodifiable views and `asList`. `unmodifiableCollection`, `unmodifiableSequencedCollection`, `unmodifiableList`, `unmodifiableSet`, `unmodifiableSequencedSet`, `unmodifiableSortedSet`, `unmodifiableMap`, `unmodifiableSequencedMap` and `unmodifiableSortedMap` return read-only windows onto a collection: reads show the owner's changes, iteration fails fast or runs live as the source does, map entries read the source live, and every method that would change the view, its derived views, cursors or entries throws `UnsupportedOperationError` before looking at its arguments. List, set and map views equal their source; collection views compare by identity. `asList(array)` returns a list over the array itself: every change through the list writes to the array, a direct change of the array's length makes open iterators fail fast, and frozen, sealed and non-extensible arrays are refused before any write.

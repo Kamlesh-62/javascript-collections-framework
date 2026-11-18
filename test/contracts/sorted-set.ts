@@ -7,15 +7,11 @@ import { isSortedSet } from '../../src/functions/guards'
 import {
   ConcurrentModificationError,
   IllegalArgumentError,
-  isCollection,
-  isList,
-  isQueue,
-  isSequencedCollection,
-  isSetCollection,
   NoSuchElementError,
   UnsupportedOperationError,
 } from '../../src/index'
 import type { SortedSet } from '../../src/interfaces/sorted-set'
+import { describeReadonlySortedSet } from './readonly-sorted-set'
 
 /**
  * Builds a new sorted set in ascending numeric order holding `initial`. It must accept every
@@ -65,6 +61,8 @@ export function describeSortedSet(
     else if (range) set.subSet(range[0], range[1]).add(element)
     else set.add(element)
   }
+  describeReadonlySortedSet(name, make)
+
   describe(`${name} — sorted set contract`, () => {
     it('iterates its members in ascending order whatever the insertion order', () => {
       expect([...make(VALUES)]).toEqual(SORTED)
@@ -73,15 +71,6 @@ export function describeSortedSet(
       expect(set.toArray()).toEqual(SORTED)
       expect([...set.keys()]).toEqual(SORTED)
       expect(String(set)).toBe(`${name}(5) {10, 20, 30, 40, 50}`)
-    })
-
-    it('reports a comparator consistent with its order', () => {
-      const comparator = make().comparator()
-      if (comparator !== undefined) {
-        expect(comparator(1, 2)).toBeLessThan(0)
-        expect(comparator(2, 1)).toBeGreaterThan(0)
-        expect(comparator(2, 2)).toBe(0)
-      }
     })
 
     it('returns the ends and throws NoSuchElementError naming the method when empty', () => {
@@ -96,16 +85,6 @@ export function describeSortedSet(
       }
       expect(empty.pollFirst()).toBeUndefined()
       expect(empty.pollLast()).toBeUndefined()
-    })
-
-    it('answers lower, floor, ceiling and higher like a sorted array', () => {
-      const set = make(VALUES)
-      for (let probe = 0; probe <= 60; probe += 5) {
-        expect(set.lower(probe), `lower(${probe})`).toBe(SORTED.filter((v) => v < probe).pop())
-        expect(set.floor(probe), `floor(${probe})`).toBe(SORTED.filter((v) => v <= probe).pop())
-        expect(set.ceiling(probe), `ceiling(${probe})`).toBe(SORTED.find((v) => v >= probe))
-        expect(set.higher(probe), `higher(${probe})`).toBe(SORTED.find((v) => v > probe))
-      }
     })
 
     it('polls and removes from both ends', () => {
@@ -211,18 +190,6 @@ export function describeSortedSet(
       expect(() => {
         for (const v of set) if (v === 20) put(set, 25)
       }).toThrow(ConcurrentModificationError)
-    })
-
-    it('is recognised as a sorted, sequenced set and not as a list or queue', () => {
-      const set = make([1])
-      expect(isSortedSet(set)).toBe(true)
-      expect(isSetCollection(set)).toBe(true)
-      expect(isSequencedCollection(set)).toBe(true)
-      expect(isCollection(set)).toBe(true)
-      expect(isList(set)).toBe(false)
-      expect(isQueue(set)).toBe(false)
-      expect(isSortedSet(set.reversed())).toBe(true)
-      expect(isSortedSet(set.headSet(1))).toBe(true)
     })
   })
 }

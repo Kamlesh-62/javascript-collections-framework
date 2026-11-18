@@ -50,6 +50,8 @@ Or without a build step:
 | Queues and deques | [`ArrayDeque`](docs/deques.md), [`LinkedList`](docs/linked-lists.md), [`PriorityQueue`](docs/priority-queues.md) |
 | Sets from maps    | [`newSetFromMap`](docs/sets-and-maps.md#newsetfrommap)                                                           |
 | Immutable         | [`listOf`, `setOf`, `mapOf`, `copyOfList`, `copyOfSet`, `copyOfMap`](docs/immutable.md)                          |
+| Read-only views   | [`unmodifiableList`, `unmodifiableSet`, `unmodifiableMap` and six more](docs/unmodifiable.md)                    |
+| Lists over arrays | [`asList`](docs/unmodifiable.md#aslist-a-list-over-an-array)                                                     |
 
 ## Planned collections
 

@@ -1,44 +1,55 @@
-// A read-only map over another map. Reads, equality and hashing are the source's; its key, entry
-// and value views are read-only in turn, entries are read-only copies, and every change is refused
-// before its arguments are looked at.
+// Read-only maps over another map: plain, sequenced and sorted. Reads, equality, hashing,
+// iteration and `forEach` are the source's; key, entry and value views are read-only in turn,
+// entries wrap the source's, and every change is refused before its arguments are looked at.
 
+import type { Comparator } from '../../../functions/comparators'
 import type { Collection } from '../../../interfaces/collection'
+import type { SequencedCollection } from '../../../interfaces/list'
 import type { MapCollection, MapEntry, ReadonlyMapCollection } from '../../../interfaces/map'
+import type { ReadonlySequencedMap, SequencedMap } from '../../../interfaces/sequenced-map'
+import type { SequencedSet } from '../../../interfaces/sequenced-set'
 import type { SetCollection } from '../../../interfaces/set'
-import { MAP_COLLECTION_BRAND } from '../../brand'
+import type { ReadonlySortedMap, SortedMap } from '../../../interfaces/sorted-map'
+import type { BoundOptions, SortedSet, SubSetOptions } from '../../../interfaces/sorted-set'
+import { MAP_COLLECTION_BRAND, SEQUENCED_MAP_BRAND, SORTED_MAP_BRAND } from '../../brand'
 import { requireFunction } from '../../checks'
 import { equalsSymbol, type HashFunction, hashCodeSymbol } from '../../equality'
 import { apply } from '../../intrinsics'
 import { INSPECT, type InspectOptions, inspectMap, mapToString } from '../../output'
-import { ReadOnlyCollection } from './read-only-collection'
+import { ReadOnlyCollection, ReadOnlySequencedCollection } from './read-only-collection'
 import { ReadOnlyEntry } from './read-only-entry'
-import { ReadOnlySet } from './read-only-set'
+import { ReadOnlySequencedSet, ReadOnlySet, ReadOnlySortedSet } from './read-only-set'
 import { refuse } from './refuse'
+import type { ReadOnlyTags } from './tags'
 
-/** The tags of a read-only map and of the views it hands out. @internal */
-export interface ReadOnlyMapTags {
-  readonly map: string
-  readonly keySet: string
-  readonly entrySet: string
-  readonly values: string
+/** Wraps a source entry so it cannot be written. @internal */
+export function readOnlyEntry<K, V>(entry: MapEntry<K, V>): MapEntry<K, V> {
+  return new ReadOnlyEntry(entry)
 }
 
-function readOnlyEntry<K, V>(entry: MapEntry<K, V>): MapEntry<K, V> {
-  return new ReadOnlyEntry(entry.key, entry.value)
+function readOnlyEntryOrUndefined<K, V>(
+  entry: MapEntry<K, V> | undefined,
+): MapEntry<K, V> | undefined {
+  return entry === undefined ? undefined : new ReadOnlyEntry(entry)
 }
+
+/** The roles a read-only map can play. @internal */
+export type MapRole = 'map' | 'sequencedMap' | 'sortedMap'
 
 /**
- * A read-only view of `source`, printed with `tags.map`.
+ * A read-only view of `source`, printed with the tag of its role.
  *
  * @internal
  */
 export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
-  private readonly source: ReadonlyMapCollection<K, V>
-  private readonly tags: ReadOnlyMapTags
+  protected readonly source: ReadonlyMapCollection<K, V>
+  protected readonly tags: ReadOnlyTags
+  private readonly role: MapRole
 
-  constructor(source: ReadonlyMapCollection<K, V>, tags: ReadOnlyMapTags) {
+  constructor(source: ReadonlyMapCollection<K, V>, tags: ReadOnlyTags, role: MapRole = 'map') {
     this.source = source
     this.tags = tags
+    this.role = role
   }
 
   /** Marks every map for `isMapCollection`, across loaded copies. */
@@ -47,7 +58,12 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   }
 
   get [Symbol.toStringTag](): string {
-    return this.tags.map
+    return this.tags[this.role]
+  }
+
+  /** The name errors start with. */
+  protected get className(): string {
+    return this[Symbol.toStringTag]
   }
 
   get size(): number {
@@ -107,8 +123,10 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   }
 
   forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void {
-    requireFunction(action, `${this.tags.map}.forEach`, 'action')
-    for (const [key, value] of this.source.entries()) apply(action, thisArg, [value, key, this])
+    requireFunction(action, `${this.className}.forEach`, 'action')
+    this.source.forEach((value, key) => {
+      apply(action, thisArg, [value, key, this])
+    })
   }
 
   equals(other: unknown): boolean {
@@ -142,53 +160,53 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   // ── Every change is refused ──
 
   set(_key: K, _value: V): this {
-    throw refuse(`${this.tags.map}.set`)
+    throw refuse(`${this.className}.set`)
   }
 
   put(_key: K, _value: V): V | undefined {
-    throw refuse(`${this.tags.map}.put`)
+    throw refuse(`${this.className}.put`)
   }
 
   putAll(_entries: Iterable<readonly [K, V] | MapEntry<K, V>>): void {
-    throw refuse(`${this.tags.map}.putAll`)
+    throw refuse(`${this.className}.putAll`)
   }
 
   delete(_key: K): boolean {
-    throw refuse(`${this.tags.map}.delete`)
+    throw refuse(`${this.className}.delete`)
   }
 
   remove(_key: K): V | undefined {
-    throw refuse(`${this.tags.map}.remove`)
+    throw refuse(`${this.className}.remove`)
   }
 
   replace(_key: K, _value: V): V | undefined {
-    throw refuse(`${this.tags.map}.replace`)
+    throw refuse(`${this.className}.replace`)
   }
 
   replaceAll(_fn: (value: V, key: K, map: MapCollection<K, V>) => V): void {
-    throw refuse(`${this.tags.map}.replaceAll`)
+    throw refuse(`${this.className}.replaceAll`)
   }
 
   getOrInsert(_key: K, _value: V): V {
-    throw refuse(`${this.tags.map}.getOrInsert`)
+    throw refuse(`${this.className}.getOrInsert`)
   }
 
   getOrInsertComputed(_key: K, _fn: (key: K) => V): V {
-    throw refuse(`${this.tags.map}.getOrInsertComputed`)
+    throw refuse(`${this.className}.getOrInsertComputed`)
   }
 
   compute(
     _key: K,
     _fn: (value: V | undefined, key: K, map: MapCollection<K, V>) => V | undefined,
   ): V | undefined {
-    throw refuse(`${this.tags.map}.compute`)
+    throw refuse(`${this.className}.compute`)
   }
 
   computeIfPresent(
     _key: K,
     _fn: (value: V, key: K, map: MapCollection<K, V>) => V | undefined,
   ): V | undefined {
-    throw refuse(`${this.tags.map}.computeIfPresent`)
+    throw refuse(`${this.className}.computeIfPresent`)
   }
 
   merge(
@@ -196,10 +214,143 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
     _value: V,
     _fn: (old: V, value: V, key: K, map: MapCollection<K, V>) => V | undefined,
   ): V | undefined {
-    throw refuse(`${this.tags.map}.merge`)
+    throw refuse(`${this.className}.merge`)
   }
 
   clear(): void {
-    throw refuse(`${this.tags.map}.clear`)
+    throw refuse(`${this.className}.clear`)
+  }
+}
+
+/**
+ * A read-only view of a sequenced map: the ends, a reversed view, and sequenced key, entry and
+ * value views.
+ *
+ * @internal
+ */
+export class ReadOnlySequencedMap<K, V> extends ReadOnlyMap<K, V> implements SequencedMap<K, V> {
+  constructor(
+    source: ReadonlySequencedMap<K, V>,
+    tags: ReadOnlyTags,
+    role: MapRole = 'sequencedMap',
+  ) {
+    super(source, tags, role)
+  }
+
+  /** Marks every sequenced map, across loaded copies. */
+  get [SEQUENCED_MAP_BRAND](): true {
+    return true
+  }
+
+  private get sequenced(): ReadonlySequencedMap<K, V> {
+    return this.source as ReadonlySequencedMap<K, V>
+  }
+
+  firstEntry(): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sequenced.firstEntry())
+  }
+
+  lastEntry(): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sequenced.lastEntry())
+  }
+
+  reversed(): SequencedMap<K, V> {
+    return new ReadOnlySequencedMap(this.sequenced.reversed(), this.tags)
+  }
+
+  override keySet(): SequencedSet<K> {
+    return new ReadOnlySequencedSet(this.sequenced.keySet(), this.tags.sequencedSet)
+  }
+
+  override entrySet(): SequencedSet<MapEntry<K, V>> {
+    return new ReadOnlySequencedSet(
+      this.sequenced.entrySet(),
+      this.tags.sequencedSet,
+      readOnlyEntry,
+    )
+  }
+
+  override valueCollection(): SequencedCollection<V> {
+    return new ReadOnlySequencedCollection(
+      this.sequenced.valueCollection(),
+      this.tags.sequencedCollection,
+    )
+  }
+
+  pollFirstEntry(): MapEntry<K, V> | undefined {
+    throw refuse(`${this.className}.pollFirstEntry`)
+  }
+
+  pollLastEntry(): MapEntry<K, V> | undefined {
+    throw refuse(`${this.className}.pollLastEntry`)
+  }
+
+  putFirst(_key: K, _value: V): this {
+    throw refuse(`${this.className}.putFirst`)
+  }
+
+  putLast(_key: K, _value: V): this {
+    throw refuse(`${this.className}.putLast`)
+  }
+}
+
+/**
+ * A read-only view of a sorted map: navigation entries, range views, a descending view and a
+ * sorted key set.
+ *
+ * @internal
+ */
+export class ReadOnlySortedMap<K, V> extends ReadOnlySequencedMap<K, V> implements SortedMap<K, V> {
+  constructor(source: ReadonlySortedMap<K, V>, tags: ReadOnlyTags) {
+    super(source, tags, 'sortedMap')
+  }
+
+  /** Marks every sorted map for `isSortedMap`, across loaded copies. */
+  get [SORTED_MAP_BRAND](): true {
+    return true
+  }
+
+  private get sorted(): ReadonlySortedMap<K, V> {
+    return this.source as ReadonlySortedMap<K, V>
+  }
+
+  comparator(): Comparator<K> | undefined {
+    return this.sorted.comparator()
+  }
+
+  lowerEntry(key: K): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sorted.lowerEntry(key))
+  }
+
+  floorEntry(key: K): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sorted.floorEntry(key))
+  }
+
+  ceilingEntry(key: K): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sorted.ceilingEntry(key))
+  }
+
+  higherEntry(key: K): MapEntry<K, V> | undefined {
+    return readOnlyEntryOrUndefined(this.sorted.higherEntry(key))
+  }
+
+  subMap(from: K, to: K, options?: SubSetOptions | null): SortedMap<K, V> {
+    return new ReadOnlySortedMap(this.sorted.subMap(from, to, options), this.tags)
+  }
+
+  headMap(to: K, options?: BoundOptions | null): SortedMap<K, V> {
+    return new ReadOnlySortedMap(this.sorted.headMap(to, options), this.tags)
+  }
+
+  tailMap(from: K, options?: BoundOptions | null): SortedMap<K, V> {
+    return new ReadOnlySortedMap(this.sorted.tailMap(from, options), this.tags)
+  }
+
+  override reversed(): SortedMap<K, V> {
+    return new ReadOnlySortedMap(this.sorted.reversed(), this.tags)
+  }
+
+  override keySet(): SortedSet<K> {
+    return new ReadOnlySortedSet(this.sorted.keySet(), this.tags.sortedSet)
   }
 }

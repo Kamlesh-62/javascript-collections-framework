@@ -22,6 +22,8 @@ scores.add(70).add(95).add(82)
 scores.getFirst() // 95: the highest, since the order is descending
 ```
 
+To hand out a read-only view, use [`unmodifiableSortedSet`](unmodifiable.md).
+
 `TreeSet` follows the [shared collection contract](collections.md) and the set contract of
 [`HashSet`](sets.md): `size`, `add` returning the set, `has`, `delete`, `clear`, `keys`,
 `values`, `entries`, `forEach((member, member, set) => …)`, cursors, `revision`, printing and

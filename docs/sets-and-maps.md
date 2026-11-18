@@ -123,7 +123,8 @@ reversed view of one; a non-empty map throws `IllegalArgumentError`, and anythin
 `Map`, a set, a map's `keySet()` or `entrySet()`, `null` — throws `TypeError`. An empty
 [immutable map](immutable.md) is accepted, but the set cannot add: `add` throws
 `UnsupportedOperationError` (`ImmutableMap.getOrInsert: the collection cannot be changed`), and
-its removals throw as the map's `keySet()` does.
+its removals throw as the map's `keySet()` does. The same holds for an empty
+[unmodifiable map view](unmodifiable.md).
 
 ### Recipes
 

@@ -6,13 +6,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   ConcurrentModificationError,
-  hashCode,
-  isMapCollection,
   isSequencedCollection,
   type MapEntry,
   UnsupportedOperationError,
 } from '../../src/index'
 import type { SequencedMap } from '../../src/interfaces/sequenced-map'
+import { describeReadonlySequencedMap } from './readonly-sequenced-map'
 
 /** Builds a new sequenced map iterating the `initial` pairs in order. */
 export type SequencedMapFactory = (
@@ -51,6 +50,8 @@ export function describeSequencedMap(
   const unsupported = options.putAtEnds === 'unsupported'
   const four = () => make(pairs(1, 2, 3, 4))
 
+  describeReadonlySequencedMap(name, make)
+
   describe(`${name} — sequenced map contract`, () => {
     it('firstEntry and lastEntry return live entries of the ends, or undefined when empty, without changing the order [014 S7-AC3]', () => {
       const map = four()
@@ -73,19 +74,6 @@ export function describeSequencedMap(
       const empty = make()
       expect(empty.pollFirstEntry()).toBeUndefined()
       expect(empty.pollLastEntry()).toBeUndefined()
-    })
-
-    it('reversed() is a map in the opposite order, equal both ways with the same hash, and reversing it again gives the original order [014 S7-AC3]', () => {
-      const map = four()
-      const view = map.reversed()
-      expect(isMapCollection(view)).toBe(true)
-      expect(keysOf(view)).toEqual([4, 3, 2, 1])
-      expect(view.size).toBe(4)
-      expect(view.get(2)).toBe('v2')
-      expect(view.equals(map)).toBe(true)
-      expect(map.equals(view)).toBe(true)
-      expect(hashCode(view)).toBe(hashCode(map))
-      expect(keysOf(view.reversed())).toEqual([1, 2, 3, 4])
     })
 
     it('changes through the map or its reversed view show in both, and the view’s ends mirror the map’s [014 S7-AC3]', () => {

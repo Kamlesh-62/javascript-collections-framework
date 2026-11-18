@@ -13,6 +13,7 @@ import { ReadOnlyCollection } from '../../src/internal/views/read-only/read-only
 import { ReadOnlyList } from '../../src/internal/views/read-only/read-only-list'
 import { ReadOnlyMap } from '../../src/internal/views/read-only/read-only-map'
 import { ReadOnlySet } from '../../src/internal/views/read-only/read-only-set'
+import type { ReadOnlyTags } from '../../src/internal/views/read-only/tags'
 import { describeReadonlyCollection } from '../contracts/readonly-collection'
 import { describeReadonlyList } from '../contracts/readonly-list'
 import { describeReadonlyMap } from '../contracts/readonly-map'
@@ -20,9 +21,18 @@ import { describeReadonlySet } from '../contracts/readonly-set'
 import { describeUnsupportedMutators } from '../contracts/unsupported'
 import { combine } from '../fixtures/structural-list'
 
-const LIST_TAGS = { list: 'TestList', subList: 'TestSubList', reversed: 'TestReversedList' }
-const MAP_TAGS = {
+const TAGS: ReadOnlyTags = {
+  collection: 'TestCollection',
+  sequencedCollection: 'TestSequencedCollection',
+  list: 'TestList',
+  subList: 'TestSubList',
+  reversedList: 'TestReversedList',
+  set: 'TestSet',
+  sequencedSet: 'TestSequencedSet',
+  sortedSet: 'TestSortedSet',
   map: 'TestMap',
+  sequencedMap: 'TestSequencedMap',
+  sortedMap: 'TestSortedMap',
   keySet: 'TestMapKeySet',
   entrySet: 'TestMapEntrySet',
   values: 'TestMapValues',
@@ -31,11 +41,11 @@ const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
   elements.reduce<number>((h, e) => (h + hash(e)) | 0, 0)
 
 const list = (initial?: Iterable<unknown>) =>
-  new ReadOnlyList(new ArrayList<unknown>(initial), LIST_TAGS)
+  new ReadOnlyList(new ArrayList<unknown>(initial), TAGS)
 const set = (initial?: Iterable<unknown>) =>
   new ReadOnlySet(new HashSet<unknown>(initial), 'TestSet')
 const map = (initial?: Iterable<readonly [unknown, unknown]>) =>
-  new ReadOnlyMap(new HashMap<unknown, unknown>(initial), MAP_TAGS)
+  new ReadOnlyMap(new HashMap<unknown, unknown>(initial), TAGS)
 
 describe('read-only list', () => {
   describeReadonlyCollection('TestList', list, {
@@ -61,7 +71,7 @@ describe('read-only list', () => {
     expect(cursor.previousIndex()).toBe(0)
     expect(cursor.previous()).toBe('a')
     expect(() => cursor.previous()).toThrow(NoSuchElementError)
-    expect(() => l.subList(0, 0).cursor().next()).toThrow('TestSubList.cursor: no more elements')
+    expect(() => l.subList(0, 0).cursor().next()).toThrow(NoSuchElementError)
     expect(String(l.subList(0, 1))).toBe("TestSubList(1) ['a']")
     expect(String(l.reversed())).toBe("TestReversedList(2) ['b', 'a']")
     expect(String(l.reversed().subList(0, 1))).toBe("TestSubList(1) ['b']")
@@ -112,9 +122,9 @@ describe('read-only map', () => {
     { brackets: 'list' },
   )
 
-  it('hands out fixed read-only entries that equal the source entries', () => {
+  it('hands out read-only entries that read and equal the source entries', () => {
     const source = new HashMap<unknown, unknown>([['a', 1]])
-    const m = new ReadOnlyMap(source, MAP_TAGS)
+    const m = new ReadOnlyMap(source, TAGS)
     const [entry] = [...m.entrySet()]
     const [sourceEntry] = [...source.entrySet()]
     expect(entry).not.toBe(sourceEntry)
@@ -127,7 +137,7 @@ describe('read-only map', () => {
 
   it('passes itself to forEach, compares with its source both ways and prints with its tag', () => {
     const source = new HashMap<unknown, unknown>([['a', 1]])
-    const m = new ReadOnlyMap(source, MAP_TAGS)
+    const m = new ReadOnlyMap(source, TAGS)
     m.forEach((_v, _k, owner) => {
       expect(owner).toBe(m)
     })
