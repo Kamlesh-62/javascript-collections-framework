@@ -1,7 +1,7 @@
 {
   "entries": [
-    { "name": "*", "minified": 152589, "gzip": 32893 },
-    { "name": "ArrayDeque", "minified": 16716, "gzip": 4976 },
+    { "name": "*", "minified": 152649, "gzip": 32914 },
+    { "name": "ArrayDeque", "minified": 16736, "gzip": 4977 },
     { "name": "ArrayList", "minified": 23246, "gzip": 6708 },
     { "name": "ClassCastError", "minified": 663, "gzip": 399 },
     { "name": "ConcurrentModificationError", "minified": 698, "gzip": 408 },
@@ -12,10 +12,10 @@
     { "name": "IndexOutOfBoundsError", "minified": 685, "gzip": 409 },
     { "name": "LinkedHashMap", "minified": 39916, "gzip": 10617 },
     { "name": "LinkedHashSet", "minified": 24470, "gzip": 7440 },
-    { "name": "LinkedList", "minified": 17789, "gzip": 5217 },
+    { "name": "LinkedList", "minified": 17809, "gzip": 5219 },
     { "name": "NoSuchElementError", "minified": 671, "gzip": 401 },
     { "name": "NullElementError", "minified": 669, "gzip": 401 },
-    { "name": "PriorityQueue", "minified": 17353, "gzip": 5358 },
+    { "name": "PriorityQueue", "minified": 17373, "gzip": 5360 },
     { "name": "TreeMap", "minified": 46877, "gzip": 11852 },
     { "name": "TreeSet", "minified": 30490, "gzip": 8426 },
     { "name": "UnsupportedOperationError", "minified": 696, "gzip": 407 },

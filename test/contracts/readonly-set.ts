@@ -9,6 +9,7 @@ import {
   isSetCollection,
   type ReadonlySetCollection,
 } from '../../src/index'
+import { ownerOf } from '../support/owner'
 
 /** Builds a new set holding `initial`, in first-seen order. */
 export type ReadonlySetFactory = (initial?: Iterable<unknown>) => ReadonlySetCollection<unknown>
@@ -59,11 +60,11 @@ export function describeReadonlySet(
       const calls: unknown[][] = []
       const self = {}
       set.forEach(function (this: unknown, a, b, owner) {
-        calls.push([member(a), member(b), owner, this])
+        calls.push([member(a), member(b), owner === ownerOf(set), this === self])
       }, self)
       expect(calls).toEqual([
-        [1, 1, set, self],
-        [2, 2, set, self],
+        [1, 1, true, true],
+        [2, 2, true, true],
       ])
     })
 

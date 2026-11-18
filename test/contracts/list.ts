@@ -10,6 +10,7 @@ import {
   NoSuchElementError,
 } from '../../src/index'
 import type { ListFactory } from '../support/list-factories'
+import { ownerOf } from '../support/owner'
 import { describeReadonlyList } from './readonly-list'
 
 export function describeList(name: string, make: ListFactory, peers: ListFactory[] = []): void {
@@ -49,7 +50,7 @@ export function describeList(name: string, make: ListFactory, peers: ListFactory
         lists.push(list)
         return i % 2 === 1
       })
-      expect(lists.every((x) => x === l)).toBe(true)
+      expect(lists.every((x) => x === ownerOf(l))).toBe(true)
       expect(l.toArray()).toEqual([1, 3])
       l.replaceAll((e, i) => (e as number) * 10 + i)
       expect(l.toArray()).toEqual([10, 31])

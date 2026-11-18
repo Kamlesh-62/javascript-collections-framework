@@ -991,3 +991,19 @@ describe('published shape of the algorithms', () => {
     }
   })
 })
+
+describe('the worker round trip check', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('is a post-build script wired into pnpm check and the CI check job [021 S3-AC4]', () => {
+    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> }
+    expect(pkg.scripts['test:worker']).toBe('node scripts/worker.mjs')
+    const check = pkg.scripts.check ?? ''
+    expect(check.indexOf('pnpm test:worker')).toBeGreaterThan(check.indexOf('pnpm build'))
+    const ci = read('.github/workflows/ci.yml')
+    expect(ci.indexOf('pnpm test:worker')).toBeGreaterThan(ci.indexOf('pnpm build'))
+    expect(read('scripts/worker.mjs')).toContain("new Worker(new URL('./worker-child.mjs'")
+    expect(read('scripts/worker-child.mjs')).toContain('TreeMap.from(json.map)')
+  })
+})

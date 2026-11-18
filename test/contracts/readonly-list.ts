@@ -10,6 +10,7 @@ import {
   isSequencedCollection,
   type ReadonlyList,
 } from '../../src/index'
+import { ownerOf } from '../support/owner'
 import { caught } from './readonly-collection'
 
 /** Builds a new list holding `initial`, in order. */
@@ -63,7 +64,7 @@ export function describeReadonlyList(
       const seen: unknown[][] = []
       const receiver = {}
       l.forEach(function (this: unknown, e, i, list) {
-        seen.push([e, i, list === l, this === receiver])
+        seen.push([e, i, list === ownerOf(l), this === receiver])
       }, receiver)
       expect(seen).toEqual([
         ['a', 0, true, true],

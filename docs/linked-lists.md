@@ -139,3 +139,6 @@ print, copy and clear.
 `LinkedListNode<E>` is exported as a type only. `isDeque`, `isQueue`, `isCollection` and
 `isSequencedCollection` recognise a `LinkedList` and its view from any copy of the package;
 `instanceof LinkedList` recognises the list itself.
+
+Through a `Proxy`, a `LinkedList` equals itself (`proxy.equals(proxy)` is `true`); the list itself
+does not know its proxies. See [frameworks](frameworks.md#proxies).
