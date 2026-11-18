@@ -1,0 +1,19 @@
+# The framework test apps install on their own, with the same supply-chain protections as the
+# root package (see SECURITY.md). Any allowBuilds entry needs the admission check first.
+minimumReleaseAge: 4320 # minutes (3 days): never install a version younger than this
+minimumReleaseAgeExclude: [] # only for an urgent security patch, then remove
+trustPolicy: no-downgrade # refuse a version with weaker provenance than its predecessor
+blockExoticSubdeps: true # no git or tarball dependencies anywhere in the tree
+strictDepBuilds: true # an install script not listed below fails the install
+allowBuilds: {}
+saveExact: true
+
+
+# Audit exceptions. Each entry names the advisory, why it cannot reach the published package, and
+# when to remove it. Never add one for a runtime path (there are no runtime dependencies).
+auditConfig:
+  ignoreGhsas:
+    # picomatch <= 4.0.7, ReDoS with repeated extglobs; no patched release yet (2026-11-17).
+    # Reached only through development tools (here: vitest's own tooling);
+    # `pnpm list --prod` has no path to it. Remove once a fixed picomatch is released.
+    - GHSA-fc5q-39xc-vjpf

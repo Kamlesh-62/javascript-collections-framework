@@ -144,10 +144,66 @@ describe('source rules', () => {
     expect(pkg.optionalDependencies ?? {}).toEqual({})
   })
 
+  it('keeps the framework test apps out of the root install and the published files', () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+    const devDependencies = Object.keys(pkg.devDependencies ?? {})
+    for (const name of ['react', 'react-dom', 'vue', 'svelte', 'jsdom']) {
+      expect(devDependencies).not.toContain(name)
+    }
+    const files: string[] = pkg.files ?? []
+    expect(files.length).toBeGreaterThan(0)
+    expect(
+      files.some((entry) => entry.startsWith('fixtures') || entry === '*' || entry === '.'),
+    ).toBe(false)
+    const workspace = readFileSync(join(ROOT, 'pnpm-workspace.yaml'), 'utf8')
+    expect(workspace).not.toMatch(/^packages:/m)
+  })
+
   it('package.json has no install-time scripts', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     for (const hook of ['preinstall', 'install', 'postinstall', 'prepare']) {
       expect(pkg.scripts?.[hook]).toBeUndefined()
     }
+  })
+})
+
+describe('workflow and install hardening', () => {
+  const read = (path: string) => readFileSync(join(ROOT, path), 'utf8')
+
+  it('every workflow starts with no permissions, pins actions to a full SHA and keeps no credentials', () => {
+    const dir = join(ROOT, '.github', 'workflows')
+    for (const file of readdirSync(dir).filter((name) => name.endsWith('.yml'))) {
+      const text = read(join('.github', 'workflows', file))
+      expect(text, file).toMatch(/^permissions: \{\}$/m)
+      for (const line of text.split('\n').filter((l) => /^\s*-?\s*uses:/.test(l))) {
+        expect(line, `${file}: ${line.trim()}`).toMatch(/@[0-9a-f]{40}\b/)
+      }
+      const checkouts = text.split('actions/checkout@').length - 1
+      const persisted = text.split('persist-credentials: false').length - 1
+      expect(persisted, file).toBe(checkouts)
+    }
+  })
+
+  it('the framework test apps keep the root install protections and audit exceptions', () => {
+    const settings = [
+      'minimumReleaseAge',
+      'trustPolicy',
+      'blockExoticSubdeps',
+      'strictDepBuilds',
+      'allowBuilds',
+      'saveExact',
+    ]
+    const pick = (text: string) =>
+      Object.fromEntries(
+        settings.map((key) => [
+          key,
+          text.match(new RegExp(`^${key}:\\s*([^#\\n]*)`, 'm'))?.[1]?.trim(),
+        ]),
+      )
+    const root = read('pnpm-workspace.yaml')
+    const fixture = read('fixtures/frameworks/pnpm-workspace.yaml')
+    expect(pick(fixture)).toEqual(pick(root))
+    const ghsas = (text: string) => text.match(/GHSA-[\w-]+/g) ?? []
+    expect(ghsas(fixture)).toEqual(ghsas(root))
   })
 })

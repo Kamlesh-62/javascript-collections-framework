@@ -11,6 +11,7 @@ import {
   isMapCollection,
   type ReadonlyMapCollection,
 } from '../../src/index'
+import { ownerOf } from '../support/owner'
 
 /** Builds a new map holding `initial`, in order. */
 export type ReadonlyMapFactory = (
@@ -92,7 +93,7 @@ export function describeReadonlyMap(
         expect([...map.entries()]).toEqual([...map])
         const calls: unknown[] = []
         map.forEach((value, key, owner) => {
-          calls.push([value, key, owner === map])
+          calls.push([value, key, owner === ownerOf(map)])
         })
         expect(calls).toEqual(ordered(pairs).map(([key, value]) => [value, key, true]))
       })

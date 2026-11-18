@@ -689,7 +689,8 @@ export class ArrayDeque<E> implements Deque<E> {
 
   /**
    * Returns whether `other` is this deque. Deques compare by identity; compare `toArray()` to
-   * compare contents.
+   * compare contents. Called through a `Proxy` of the deque, it is `true` for that proxy too; the deque itself
+   * does not know its proxies, so `deque.equals(proxy)` is `false`.
    *
    * Time: O(1).
    *
@@ -702,12 +703,12 @@ export class ArrayDeque<E> implements Deque<E> {
    * ```
    */
   equals(other: unknown): boolean {
-    return this.engine.equals(other)
+    return other === this || this.engine.equals(other)
   }
 
   /** The value-equality protocol; delegates to `equals` (identity). Time: O(1). */
   [equalsSymbol](other: unknown): boolean {
-    return this.engine.equals(other)
+    return other === this || this.engine.equals(other)
   }
 
   /** The value-equality protocol: an identity hash, unspecified in value. Time: O(1). */

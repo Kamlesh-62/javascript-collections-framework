@@ -595,7 +595,9 @@ export class PriorityQueue<E> implements Queue<E> {
   }
 
   /**
-   * Returns whether `other` is this queue. Queues compare by identity.
+   * Returns whether `other` is this queue. Queues compare by identity. Called through a `Proxy`
+   * of the queue, it is `true` for that proxy too; the queue itself does not know its proxies, so
+   * `queue.equals(proxy)` is `false`.
    *
    * Time: O(1).
    *
@@ -608,12 +610,12 @@ export class PriorityQueue<E> implements Queue<E> {
    * ```
    */
   equals(other: unknown): boolean {
-    return this.engine.equals(other)
+    return other === this || this.engine.equals(other)
   }
 
   /** The value-equality protocol; delegates to `equals` (identity). Time: O(1). */
   [equalsSymbol](other: unknown): boolean {
-    return this.engine.equals(other)
+    return other === this || this.engine.equals(other)
   }
 
   /** The value-equality protocol: an identity hash, unspecified in value. Time: O(1). */

@@ -136,3 +136,5 @@ isCollection(value) // true for any collection from this package, even another l
 
 Maps, arrays and native `Set`/`Map` are not collections; `isMapCollection` recognises a
 [map](maps.md).
+
+For frameworks, JSON and workers, see [using collections with frameworks](frameworks.md).

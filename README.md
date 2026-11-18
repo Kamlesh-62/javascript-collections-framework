@@ -61,6 +61,9 @@ Every collection planned so far is available. New ones are listed here, and move
 
 ## Documentation
 
+Using collections with React, Vue, Svelte or other frameworks, or sending them through JSON or
+workers: see [docs/frameworks.md](docs/frameworks.md).
+
 See [`docs/`](docs/README.md). What each release may change is in
 [versioning](docs/versioning.md).
 

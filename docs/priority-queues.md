@@ -193,3 +193,6 @@ draining a `copy()` of each.
 `PriorityQueueOptions<E>` is exported as a type. `isQueue` and `isCollection` recognise a
 `PriorityQueue` from any copy of the package (`isDeque` does not), and `instanceof PriorityQueue`
 recognises the queue itself.
+
+Through a `Proxy`, a deque or queue equals itself (`proxy.equals(proxy)` is `true`); the collection
+itself does not know its proxies. See [frameworks](frameworks.md#proxies).

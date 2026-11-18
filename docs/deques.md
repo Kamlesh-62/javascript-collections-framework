@@ -118,3 +118,6 @@ equal to a list.
 `isQueue(value)` and `isDeque(value)` recognise deques and their views from any copy of the
 package; `instanceof ArrayDeque` recognises an `ArrayDeque` (not its view). Type parameters as
 `Queue<E>` or `Deque<E>` rather than `ArrayDeque<E>`.
+
+Through a `Proxy`, a deque or queue equals itself (`proxy.equals(proxy)` is `true`); the collection
+itself does not know its proxies. See [frameworks](frameworks.md#proxies).

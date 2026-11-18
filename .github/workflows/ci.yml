@@ -39,6 +39,7 @@ jobs:
       - run: pnpm check:syntax
       - run: pnpm check:package
       - run: pnpm test:smoke
+      - run: pnpm test:worker
       - run: pnpm test:copies
       - name: API report, size report and old TypeScript consumers
         if: matrix.node == 24
