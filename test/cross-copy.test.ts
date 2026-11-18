@@ -1029,6 +1029,22 @@ describe('unmodifiable views across two copies', () => {
     expect(view.equals(set)).toBe(true)
     expect(set.equals(view)).toBe(true)
   })
+
+  it("wraps the other copy's read-only views again instead of returning or unwrapping them [036 S1-AC8]", async () => {
+    const [a, b] = await load()
+    type Read = { toArray(): unknown[]; [Symbol.toStringTag]: string }
+    const list = new (b.ArrayList as new (e: unknown[]) => unknown)([1, 2])
+    const theirs = (b.unmodifiableList as (v: unknown) => Read)(list)
+    const ours = (a.unmodifiableList as (v: unknown) => Read)(theirs)
+    expect(ours).not.toBe(theirs)
+    expect(ours.toArray()).toEqual([1, 2])
+    expect((a.unmodifiableList as (v: unknown) => Read)(ours)).toBe(ours)
+    const immutable = (b.listOf as (...e: unknown[]) => Read)(1, 2)
+    const wrapped = (a.unmodifiableCollection as (v: unknown) => Read)(immutable)
+    expect(wrapped).not.toBe(immutable)
+    expect(wrapped[Symbol.toStringTag]).toBe('UnmodifiableCollection')
+    expect(wrapped.toArray()).toEqual([1, 2])
+  })
 })
 
 describe('algorithms across two copies', () => {

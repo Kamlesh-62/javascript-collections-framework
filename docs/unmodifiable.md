@@ -91,8 +91,33 @@ because a collection of any family can be wrapped.
 
 Each view answers the type checks for its own family, not its source's:
 `unmodifiableSequencedCollection(list)` is a sequenced collection but not a list, and no view is a
-queue or deque. Views of sorted sets and maps are also sequenced, so they can be wrapped again with
-`unmodifiableSequencedSet` or `unmodifiableSequencedMap`.
+queue or deque. Views of sorted sets and maps are also sequenced, so `unmodifiableSequencedSet` and
+`unmodifiableSequencedMap` accept them.
+
+## Wrapping a read-only collection
+
+Read-only wrappers never nest. A view function returns its argument itself when the argument is
+already a view that function would return: `unmodifiableList(view) === view`, and the same holds
+for the view's sub-lists and reversed views, a sorted view's ranges, and a map view's key, entry and
+value views under the function that prints the same name. Given any other unmodifiable view, or an
+immutable collection from `listOf`, `setOf`, `mapOf` or the `copyOf…` factories, the function
+wraps what that collection reads, so the result always carries the function's own name and family,
+and entries handed out by an entry view stay read-only:
+
+```ts
+const tree = new TreeSet([1, 2, 3])
+const sorted = unmodifiableSortedSet(tree)
+unmodifiableSortedSet(sorted) === sorted // true
+String(unmodifiableCollection(sorted)) // "UnmodifiableCollection(3) [1, 2, 3]", reading `tree`
+
+const entries = unmodifiableSet(mapOf(['a', 1]).entrySet())
+entries.toArray()[0].setValue(2) // UnsupportedOperationError
+```
+
+The family check runs on the argument first: `unmodifiableList(unmodifiableSequencedCollection(list))`
+still throws `TypeError`, because a sequenced collection view is not a list. A view seen through a
+`Proxy`, a view from another loaded copy of the package, and an object that only shares a view's
+prototype are wrapped like any other collection.
 
 `toArray`, `toJSON` and iteration give what the source gives, and `revision` is the source's.
 

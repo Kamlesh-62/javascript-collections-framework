@@ -19,6 +19,7 @@ import { MappedLiveIterator } from '../../iteration'
 import { AbstractSet } from '../../skeletons/abstract-set'
 import { ReadOnlyCursor } from './read-only-cursor'
 import { empty, refuse } from './refuse'
+import { type ReadOnlyKind, registerReadOnly } from './registry'
 
 /**
  * A read-only view of `source`, printed with `tag`. With `reveal`, each member is passed through
@@ -31,11 +32,23 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
   private readonly tag: string
   protected readonly reveal: ((member: E) => E) | undefined
 
-  constructor(source: ReadonlySetCollection<E>, tag: string, reveal?: (member: E) => E) {
+  /**
+   * @param kind - The family the view registers as; each library subclass passes its own.
+   * @param exact - The class whose instances register as `kind`; an instance of any other class,
+   *   such as a subclass defined outside the library, is not registered.
+   */
+  constructor(
+    source: ReadonlySetCollection<E>,
+    tag: string,
+    reveal?: (member: E) => E,
+    kind: ReadOnlyKind = 'set',
+    exact: unknown = ReadOnlySet,
+  ) {
     super()
     this.source = source
     this.tag = tag
     this.reveal = reveal
+    registerReadOnly(this, new.target === exact ? kind : undefined, source, tag, reveal)
   }
 
   get owner(): SetCollection<E> {
@@ -130,6 +143,16 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
  * @internal
  */
 export class ReadOnlySequencedSet<E> extends ReadOnlySet<E> implements SequencedSet<E> {
+  constructor(
+    source: ReadonlySequencedSet<E>,
+    tag: string,
+    reveal?: (member: E) => E,
+    kind: ReadOnlyKind = 'sequenced-set',
+    exact: unknown = ReadOnlySequencedSet,
+  ) {
+    super(source, tag, reveal, kind, exact)
+  }
+
   /** Marks every sequenced collection for `isSequencedCollection`, across loaded copies. */
   get [SEQUENCED_COLLECTION_BRAND](): true {
     return true
@@ -176,6 +199,10 @@ export class ReadOnlySequencedSet<E> extends ReadOnlySet<E> implements Sequenced
  * @internal
  */
 export class ReadOnlySortedSet<E> extends ReadOnlySequencedSet<E> implements SortedSet<E> {
+  constructor(source: ReadonlySortedSet<E>, tag: string, reveal?: (member: E) => E) {
+    super(source, tag, reveal, 'sorted-set', ReadOnlySortedSet)
+  }
+
   /** Marks every sorted set for `isSortedSet`, across loaded copies. */
   get [SORTED_SET_BRAND](): true {
     return true

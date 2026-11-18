@@ -21,7 +21,7 @@ import { IMMUTABLE_TAGS } from '../internal/views/read-only/tags'
 /** The list a factory returns; its views are plain read-only lists. */
 class ImmutableList<E> extends ReadOnlyList<E> {
   constructor(source: ArrayList<E>) {
-    super(source, IMMUTABLE_TAGS)
+    super(source, IMMUTABLE_TAGS, 'list', ImmutableList)
   }
 }
 
@@ -30,7 +30,7 @@ class ImmutableSet<E> extends ReadOnlySet<E> {
   readonly equality: unknown
 
   constructor(source: HashSet<E>, equality: unknown) {
-    super(source, 'ImmutableSet')
+    super(source, 'ImmutableSet', undefined, 'set', ImmutableSet)
     this.equality = equality
   }
 }
@@ -40,7 +40,7 @@ class ImmutableMap<K, V> extends ReadOnlyMap<K, V> {
   readonly equality: unknown
 
   constructor(source: HashMap<K, V>, equality: unknown) {
-    super(source, IMMUTABLE_TAGS)
+    super(source, IMMUTABLE_TAGS, 'map', 'map', ImmutableMap)
     this.equality = equality
   }
 }

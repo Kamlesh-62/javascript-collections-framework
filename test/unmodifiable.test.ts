@@ -25,6 +25,7 @@ import {
   listOf,
   type MapCollection,
   type MapEntry,
+  mapOf,
   newSetFromMap,
   type ReadonlyList,
   type ReadonlyMapCollection,
@@ -54,6 +55,14 @@ import { describeReadonlySortedMap } from './contracts/readonly-sorted-map'
 import { describeReadonlySortedSet } from './contracts/readonly-sorted-set'
 import { describeUnsupportedMutators } from './contracts/unsupported'
 import { combine } from './fixtures/structural-list'
+import {
+  type Any,
+  contents,
+  FUNCTIONS,
+  type Kind,
+  type ViewFunction,
+  views,
+} from './support/read-only-views'
 
 const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
   elements.reduce<number>((h, e) => (h + hash(e)) | 0, 0)
@@ -909,5 +918,154 @@ describe('S1 — iteration follows more sources', () => {
       if (key === 'a') linkedMap.set('c', 3)
     }
     expect(liveKeys).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('read-only wrappers never nest', () => {
+  it('returns a view it would build itself unchanged, sub-lists, ranges, reversed and map views included [036 S1-AC7]', () => {
+    let same = 0
+    for (const { view, kind, unmodifiable } of views().cases) {
+      for (const f of FUNCTIONS) {
+        if (!unmodifiable || f.kind !== kind) continue
+        expect(f.wrap(view as never)).toBe(view)
+        same++
+      }
+    }
+    expect(same).toBe(31)
+    const deque = new ArrayDeque([1])
+    const view = unmodifiableCollection(deque)
+    expect(unmodifiableCollection(view).equals(view)).toBe(true)
+    const values = unmodifiableSequencedMap(new LinkedHashMap([['a', 1]])).valueCollection()
+    expect(unmodifiableSequencedCollection(values).equals(values)).toBe(true)
+  })
+
+  it('wraps any other read-only view under its own name and family, reading the same source live [036 S1-AC8]', () => {
+    const { cases, change } = views()
+    const results: Array<{ at: string; view: Any; result: Any }> = []
+    for (const { label, view, kind, unmodifiable } of cases) {
+      for (const f of FUNCTIONS) {
+        if (!f.accepts.includes(kind) || (unmodifiable && f.kind === kind)) continue
+        const at = `${f.name} of ${label}`
+        const result = f.wrap(view as never) as Any & { clear(): void }
+        expect(result, at).not.toBe(view)
+        expect(result[Symbol.toStringTag], at).toBe(f.name)
+        expect(String(result).startsWith(`${f.name}(`), at).toBe(true)
+        expect(contents(result), at).toEqual(contents(view))
+        expect(() => result.clear(), at).toThrow(UnsupportedOperationError)
+        results.push({ at, view, result })
+      }
+    }
+    change()
+    for (const { at, view, result } of results) {
+      expect(contents(result), `${at} after the owner changed`).toEqual(contents(view))
+    }
+  })
+
+  it('refuses setValue on every entry handed out through any wrap of an entry set [036 S1-AC8]', () => {
+    const sources = [
+      unmodifiableMap(new HashMap([['a', 1]])),
+      unmodifiableSequencedMap(new LinkedHashMap([['a', 1]])),
+      unmodifiableSortedMap(new TreeMap([['a', 1]])),
+      mapOf(['a', 1]),
+    ]
+    for (const map of sources) {
+      const entrySet = map.entrySet()
+      const wraps: Array<ReturnType<typeof unmodifiableCollection<MapEntry<string, number>>>> = [
+        unmodifiableCollection(entrySet),
+        unmodifiableSet(entrySet),
+      ]
+      if (isSequencedCollection(entrySet)) {
+        const sequenced = entrySet as unknown as Parameters<
+          typeof unmodifiableSequencedSet<MapEntry<string, number>>
+        >[0]
+        wraps.push(unmodifiableSequencedCollection(sequenced), unmodifiableSequencedSet(sequenced))
+      }
+      for (const wrapped of wraps) {
+        const handed: MapEntry<string, number>[] = [...wrapped, ...wrapped.toArray()]
+        wrapped.forEach((entry) => {
+          handed.push(entry)
+        })
+        handed.push(wrapped.cursor().next())
+        const sequenced = wrapped as unknown as {
+          getFirst?(): MapEntry<string, number>
+          reversed?(): Iterable<MapEntry<string, number>>
+        }
+        if (typeof sequenced.getFirst === 'function') {
+          handed.push(sequenced.getFirst())
+          handed.push(...(sequenced.reversed?.() ?? []))
+        }
+        for (const entry of handed) {
+          expect(() => entry.setValue(2)).toThrow(UnsupportedOperationError)
+        }
+      }
+      expect(map.get('a')).toBe(1)
+    }
+  })
+
+  it('behaves as the documentation shows when wrapping read-only collections [036 S1-AC8]', () => {
+    const tree = new TreeSet([1, 2, 3])
+    const sorted = unmodifiableSortedSet(tree)
+    expect(unmodifiableSortedSet(sorted)).toBe(sorted)
+    const collection = unmodifiableCollection(sorted)
+    expect(String(collection)).toBe('UnmodifiableCollection(3) [1, 2, 3]')
+    tree.add(4)
+    expect(String(collection)).toBe('UnmodifiableCollection(4) [1, 2, 3, 4]')
+    const entries = unmodifiableSet(mapOf(['a', 1]).entrySet())
+    expect(() => entries.toArray()[0]?.setValue(2)).toThrow(UnsupportedOperationError)
+  })
+
+  it('runs the family check on the argument before unwrapping it [036 S1-AC8]', () => {
+    const list = new ArrayList([1])
+    expect(() => unmodifiableList(unmodifiableSequencedCollection(list) as never)).toThrow(
+      new TypeError('unmodifiableList: list is not a list from this library (object)'),
+    )
+    expect(() => unmodifiableSortedSet(unmodifiableSet(new TreeSet([1])) as never)).toThrow(
+      TypeError,
+    )
+    expect(() => unmodifiableSequencedMap(mapOf(['a', 1]) as never)).toThrow(TypeError)
+    for (const { view, kind } of views().cases) {
+      for (const f of FUNCTIONS) {
+        if (f.accepts.includes(kind)) continue
+        expect(() => f.wrap(view as never)).toThrow(TypeError)
+      }
+    }
+  })
+
+  it('wraps an object made from a view prototype and a proxy of a view, as before [036 S1-AC8]', () => {
+    const list = new ArrayList([1, 2])
+    const view = unmodifiableList(list)
+    const spoof = Object.create(Object.getPrototypeOf(view)) as ReadonlyList<number>
+    const wrapped = unmodifiableList(spoof)
+    expect(wrapped === spoof).toBe(false)
+    const proxy = new Proxy(view, {})
+    const fromProxy = unmodifiableList(proxy)
+    expect(fromProxy).not.toBe(proxy)
+    expect(unmodifiableList(fromProxy)).toBe(fromProxy)
+    list.add(3)
+    expect(fromProxy.toArray()).toEqual([1, 2, 3])
+  })
+
+  it('reads its source live through 10,000 wraps of alternating kinds [036 S1-AC8]', () => {
+    const tree = new TreeSet([1, 2, 3])
+    const chain = FUNCTIONS.filter(
+      (fn) => fn.accepts.includes('sorted-set') && !fn.kind.endsWith('map'),
+    )
+    let sortedView: unknown = unmodifiableSortedSet(tree)
+    let current: unknown = sortedView
+    let currentKind: Kind = 'sorted-set'
+    for (let i = 0; i < 10_000; i++) {
+      const fn = chain[i % chain.length] as ViewFunction
+      const input = fn.accepts.includes(currentKind) ? current : sortedView
+      current = fn.wrap(input as never)
+      currentKind = fn.kind
+      if (fn.kind === 'sorted-set') {
+        expect(current).toBe(sortedView)
+        sortedView = current
+      }
+    }
+    expect([...(current as Iterable<number>)]).toEqual([1, 2, 3])
+    tree.add(4)
+    expect([...(current as Iterable<number>)]).toEqual([1, 2, 3, 4])
+    expect(() => (current as { clear(): void }).clear()).toThrow(UnsupportedOperationError)
   })
 })

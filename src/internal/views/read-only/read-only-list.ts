@@ -11,6 +11,7 @@ import { apply } from '../../intrinsics'
 import { AbstractList } from '../../skeletons/abstract-list'
 import { ReadOnlyListCursor } from './read-only-cursor'
 import { refuse } from './refuse'
+import { registerReadOnly } from './registry'
 import type { ReadOnlyTags } from './tags'
 
 /** The roles a read-only list can play. @internal */
@@ -27,11 +28,21 @@ export class ReadOnlyList<E> extends AbstractList<E> {
   private readonly tags: ReadOnlyTags
   private readonly role: ListRole
 
-  constructor(source: ReadonlyList<E>, tags: ReadOnlyTags, role: ListRole = 'list') {
+  /**
+   * @param exact - The class whose instances register as a list; an instance of any other class,
+   *   such as a subclass defined outside the library, is not registered.
+   */
+  constructor(
+    source: ReadonlyList<E>,
+    tags: ReadOnlyTags,
+    role: ListRole = 'list',
+    exact: unknown = ReadOnlyList,
+  ) {
     super()
     this.source = source
     this.tags = tags
     this.role = role
+    registerReadOnly(this, new.target === exact ? 'list' : undefined, source, tags[role])
   }
 
   get [Symbol.toStringTag](): string {
