@@ -5,6 +5,7 @@
 import { expect } from 'vitest'
 import {
   type Collection,
+  ConcurrentModificationError,
   type Cursor,
   IllegalArgumentError,
   type MapEntry,
@@ -17,6 +18,274 @@ import type { SequencedSet } from '../../src/interfaces/sequenced-set'
 import type { SortedMap } from '../../src/interfaces/sorted-map'
 import type { SortedSet } from '../../src/interfaces/sorted-set'
 import { integer, pick, seeded } from './random'
+import { expectSameSequence, sameElement } from './sequence'
+
+// ── Tuning for long runs ──
+//
+// Every runner takes an optional `tuning`. Without it a runner draws exactly the random numbers it
+// always drew, so the seeds in the existing tests keep their sequences.
+
+/** Size marks a long run must cross: reach at least `high`, then fall to at most `low`, `cycles` times. */
+export interface SizeMarks {
+  readonly high: number
+  readonly low: number
+  readonly cycles: number
+}
+
+/** Optional settings for long runs. */
+export interface RunTuning {
+  /** How many distinct integers (from 0) values or keys are drawn from, where the runner draws them. */
+  readonly values?: number
+  /** Compare the full contents every `checkEvery` steps and after the last, instead of the default schedule. */
+  readonly checkEvery?: number
+  /** Hold up to this many iterators and cursors open at once, dropping the oldest unstepped. */
+  readonly maxOpen?: number
+  /** Bias the operations into grow and shrink phases between these marks. */
+  readonly marks?: SizeMarks
+}
+
+/** Operation names by their effect on size, for the grow and shrink phases. */
+interface OpEffects {
+  /** Operations that add elements. */
+  readonly grow: readonly string[]
+  /** Operations that remove one element or a few. */
+  readonly shrink: readonly string[]
+  /** Operations that remove many elements at once (`clear`, a range clear, a bulk drain). */
+  readonly wipe: readonly string[]
+  /** Operations that add many elements at once. */
+  readonly fill?: readonly string[]
+}
+
+/**
+ * Chooses each step's operation. Without marks it is one `pick`. With marks, a grow phase always
+ * redraws a wipe and redraws a removal up to three times, until the size reaches `high`; a shrink
+ * phase then always redraws a bulk fill and redraws an addition or a wipe up to three times, and
+ * aims removals by value at present members, until the size falls to `low`, which ends a cycle.
+ * Opposite operations stay possible in every phase, only rarer.
+ */
+class Phases {
+  private growing = true
+  private cycles = 0
+
+  constructor(
+    private readonly marks: SizeMarks | undefined,
+    private readonly effects: OpEffects,
+  ) {}
+
+  choose(random: () => number, ops: readonly string[]): string {
+    let op = pick(random, ops)
+    if (this.marks === undefined) return op
+    const { grow, shrink, wipe } = this.effects
+    const always = this.growing ? wipe : (this.effects.fill ?? [])
+    const opposite = this.growing ? shrink : [...grow, ...wipe]
+    let tries = 0
+    while (always.includes(op) || (tries < 3 && opposite.includes(op))) {
+      if (!always.includes(op)) tries++
+      op = pick(random, ops)
+    }
+    return op
+  }
+
+  /**
+   * In a shrink phase, returns a present member for a removal by value (`op` among the shrink
+   * operations), drawn from `members`; otherwise `undefined`, drawing nothing.
+   */
+  aim<T>(random: () => number, op: string, members: () => readonly T[]): { value: T } | undefined {
+    if (this.marks === undefined || this.growing || !this.effects.shrink.includes(op)) {
+      return undefined
+    }
+    const present = members()
+    return present.length === 0 ? undefined : { value: pick(random, present) }
+  }
+
+  /** Moves between phases after a step left the collection at `size`. */
+  after(size: number): void {
+    const marks = this.marks
+    if (marks === undefined) return
+    if (this.growing && size >= marks.high) this.growing = false
+    else if (!this.growing && size <= marks.low) {
+      this.growing = true
+      this.cycles++
+    }
+  }
+
+  /** Fails unless the run crossed the marks the configured number of times. */
+  finish(at: string): void {
+    if (this.marks === undefined) return
+    expect(this.cycles, `${at}: size cycles between the marks`).toBeGreaterThanOrEqual(
+      this.marks.cycles,
+    )
+  }
+}
+
+/**
+ * `expect(actual, at).toBe(expected)`, with a plain `Object.is` check first so that long runs do
+ * not pay for an assertion object per step; a mismatch still fails through `expect`.
+ */
+function is(actual: unknown, expected: unknown, at: string): void {
+  if (!Object.is(actual, expected)) expect(actual, at).toBe(expected)
+}
+
+/**
+ * `expect(actual, at).toEqual(expected)`, with a plain check first for arrays (element by element)
+ * and iterator results; anything else, and any mismatch, goes through `expect`.
+ */
+function isEqual(actual: unknown, expected: unknown, at: string): void {
+  if (Array.isArray(actual) && sameElement(actual, expected)) return
+  if (isResult(actual) && isResult(expected)) {
+    if (actual.done === expected.done && sameElement(actual.value, expected.value)) return
+  }
+  expect(actual, at).toEqual(expected)
+}
+
+function isResult(value: unknown): value is IteratorResult<unknown> {
+  return typeof value === 'object' && value !== null && 'done' in value
+}
+
+/** The first index of the sorted `items` whose element is not below `v` (binary search). */
+function lowerBound<T>(items: readonly T[], v: T, compare: (a: T, b: T) => number): number {
+  let low = 0
+  let high = items.length
+  while (low < high) {
+    const mid = (low + high) >>> 1
+    if (compare(items[mid] as T, v) < 0) low = mid + 1
+    else high = mid
+  }
+  return low
+}
+
+/** The aimed member, or the value drawn when there is none. */
+function aimed<T>(aim: { value: T } | undefined, drawn: T): T {
+  return aim === undefined ? drawn : aim.value
+}
+
+/** Whether step `step` of `steps` compares the full contents under `checkEvery`. */
+function fullCheck(tuning: RunTuning | undefined, step: number, steps: number): boolean {
+  const every = tuning?.checkEvery
+  return every !== undefined && ((step + 1) % every === 0 || step === steps - 1)
+}
+
+/** Drops the oldest held iterators until at most `max` remain (no cap without `max`). */
+function cap<T>(open: T[], max: number | undefined): void {
+  if (max === undefined) return
+  while (open.length > max) open.shift()
+}
+
+/** One step's effect on fail-fast iterators: a structural change, possibly one, or none. */
+type Effect = 'structural' | 'maybe' | 'none'
+
+/** Operations that never change a collection, in every model. */
+const READS = [
+  'has',
+  'get',
+  'indexOf',
+  'peek',
+  'peekLast',
+  'near',
+  'ends',
+  'check',
+  'hold',
+  'advance',
+]
+
+/**
+ * A step's effect: structural when the reference gained or lost elements, none for reads, and
+ * otherwise possibly structural (a change that added or removed nothing).
+ */
+function effectOf(op: string, changed: boolean, reads: readonly string[]): Effect {
+  if (changed) return 'structural'
+  return reads.includes(op) ? 'none' : 'maybe'
+}
+
+interface HeldIteration<T> {
+  readonly ours: Iterator<T> | Cursor<T>
+  readonly cursor: boolean
+  /** A fixed order to expect (a priority queue's), or `undefined` to read the reference. */
+  readonly order: readonly T[] | undefined
+  consumed: number
+  /** `stale` after a structural change; `maybe` after a change that may or may not be one. */
+  state: 'fresh' | 'stale' | 'maybe'
+  finished: boolean
+}
+
+/**
+ * Iterators and cursors held open on a fail-fast collection. One opened before a structural change
+ * must throw `ConcurrentModificationError` on its next step; one with no structural change since it
+ * opened must return the reference's next element. After a change that adds or removes nothing (a
+ * no-op `delete`, `clear` of an empty collection) either outcome is accepted, and a successful step
+ * makes it exact again.
+ */
+class HeldIterations<T> {
+  private readonly open: Array<HeldIteration<T>> = []
+
+  constructor(private readonly max: number | undefined) {}
+
+  get active(): boolean {
+    return this.max !== undefined
+  }
+
+  hold(ours: Iterator<T> | Cursor<T>, cursor: boolean, order?: readonly T[]): void {
+    this.open.push({ ours, cursor, order, consumed: 0, state: 'fresh', finished: false })
+    cap(this.open, this.max)
+  }
+
+  /** Records the effect of the step just taken on every held iteration. */
+  changed(effect: Effect): void {
+    if (effect === 'none') return
+    for (const held of this.open) {
+      if (effect === 'structural') held.state = 'stale'
+      else if (held.state === 'fresh') held.state = 'maybe'
+    }
+  }
+
+  /** Steps one held iteration, chosen by `random`, and checks it against `reference`. */
+  advance(random: () => number, reference: readonly T[], at: string): void {
+    if (this.open.length === 0) return
+    const held = pick(random, this.open)
+    if (held.finished) {
+      isEqual((held.ours as Iterator<T>).next(), { done: true, value: undefined }, at)
+      return
+    }
+    const source = held.order ?? reference
+    const more = held.consumed < source.length
+    let value: unknown
+    let thrown: unknown
+    let finished = false
+    try {
+      if (held.cursor) value = (held.ours as Cursor<T>).next()
+      else {
+        const result = (held.ours as Iterator<T>).next()
+        finished = result.done === true
+        value = result.value
+      }
+    } catch (error) {
+      thrown = error
+    }
+    if (held.state !== 'fresh' && thrown instanceof ConcurrentModificationError) {
+      this.open.splice(this.open.indexOf(held), 1)
+      return
+    }
+    if (held.state === 'stale') {
+      expect(held.state, `${at}: a held iterator opened before a structural change`).not.toBe(
+        'stale',
+      )
+    }
+    held.state = 'fresh'
+    if (!more) {
+      if (held.cursor) expect(thrown, at).toBeInstanceOf(NoSuchElementError)
+      else {
+        if (thrown !== undefined) throw thrown
+        is(finished, true, `${at}: a held iterator past the end`)
+        held.finished = true
+      }
+      return
+    }
+    if (thrown !== undefined) throw thrown
+    is(finished, false, `${at}: a held iterator ended early`)
+    is(value, source[held.consumed], `${at}: a held iterator at index ${held.consumed}`)
+    held.consumed++
+  }
+}
 
 export interface ReferenceModelOptions {
   seed: number
@@ -33,6 +302,7 @@ export interface ReferenceModelOptions {
    * and cursors are open.
    */
   bulk?: boolean
+  tuning?: RunTuning
 }
 
 interface OpenCursor {
@@ -44,12 +314,14 @@ interface OpenCursor {
 
 export function runReferenceModel(options: ReferenceModelOptions): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const c = options.make()
   const set = new Set<number>()
   const array: number[] = []
   const live = options.model === 'set'
   const iterators: Array<{ ours: Iterator<number>; theirs: Iterator<number> }> = []
   const cursors: OpenCursor[] = []
+  const held = new HeldIterations<number>(live ? undefined : tuning?.maxOpen)
   const ops = live
     ? [
         'add',
@@ -68,12 +340,26 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
       ]
     : ['add', 'add', 'delete', 'has', 'check', 'clear']
   if (live && options.bulk === true) ops.push('fill', 'fill', 'drain')
-  const top = (options.values ?? 10) - 1
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add'],
+    shrink: ['delete', 'remove'],
+    wipe: ['clear', 'drain'],
+    fill: ['fill'],
+  })
+  const top = (tuning?.values ?? options.values ?? 10) - 1
+  const size = () => (live ? set.size : array.length)
+  const label = `reference model seed ${options.seed}`
 
   for (let step = 0; step < options.steps; step++) {
-    const at = `reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = integer(random, 0, top)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = integer(random, 0, top)
+    const v = aimed(
+      phases.aim(random, op, () => (live ? [...set] : array)),
+      drawn,
+    )
+    const before = size()
     switch (op) {
       case 'add':
         c.add(v)
@@ -89,7 +375,7 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
         break
       case 'drain':
         for (const x of [...set]) {
-          if (random() < 0.75) expect(c.delete(x), at).toBe(set.delete(x))
+          if (random() < 0.75) is(c.delete(x), set.delete(x), at)
         }
         break
       case 'delete': {
@@ -100,11 +386,11 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
           expected = index >= 0
           if (expected) array.splice(index, 1)
         }
-        expect(c.delete(v), at).toBe(expected)
+        is(c.delete(v), expected, at)
         break
       }
       case 'has':
-        expect(c.has(v), at).toBe(live ? set.has(v) : array.includes(v))
+        is(c.has(v), live ? set.has(v) : array.includes(v), at)
         break
       case 'clear':
         c.clear()
@@ -112,26 +398,29 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
         array.length = 0
         break
       case 'check':
-        expect(c.toArray(), at).toEqual(live ? [...set] : array)
-        expect(c.size, at).toBe(live ? set.size : array.length)
+        if (tuning?.checkEvery !== undefined) break
+        isEqual(c.toArray(), live ? [...set] : array, at)
+        is(c.size, live ? set.size : array.length, at)
         break
       case 'iter':
         iterators.push({ ours: c[Symbol.iterator](), theirs: set.values() })
+        cap(iterators, tuning?.maxOpen)
         break
       case 'step': {
         if (iterators.length === 0) break
         const it = pick(random, iterators)
-        expect(it.ours.next(), at).toEqual(it.theirs.next())
+        isEqual(it.ours.next(), it.theirs.next(), at)
         break
       }
       case 'cursor':
         cursors.push({ ours: c.cursor(), theirs: set.values(), looked: undefined, last: undefined })
+        cap(cursors, tuning?.maxOpen)
         break
       case 'look': {
         if (cursors.length === 0) break
         const cur = pick(random, cursors)
         if (cur.looked === undefined) cur.looked = cur.theirs.next()
-        expect(cur.ours.hasNext(), at).toBe(cur.looked.done !== true)
+        is(cur.ours.hasNext(), cur.looked.done !== true, at)
         break
       }
       case 'next': {
@@ -142,7 +431,7 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
           expect(() => cur.ours.next(), at).toThrow(NoSuchElementError)
         } else {
           const value = cur.looked.value
-          expect(cur.ours.next(), at).toBe(value)
+          is(cur.ours.next(), value, at)
           cur.looked = undefined
           cur.last = { value }
         }
@@ -157,9 +446,25 @@ export function runReferenceModel(options: ReferenceModelOptions): void {
         cur.last = undefined
         break
       }
+      case 'hold': {
+        const cursor = random() < 0.5
+        held.hold(cursor ? c.cursor() : c[Symbol.iterator](), cursor)
+        break
+      }
+      case 'advance':
+        held.advance(random, array, at)
+        break
     }
+    if (held.active) held.changed(effectOf(op, size() !== before, READS))
+
+    is(c.size, size(), at)
+    if (fullCheck(tuning, step, options.steps)) {
+      expectSameSequence(c.toArray(), live ? [...set] : array, at)
+    }
+    phases.after(size())
   }
-  expect(c.toArray(), `reference model seed ${options.seed} final`).toEqual(live ? [...set] : array)
+  expect(c.toArray(), `${label} final`).toEqual(live ? [...set] : array)
+  phases.finish(label)
 }
 
 /**
@@ -171,10 +476,13 @@ export function runListReferenceModel(options: {
   seed: number
   steps: number
   make: () => List<number>
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const list = options.make()
   const array: number[] = []
+  const held = new HeldIterations<number>(tuning?.maxOpen)
   const ops = [
     'add',
     'addFirst',
@@ -191,10 +499,18 @@ export function runListReferenceModel(options: {
     'sort',
     'check',
   ]
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add', 'addFirst', 'insert', 'insertAll'],
+    shrink: ['removeAt', 'delete', 'removeLast', 'removeIf'],
+    wipe: ['subClear'],
+  })
+  const top = (tuning?.values ?? 10) - 1
+  const label = `list reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `list reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = integer(random, 0, 9)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const v = integer(random, 0, top)
     const n = array.length
     switch (op) {
       case 'add':
@@ -214,7 +530,7 @@ export function runListReferenceModel(options: {
       case 'insertAll': {
         const i = integer(random, 0, n)
         const items = [v, v + 1]
-        expect(list.insertAll(i, items), at).toBe(true)
+        is(list.insertAll(i, items), true, at)
         array.splice(i, 0, ...items)
         break
       }
@@ -222,7 +538,7 @@ export function runListReferenceModel(options: {
         if (n === 0) break
         {
           const i = integer(random, 0, n - 1)
-          expect(list.set(i, v), at).toBe(array[i])
+          is(list.set(i, v), array[i], at)
           array[i] = v
         }
         break
@@ -230,37 +546,38 @@ export function runListReferenceModel(options: {
         if (n === 0) break
         {
           const i = integer(random, 0, n - 1)
-          expect(list.removeAt(i), at).toBe(array.splice(i, 1)[0])
+          is(list.removeAt(i), array.splice(i, 1)[0], at)
         }
         break
       case 'delete': {
         const i = array.indexOf(v)
-        expect(list.delete(v), at).toBe(i >= 0)
+        is(list.delete(v), i >= 0, at)
         if (i >= 0) array.splice(i, 1)
         break
       }
       case 'removeLast':
         if (n === 0) expect(() => list.removeLast(), at).toThrow(NoSuchElementError)
-        else expect(list.removeLast(), at).toBe(array.pop())
+        else is(list.removeLast(), array.pop(), at)
         break
       case 'get':
         if (n > 0) {
           const i = integer(random, 0, n - 1)
-          expect(list.get(i), at).toBe(array[i])
+          is(list.get(i), array[i], at)
         }
         break
       case 'indexOf':
-        expect(list.indexOf(v), at).toBe(array.indexOf(v))
-        expect(list.lastIndexOf(v), at).toBe(array.lastIndexOf(v))
+        is(list.indexOf(v), array.indexOf(v), at)
+        is(list.lastIndexOf(v), array.lastIndexOf(v), at)
         break
       case 'removeIf': {
         const keep = array.filter((e) => e !== v)
-        expect(
+        is(
           list.removeIf((e) => e === v),
+          keep.length !== n,
           at,
-        ).toBe(keep.length !== n)
+        )
         array.length = 0
-        array.push(...keep)
+        for (let i = 0; i < keep.length; i++) array.push(keep[i] as number)
         break
       }
       case 'subClear': {
@@ -275,29 +592,51 @@ export function runListReferenceModel(options: {
         array.sort((a, b) => a - b)
         break
       case 'check':
-        expect(list.toArray(), at).toEqual(array)
-        expect(list.size, at).toBe(array.length)
+        if (tuning?.checkEvery !== undefined) break
+        isEqual(list.toArray(), array, at)
+        is(list.size, array.length, at)
+        break
+      case 'hold': {
+        const cursor = random() < 0.5
+        held.hold(cursor ? list.cursor() : list[Symbol.iterator](), cursor)
+        break
+      }
+      case 'advance':
+        held.advance(random, array, at)
         break
     }
+    // `set` replaces in place and `sort` always counts as structural.
+    if (held.active) {
+      held.changed(
+        op === 'sort' ? 'structural' : effectOf(op, array.length !== n, [...READS, 'set']),
+      )
+    }
+    is(list.size, array.length, at)
+    if (fullCheck(tuning, step, options.steps)) expectSameSequence(list.toArray(), array, at)
+    phases.after(array.length)
   }
-  expect(list.toArray(), `list reference model seed ${options.seed} final`).toEqual(array)
+  expect(list.toArray(), `${label} final`).toEqual(array)
+  phases.finish(label)
 }
 
 /**
  * Seeded reference model for deques: applies the same random end operations to a deque and to a
  * native array (`push`/`unshift`/`shift`/`pop`) and compares every result, `size` included after
- * every `poll` and `pop`. `make` builds an empty deque (or a view over one); `values` is the pool
- * elements are drawn from (default the integers 0–9).
+ * every step. `make` builds an empty deque (or a view over one); `values` is the pool elements are
+ * drawn from (default the integers 0–9, or `tuning.values` of them).
  */
 export function runDequeReferenceModel(options: {
   seed: number
   steps: number
   make: () => Deque<number | null | undefined>
   values?: ReadonlyArray<number | null | undefined>
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const deque = options.make()
   const array: Array<number | null | undefined> = []
+  const held = new HeldIterations<number | null | undefined>(tuning?.maxOpen)
   const ops = [
     'add',
     'add',
@@ -312,10 +651,19 @@ export function runDequeReferenceModel(options: {
     'removeIf',
     'check',
   ]
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add', 'addFirst', 'push'],
+    shrink: ['poll', 'pop', 'delete', 'removeIf'],
+    wipe: [],
+  })
+  const top = (tuning?.values ?? 10) - 1
+  const label = `deque reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `deque reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = options.values ? pick(random, options.values) : integer(random, 0, 9)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const v = options.values ? pick(random, options.values) : integer(random, 0, top)
+    const n = array.length
     switch (op) {
       case 'add':
       case 'push':
@@ -327,45 +675,57 @@ export function runDequeReferenceModel(options: {
         array.unshift(v)
         break
       case 'poll':
-        expect(deque.poll(), at).toBe(array.shift())
-        expect(deque.size, at).toBe(array.length)
+        is(deque.poll(), array.shift(), at)
         break
       case 'pop':
-        expect(deque.pop(), at).toBe(array.pop())
-        expect(deque.size, at).toBe(array.length)
+        is(deque.pop(), array.pop(), at)
         break
       case 'peek':
-        expect(deque.peek(), at).toBe(array[0])
+        is(deque.peek(), array[0], at)
         break
       case 'peekLast':
-        expect(deque.peekLast(), at).toBe(array[array.length - 1])
+        is(deque.peekLast(), array[array.length - 1], at)
         break
       case 'delete': {
         const i = array.indexOf(v)
-        expect(deque.delete(v), at).toBe(i >= 0)
+        is(deque.delete(v), i >= 0, at)
         if (i >= 0) array.splice(i, 1)
         break
       }
       case 'has':
-        expect(deque.has(v), at).toBe(array.includes(v))
+        is(deque.has(v), array.includes(v), at)
         break
       case 'removeIf': {
         const keep = array.filter((e) => e !== v)
-        expect(
+        is(
           deque.removeIf((e) => e === v),
+          keep.length !== array.length,
           at,
-        ).toBe(keep.length !== array.length)
+        )
         array.length = 0
-        array.push(...keep)
+        for (let i = 0; i < keep.length; i++) array.push(keep[i])
         break
       }
       case 'check':
-        expect([...deque], at).toEqual(array)
-        expect(deque.size, at).toBe(array.length)
+        if (tuning?.checkEvery !== undefined) break
+        isEqual([...deque], array, at)
+        break
+      case 'hold': {
+        const cursor = random() < 0.5
+        held.hold(cursor ? deque.cursor() : deque[Symbol.iterator](), cursor)
+        break
+      }
+      case 'advance':
+        held.advance(random, array, at)
         break
     }
+    if (held.active) held.changed(effectOf(op, array.length !== n, READS))
+    is(deque.size, array.length, at)
+    if (fullCheck(tuning, step, options.steps)) expectSameSequence([...deque], array, at)
+    phases.after(array.length)
   }
-  expect([...deque], `deque reference model seed ${options.seed} final`).toEqual(array)
+  expect([...deque], `${label} final`).toEqual(array)
+  phases.finish(label)
 }
 
 /** A queue of numbers ordered by a comparator, as the priority-queue model needs it. */
@@ -397,10 +757,13 @@ export function runPriorityQueueReferenceModel(options: {
   steps: number
   make: () => NumberQueue
   compare: (a: number, b: number) => number
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const queue = options.make()
   const array: number[] = []
+  const held = new HeldIterations<number>(tuning?.maxOpen)
   const insert = (v: number) => {
     let i = 0
     while (i < array.length && options.compare(array[i] as number, v) <= 0) i++
@@ -412,26 +775,35 @@ export function runPriorityQueueReferenceModel(options: {
     return i >= 0
   }
   const ops = ['add', 'add', 'add', 'poll', 'peek', 'delete', 'has', 'cursor', 'clear', 'check']
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add'],
+    shrink: ['poll', 'delete'],
+    wipe: ['cursor', 'clear'],
+  })
+  const top = tuning?.values === undefined ? 20 : tuning.values - 1
+  const label = `priority queue reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `priority queue reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = integer(random, 0, 20)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const v = integer(random, 0, top)
+    const n = array.length
     switch (op) {
       case 'add':
         queue.add(v)
         insert(v)
         break
       case 'poll':
-        expect(queue.poll(), at).toBe(array.shift())
+        is(queue.poll(), array.shift(), at)
         break
       case 'peek':
-        expect(queue.peek(), at).toBe(array[0])
+        is(queue.peek(), array[0], at)
         break
       case 'delete':
-        expect(queue.delete(v), at).toBe(removeOne(v))
+        is(queue.delete(v), removeOne(v), at)
         break
       case 'has':
-        expect(queue.has(v), at).toBe(array.includes(v))
+        is(queue.has(v), array.includes(v), at)
         break
       case 'cursor': {
         const before = sortedCopy(array)
@@ -445,7 +817,7 @@ export function runPriorityQueueReferenceModel(options: {
             removeOne(value)
           }
         }
-        expect(sortedCopy(seen), at).toEqual(before)
+        isEqual(sortedCopy(seen), before, at)
         break
       }
       case 'clear':
@@ -455,14 +827,33 @@ export function runPriorityQueueReferenceModel(options: {
         }
         break
       case 'check':
-        expect(sortedCopy(queue), at).toEqual(sortedCopy(array))
+        if (tuning?.checkEvery !== undefined) break
+        isEqual(sortedCopy(queue), sortedCopy(array), at)
+        break
+      case 'hold': {
+        // Iteration order is unspecified: hold the order a fresh iteration gives, as a multiset of
+        // the reference, and expect the held iteration to follow it until a structural change.
+        const order = [...queue]
+        expectSameSequence(sortedCopy(order), sortedCopy(array), at)
+        const cursor = random() < 0.5
+        held.hold(cursor ? queue.cursor() : queue[Symbol.iterator](), cursor, order)
+        break
+      }
+      case 'advance':
+        held.advance(random, array, at)
         break
     }
-    expect(queue.size, at).toBe(array.length)
+    if (held.active) held.changed(effectOf(op, array.length !== n, READS))
+    is(queue.size, array.length, at)
+    if (fullCheck(tuning, step, options.steps)) {
+      expectSameSequence(sortedCopy(queue), sortedCopy(array), at)
+    }
+    phases.after(array.length)
   }
   const drained: number[] = []
   for (let n = queue.poll(); n !== undefined; n = queue.poll()) drained.push(n)
-  expect(drained, `priority queue reference model seed ${options.seed} final`).toEqual(array)
+  expect(drained, `${label} final`).toEqual(array)
+  phases.finish(label)
 }
 
 /** What the map reference model drives: the native `Map` methods plus the map helpers it checks. */
@@ -525,8 +916,10 @@ export function runMapReferenceModel(options: {
   make: () => ModelledMap
   keys?: number
   bulk?: boolean
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const map = options.make()
   const model: NativeUpsert = new Map<number, number>()
   const iterators: Array<{ ours: Iterator<unknown>; theirs: Iterator<unknown> }> = []
@@ -550,11 +943,22 @@ export function runMapReferenceModel(options: {
     'step',
   ]
   if (options.bulk === true) ops.push('fill', 'fill', 'drain')
-  const top = (options.keys ?? 10) - 1
+  const phases = new Phases(tuning?.marks, {
+    grow: ['set', 'put', 'getOrInsert', 'getOrInsertComputed'],
+    shrink: ['delete', 'remove'],
+    wipe: ['clear', 'drain'],
+    fill: ['fill'],
+  })
+  const top = (tuning?.values ?? options.keys ?? 10) - 1
+  const label = `map reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `map reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const k = integer(random, 0, top)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = integer(random, 0, top)
+    const k = aimed(
+      phases.aim(random, op, () => [...model.keys()]),
+      drawn,
+    )
     const v = integer(random, 0, 99)
     switch (op) {
       case 'set':
@@ -562,38 +966,39 @@ export function runMapReferenceModel(options: {
         model.set(k, v)
         break
       case 'put':
-        expect(map.put(k, v), at).toBe(model.get(k))
+        is(map.put(k, v), model.get(k), at)
         model.set(k, v)
         break
       case 'delete':
-        expect(map.delete(k), at).toBe(model.delete(k))
+        is(map.delete(k), model.delete(k), at)
         break
       case 'remove': {
         const old = model.get(k)
         model.delete(k)
-        expect(map.remove(k), at).toBe(old)
+        is(map.remove(k), old, at)
         break
       }
       case 'get':
-        expect(map.get(k), at).toBe(model.get(k))
+        is(map.get(k), model.get(k), at)
         break
       case 'has':
-        expect(map.has(k), at).toBe(model.has(k))
+        is(map.has(k), model.has(k), at)
         break
       case 'replace': {
         const old = model.get(k)
         if (model.has(k)) model.set(k, v)
-        expect(map.replace(k, v), at).toBe(old)
+        is(map.replace(k, v), old, at)
         break
       }
       case 'getOrInsert':
-        expect(map.getOrInsert(k, v), at).toBe(nativeGetOrInsert(model, k, v))
+        is(map.getOrInsert(k, v), nativeGetOrInsert(model, k, v), at)
         break
       case 'getOrInsertComputed':
-        expect(
+        is(
           map.getOrInsertComputed(k, (key) => key + v),
+          nativeGetOrInsertComputed(model, k, (key) => key + v),
           at,
-        ).toBe(nativeGetOrInsertComputed(model, k, (key) => key + v))
+        )
         break
       case 'compute': {
         // Odd values are kept and incremented; even ones are removed.
@@ -603,7 +1008,7 @@ export function runMapReferenceModel(options: {
         const result = fn(old)
         if (result === undefined) model.delete(k)
         else model.set(k, result)
-        expect(map.compute(k, fn), at).toBe(result)
+        is(map.compute(k, fn), result, at)
         break
       }
       case 'merge': {
@@ -616,7 +1021,7 @@ export function runMapReferenceModel(options: {
         } else {
           model.set(k, v)
         }
-        expect(map.merge(k, v, fn), at).toBe(expected)
+        is(map.merge(k, v, fn), expected, at)
         break
       }
       case 'fill':
@@ -628,7 +1033,7 @@ export function runMapReferenceModel(options: {
         break
       case 'drain':
         for (const key of [...model.keys()]) {
-          if (random() < 0.75) expect(map.delete(key), at).toBe(model.delete(key))
+          if (random() < 0.75) is(map.delete(key), model.delete(key), at)
         }
         break
       case 'clear':
@@ -636,8 +1041,9 @@ export function runMapReferenceModel(options: {
         model.clear()
         break
       case 'check':
-        expect([...(map as Iterable<[number, number]>)], at).toEqual([...model])
-        expect(map.size, at).toBe(model.size)
+        if (tuning?.checkEvery !== undefined) break
+        isEqual([...(map as Iterable<[number, number]>)], [...model], at)
+        is(map.size, model.size, at)
         break
       case 'iter': {
         const kind = integer(random, 0, 2)
@@ -648,20 +1054,24 @@ export function runMapReferenceModel(options: {
               ? { ours: map.values(), theirs: model.values() }
               : { ours: map.entries(), theirs: model.entries() },
         )
+        cap(iterators, tuning?.maxOpen)
         break
       }
       case 'step': {
         if (iterators.length === 0) break
         const it = pick(random, iterators)
-        expect(it.ours.next(), at).toEqual(it.theirs.next())
+        isEqual(it.ours.next(), it.theirs.next(), at)
         break
       }
     }
+    is(map.size, model.size, at)
+    if (fullCheck(tuning, step, options.steps)) {
+      expectSameSequence([...(map as Iterable<[number, number]>)], [...model], at)
+    }
+    phases.after(model.size)
   }
-  expect(
-    [...(map as Iterable<[number, number]>)],
-    `map reference model seed ${options.seed} final`,
-  ).toEqual([...model])
+  expect([...(map as Iterable<[number, number]>)], `${label} final`).toEqual([...model])
+  phases.finish(label)
 }
 
 /**
@@ -677,22 +1087,32 @@ export function runSortedSetReferenceModel<T>(options: {
   make: () => SortedSet<T>
   compare: (a: T, b: T) => number
   value: (random: () => number) => T
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const { compare } = options
   const set = options.make()
   let array: T[] = []
-  const indexOf = (v: T): number => array.findIndex((x) => compare(x, v) === 0)
+  const held = new HeldIterations<T>(tuning?.maxOpen)
+  /** Set when a step adds or removes a member of the reference. */
+  let touched = false
+  const indexOf = (v: T): number => {
+    const i = lowerBound(array, v, compare)
+    return i < array.length && compare(array[i] as T, v) === 0 ? i : -1
+  }
   const insert = (v: T): boolean => {
     if (indexOf(v) >= 0) return false
-    let i = 0
-    while (i < array.length && compare(array[i] as T, v) < 0) i++
-    array.splice(i, 0, v)
+    array.splice(lowerBound(array, v, compare), 0, v)
+    touched = true
     return true
   }
   const remove = (v: T): boolean => {
     const i = indexOf(v)
-    if (i >= 0) array.splice(i, 1)
+    if (i >= 0) {
+      array.splice(i, 1)
+      touched = true
+    }
     return i >= 0
   }
   const last = (items: T[]): T | undefined => items[items.length - 1]
@@ -711,38 +1131,59 @@ export function runSortedSetReferenceModel<T>(options: {
     'check',
     'clear',
   ]
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add'],
+    shrink: ['delete', 'poll'],
+    wipe: ['cursor', 'clear'],
+  })
+  const label = `sorted set reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `sorted set reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = options.value(random)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = options.value(random)
+    const v = aimed(
+      phases.aim(random, op, () => array),
+      drawn,
+    )
+    touched = false
     switch (op) {
       case 'add':
         set.add(v)
         insert(v)
         break
       case 'delete':
-        expect(set.delete(v), at).toBe(remove(v))
+        is(set.delete(v), remove(v), at)
         break
       case 'has':
-        expect(set.has(v), at).toBe(indexOf(v) >= 0)
+        is(set.has(v), indexOf(v) >= 0, at)
         break
       case 'near':
-        expect(set.lower(v), at).toBe(last(array.filter((x) => compare(x, v) < 0)))
-        expect(set.floor(v), at).toBe(last(array.filter((x) => compare(x, v) <= 0)))
-        expect(set.ceiling(v), at).toBe(array.find((x) => compare(x, v) >= 0))
-        expect(set.higher(v), at).toBe(array.find((x) => compare(x, v) > 0))
+        is(set.lower(v), last(array.filter((x) => compare(x, v) < 0)), at)
+        is(set.floor(v), last(array.filter((x) => compare(x, v) <= 0)), at)
+        is(
+          set.ceiling(v),
+          array.find((x) => compare(x, v) >= 0),
+          at,
+        )
+        is(
+          set.higher(v),
+          array.find((x) => compare(x, v) > 0),
+          at,
+        )
         break
       case 'ends':
         if (array.length === 0) {
           expect(() => set.getFirst(), at).toThrow(NoSuchElementError)
         } else {
-          expect(set.getFirst(), at).toBe(array[0])
-          expect(set.getLast(), at).toBe(last(array))
+          is(set.getFirst(), array[0], at)
+          is(set.getLast(), last(array), at)
         }
         break
       case 'poll':
-        if (random() < 0.5) expect(set.pollFirst(), at).toBe(array.shift())
-        else expect(set.pollLast(), at).toBe(array.pop())
+        if (array.length > 0) touched = true
+        if (random() < 0.5) is(set.pollFirst(), array.shift(), at)
+        else is(set.pollLast(), array.pop(), at)
         break
       case 'cursor': {
         const descending = random() < 0.5
@@ -757,8 +1198,10 @@ export function runSortedSetReferenceModel<T>(options: {
           }
         }
         const expected = seen.slice()
-        expect(seen, at).toEqual(
+        isEqual(
+          seen,
           descending ? expected.sort((a, b) => compare(b, a)) : expected.sort(compare),
+          at,
         )
         break
       }
@@ -797,38 +1240,56 @@ export function runSortedSetReferenceModel<T>(options: {
                   return a > 0 || (a === 0 && fromInclusive)
                 }
         const expected = array.filter(check)
-        expect(view.toArray(), at).toEqual(expected)
-        expect(view.size, at).toBe(expected.length)
-        expect(view.reversed().toArray(), at).toEqual(expected.slice().reverse())
+        isEqual(view.toArray(), expected, at)
+        is(view.size, expected.length, at)
+        isEqual(view.reversed().toArray(), expected.slice().reverse(), at)
         const probe = options.value(random)
-        expect(view.floor(probe), at).toBe(last(expected.filter((x) => compare(x, probe) <= 0)))
-        expect(view.higher(probe), at).toBe(expected.find((x) => compare(x, probe) > 0))
+        is(view.floor(probe), last(expected.filter((x) => compare(x, probe) <= 0)), at)
+        is(
+          view.higher(probe),
+          expected.find((x) => compare(x, probe) > 0),
+          at,
+        )
         if (check(probe)) {
           view.add(probe)
           insert(probe)
         } else {
-          expect(view.has(probe), at).toBe(false)
+          is(view.has(probe), false, at)
         }
         if (random() < 0.3) {
           const polled = view.pollFirst()
-          expect(polled, at).toBe(array.filter(check)[0])
+          is(polled, array.filter(check)[0], at)
           if (polled !== undefined) remove(polled)
         }
         break
       }
       case 'clear':
         if (integer(random, 0, 5) === 0) {
+          if (array.length > 0) touched = true
           set.clear()
           array = []
         }
         break
       case 'check':
-        expect(set.toArray(), at).toEqual(array)
+        if (tuning?.checkEvery !== undefined) break
+        isEqual(set.toArray(), array, at)
+        break
+      case 'hold': {
+        const cursor = random() < 0.5
+        held.hold(cursor ? set.cursor() : set[Symbol.iterator](), cursor)
+        break
+      }
+      case 'advance':
+        held.advance(random, array, at)
         break
     }
-    expect(set.size, at).toBe(array.length)
+    if (held.active) held.changed(effectOf(op, touched, READS))
+    is(set.size, array.length, at)
+    if (fullCheck(tuning, step, options.steps)) expectSameSequence(set.toArray(), array, at)
+    phases.after(array.length)
   }
-  expect(set.toArray(), `sorted set reference model seed ${options.seed} final`).toEqual(array)
+  expect(set.toArray(), `${label} final`).toEqual(array)
+  phases.finish(label)
 }
 
 /** A member of the sequenced-set model, with its order stamp. */
@@ -867,8 +1328,10 @@ export function runSequencedSetReferenceModel(options: {
   make: () => SequencedSet<unknown>
   /** How many distinct integers values are drawn from (from 0), besides `-0` and `null`. */
   values?: number
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const set = options.make()
   const view = set.reversed()
   const records: SequencedRecord[] = []
@@ -876,7 +1339,7 @@ export function runSequencedSetReferenceModel(options: {
   let high = 0
   const iterations: Array<{ ours: Iterator<unknown>; model: ModelIteration }> = []
   const cursors: SequencedCursor[] = []
-  const top = (options.values ?? 12) - 1
+  const top = (tuning?.values ?? options.values ?? 12) - 1
   const ops = [
     'add',
     'add',
@@ -953,13 +1416,23 @@ export function runSequencedSetReferenceModel(options: {
   }
   const expectEnd = (actual: () => unknown, expected: unknown, at: string): void => {
     if (expected === NoSuchElementError) expect(actual, at).toThrow(NoSuchElementError)
-    else expect(actual(), at).toBe(expected)
+    else is(actual(), expected, at)
   }
 
+  const phases = new Phases(tuning?.marks, {
+    grow: ['add', 'addFirst', 'addLast', 'viewAdd', 'viewAddAll'],
+    shrink: ['delete', 'removeFirst', 'removeLast', 'remove'],
+    wipe: ['clear'],
+  })
+  const label = `sequenced set reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `sequenced set reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const v = draw()
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = draw()
+    const v = aimed(
+      phases.aim(random, op, () => records.map((r) => r.value)),
+      drawn,
+    )
     switch (op) {
       case 'add':
         set.add(v)
@@ -976,11 +1449,11 @@ export function runSequencedSetReferenceModel(options: {
       case 'delete': {
         const index = indexOf(v)
         if (index >= 0) removeAt(index)
-        expect(set.delete(v), at).toBe(index >= 0)
+        is(set.delete(v), index >= 0, at)
         break
       }
       case 'has':
-        expect(set.has(v), at).toBe(indexOf(v) >= 0)
+        is(set.has(v), indexOf(v) >= 0, at)
         break
       case 'removeFirst':
       case 'removeLast': {
@@ -1001,13 +1474,13 @@ export function runSequencedSetReferenceModel(options: {
           if (!cur.model.done) Object.assign(cur.model, open(cur.model.fromBack))
         break
       case 'viewAdd':
-        expect(view.add(v), at).toBe(view)
+        is(view.add(v), view, at)
         place(v, true, false)
         break
       case 'viewAddAll': {
         const w = draw()
         const changed = indexOf(v) < 0 || indexOf(w) < 0
-        expect(view.addAll([v, w]), at).toBe(changed)
+        is(view.addAll([v, w]), changed, at)
         place(v, true, false)
         place(w, true, false)
         break
@@ -1033,14 +1506,17 @@ export function runSequencedSetReferenceModel(options: {
           ours: fromBack ? view[Symbol.iterator]() : set[Symbol.iterator](),
           model: open(fromBack),
         })
+        cap(iterations, tuning?.maxOpen)
         break
       }
       case 'step': {
         if (iterations.length === 0) break
         const it = pick(random, iterations)
         const expected = advance(it.model)
-        expect(it.ours.next(), at).toEqual(
+        isEqual(
+          it.ours.next(),
           expected === 'done' ? { done: true, value: undefined } : { done: false, ...expected },
+          at,
         )
         break
       }
@@ -1052,13 +1528,14 @@ export function runSequencedSetReferenceModel(options: {
           looked: undefined,
           last: undefined,
         })
+        cap(cursors, tuning?.maxOpen)
         break
       }
       case 'look': {
         if (cursors.length === 0) break
         const cur = pick(random, cursors)
         if (cur.looked === undefined) cur.looked = advance(cur.model)
-        expect(cur.ours.hasNext(), at).toBe(cur.looked !== 'done')
+        is(cur.ours.hasNext(), cur.looked !== 'done', at)
         break
       }
       case 'next': {
@@ -1068,7 +1545,7 @@ export function runSequencedSetReferenceModel(options: {
         if (cur.looked === 'done') {
           expect(() => cur.ours.next(), at).toThrow(NoSuchElementError)
         } else {
-          expect(cur.ours.next(), at).toBe(cur.looked.value)
+          is(cur.ours.next(), cur.looked.value, at)
           cur.last = cur.looked
           cur.looked = undefined
         }
@@ -1085,11 +1562,19 @@ export function runSequencedSetReferenceModel(options: {
         break
       }
     }
-    const members = records.map((r) => r.value)
-    expect(set.toArray(), at).toEqual(members)
-    expect(view.toArray(), at).toEqual(members.slice().reverse())
-    expect(set.size, at).toBe(members.length)
+    is(set.size, records.length, at)
+    if (tuning?.checkEvery === undefined) {
+      const members = records.map((r) => r.value)
+      isEqual(set.toArray(), members, at)
+      isEqual(view.toArray(), members.slice().reverse(), at)
+    } else if (fullCheck(tuning, step, options.steps)) {
+      const members = records.map((r) => r.value)
+      expectSameSequence(set.toArray(), members, at)
+      expectSameSequence(view.toArray(), members.reverse(), at)
+    }
+    phases.after(records.length)
   }
+  phases.finish(label)
 }
 
 /**
@@ -1104,14 +1589,22 @@ export function runSortedMapReferenceModel<K>(options: {
   make: () => SortedMap<K, number>
   compare: (a: K, b: K) => number
   key: (random: () => number) => K
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const { compare } = options
   const map = options.make()
   const values = new Map<K, number>()
   let keys: K[] = []
+  const held = new HeldIterations<K>(tuning?.maxOpen)
+  /** Set when a step adds or removes a key of the reference. */
+  let touched = false
   /** The stored key equal to `k` under `compare`, or `undefined`. */
-  const stored = (k: K): K | undefined => keys.find((x) => compare(x, k) === 0)
+  const stored = (k: K): K | undefined => {
+    const i = lowerBound(keys, k, compare)
+    return i < keys.length && compare(keys[i] as K, k) === 0 ? keys[i] : undefined
+  }
   const modelGet = (k: K): number | undefined => {
     const s = stored(k)
     return s === undefined ? undefined : values.get(s)
@@ -1123,18 +1616,18 @@ export function runSortedMapReferenceModel<K>(options: {
       values.set(s, v)
       return old
     }
-    let i = 0
-    while (i < keys.length && compare(keys[i] as K, k) < 0) i++
-    keys.splice(i, 0, k)
+    keys.splice(lowerBound(keys, k, compare), 0, k)
     values.set(k, v)
+    touched = true
     return undefined
   }
   const modelDelete = (k: K): number | undefined => {
     const s = stored(k)
     if (s === undefined) return undefined
     const old = values.get(s)
-    keys = keys.filter((x) => x !== s)
+    keys.splice(keys.indexOf(s), 1)
     values.delete(s)
+    touched = true
     return old
   }
   const pairOf = (k: K | undefined): [K, number] | undefined =>
@@ -1164,48 +1657,61 @@ export function runSortedMapReferenceModel<K>(options: {
     'entries',
     'clear',
   ]
+  if (held.active) ops.push('hold', 'advance', 'advance')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['set', 'put', 'getOrInsert', 'getOrInsertComputed', 'merge'],
+    shrink: ['delete', 'remove', 'poll'],
+    wipe: ['clear'],
+  })
+  const label = `sorted map reference model seed ${options.seed}`
   let next = 0
   for (let step = 0; step < options.steps; step++) {
-    const at = `sorted map reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const k = options.key(random)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = options.key(random)
+    const k = aimed(
+      phases.aim(random, op, () => keys),
+      drawn,
+    )
     const v = next++
+    touched = false
     switch (op) {
       case 'set':
-        expect(map.set(k, v), at).toBe(map)
+        is(map.set(k, v), map, at)
         modelSet(k, v)
         break
       case 'put':
-        expect(map.put(k, v), at).toBe(modelSet(k, v))
+        is(map.put(k, v), modelSet(k, v), at)
         break
       case 'delete':
-        expect(map.delete(k), at).toBe(modelDelete(k) !== undefined)
+        is(map.delete(k), modelDelete(k) !== undefined, at)
         break
       case 'remove':
-        expect(map.remove(k), at).toBe(modelDelete(k))
+        is(map.remove(k), modelDelete(k), at)
         break
       case 'get':
-        expect(map.get(k), at).toBe(modelGet(k))
-        expect(map.has(k), at).toBe(stored(k) !== undefined)
+        is(map.get(k), modelGet(k), at)
+        is(map.has(k), stored(k) !== undefined, at)
         break
       case 'replace': {
         const old = modelGet(k)
-        expect(map.replace(k, v), at).toBe(old)
+        is(map.replace(k, v), old, at)
         if (old !== undefined) modelSet(k, v)
         break
       }
       case 'getOrInsert': {
         const old = modelGet(k)
-        expect(map.getOrInsert(k, v), at).toBe(old === undefined ? v : old)
+        is(map.getOrInsert(k, v), old === undefined ? v : old, at)
         if (old === undefined) modelSet(k, v)
         break
       }
       case 'getOrInsertComputed': {
         const old = modelGet(k)
-        expect(
+        is(
           map.getOrInsertComputed(k, () => v),
+          old === undefined ? v : old,
           at,
-        ).toBe(old === undefined ? v : old)
+        )
         if (old === undefined) modelSet(k, v)
         break
       }
@@ -1213,10 +1719,10 @@ export function runSortedMapReferenceModel<K>(options: {
         const old = modelGet(k)
         const remove = random() < 0.3
         const result = map.compute(k, (current) => {
-          expect(current, at).toBe(old)
+          is(current, old, at)
           return remove ? undefined : v
         })
-        expect(result, at).toBe(remove ? undefined : v)
+        is(result, remove ? undefined : v, at)
         if (remove) modelDelete(k)
         else modelSet(k, v)
         break
@@ -1225,33 +1731,33 @@ export function runSortedMapReferenceModel<K>(options: {
         const old = modelGet(k)
         const merged = map.merge(k, v, (a, b) => a + b)
         const expected = old === undefined ? v : old + v
-        expect(merged, at).toBe(expected)
+        is(merged, expected, at)
         modelSet(k, expected)
         break
       }
       case 'near':
-        expect(pairOfEntry(map.lowerEntry(k)), at).toEqual(
+        isEqual(
+          pairOfEntry(map.lowerEntry(k)),
           pairOf(last(keys.filter((x) => compare(x, k) < 0))),
+          at,
         )
-        expect(pairOfEntry(map.floorEntry(k)), at).toEqual(
+        isEqual(
+          pairOfEntry(map.floorEntry(k)),
           pairOf(last(keys.filter((x) => compare(x, k) <= 0))),
+          at,
         )
-        expect(pairOfEntry(map.ceilingEntry(k)), at).toEqual(
-          pairOf(keys.find((x) => compare(x, k) >= 0)),
-        )
-        expect(pairOfEntry(map.higherEntry(k)), at).toEqual(
-          pairOf(keys.find((x) => compare(x, k) > 0)),
-        )
+        isEqual(pairOfEntry(map.ceilingEntry(k)), pairOf(keys.find((x) => compare(x, k) >= 0)), at)
+        isEqual(pairOfEntry(map.higherEntry(k)), pairOf(keys.find((x) => compare(x, k) > 0)), at)
         break
       case 'ends':
-        expect(pairOfEntry(map.firstEntry()), at).toEqual(pairOf(keys[0]))
-        expect(pairOfEntry(map.lastEntry()), at).toEqual(pairOf(last(keys)))
+        isEqual(pairOfEntry(map.firstEntry()), pairOf(keys[0]), at)
+        isEqual(pairOfEntry(map.lastEntry()), pairOf(last(keys)), at)
         break
       case 'poll': {
         const first = random() < 0.5
         const expected = pairOf(first ? keys[0] : last(keys))
         const polled = first ? map.pollFirstEntry() : map.pollLastEntry()
-        expect(pairOfEntry(polled), at).toEqual(expected)
+        isEqual(pairOfEntry(polled), expected, at)
         if (expected !== undefined) modelDelete(expected[0])
         break
       }
@@ -1283,36 +1789,42 @@ export function runSortedMapReferenceModel<K>(options: {
         const check =
           kind === 0 ? (x: K) => aboveFrom(x) && belowTo(x) : kind === 1 ? belowTo : aboveFrom
         const expected = keys.filter(check)
-        expect([...view.keys()], at).toEqual(expected)
-        expect(view.size, at).toBe(expected.length)
-        expect([...view.reversed().keys()], at).toEqual(expected.slice().reverse())
+        isEqual([...view.keys()], expected, at)
+        is(view.size, expected.length, at)
+        isEqual([...view.reversed().keys()], expected.slice().reverse(), at)
         const probe = options.key(random)
-        expect(pairOfEntry(view.floorEntry(probe)), at).toEqual(
+        isEqual(
+          pairOfEntry(view.floorEntry(probe)),
           pairOf(last(expected.filter((x) => compare(x, probe) <= 0))),
+          at,
         )
-        expect(pairOfEntry(view.higherEntry(probe)), at).toEqual(
+        isEqual(
+          pairOfEntry(view.higherEntry(probe)),
           pairOf(expected.find((x) => compare(x, probe) > 0)),
+          at,
         )
         if (check(probe)) {
           view.set(probe, v)
           modelSet(probe, v)
         } else {
           expect(view.get(probe), at).toBeUndefined()
-          expect(view.has(probe), at).toBe(false)
+          is(view.has(probe), false, at)
           expect(() => view.set(probe, v), at).toThrow(IllegalArgumentError)
         }
         if (random() < 0.3) {
           const polled = view.pollFirstEntry()
-          expect(pairOfEntry(polled), at).toEqual(pairOf(keys.filter(check)[0]))
+          isEqual(pairOfEntry(polled), pairOf(keys.filter(check)[0]), at)
           if (polled !== undefined) modelDelete(polled.key)
         }
         break
       }
       case 'reversed': {
         const reversed = map.reversed()
-        expect([...reversed.keys()], at).toEqual(keys.slice().reverse())
-        expect(pairOfEntry(reversed.floorEntry(k)), at).toEqual(
+        isEqual([...reversed.keys()], keys.slice().reverse(), at)
+        isEqual(
+          pairOfEntry(reversed.floorEntry(k)),
           pairOf(keys.find((x) => compare(x, k) >= 0)),
+          at,
         )
         if (random() < 0.5) {
           reversed.set(k, v)
@@ -1326,24 +1838,55 @@ export function runSortedMapReferenceModel<K>(options: {
         for (const w of watched) {
           const s = stored(w.key)
           if (s !== undefined) w.value = values.get(s) as number
-          expect(w.entry.value, at).toBe(w.value)
+          is(w.entry.value, w.value, at)
         }
         break
       }
       case 'clear':
         if (integer(random, 0, 5) === 0) {
+          if (keys.length > 0) touched = true
           map.clear()
           keys = []
           values.clear()
         }
         break
+      case 'hold': {
+        const cursor = random() < 0.5
+        held.hold(cursor ? map.keySet().cursor() : map.keys(), cursor)
+        break
+      }
+      case 'advance':
+        held.advance(random, keys, at)
+        break
     }
-    expect(map.size, at).toBe(keys.length)
-    expect([...map.keys()], at).toEqual(keys)
+    // Writing the value of a present key replaces it in place: not a structural change.
+    if (held.active) {
+      held.changed(
+        effectOf(op, touched, [
+          ...READS,
+          'set',
+          'put',
+          'replace',
+          'getOrInsert',
+          'getOrInsertComputed',
+          'merge',
+          'entries',
+        ]),
+      )
+    }
+    is(map.size, keys.length, at)
+    if (tuning?.checkEvery === undefined) isEqual([...map.keys()], keys, at)
+    else if (fullCheck(tuning, step, options.steps)) {
+      expectSameSequence(
+        map.toJSON(),
+        keys.map((x) => [x, values.get(x)]),
+        at,
+      )
+    }
+    phases.after(keys.length)
   }
-  expect(map.toJSON(), `sorted map reference model seed ${options.seed} final`).toEqual(
-    keys.map((k) => [k, values.get(k)]),
-  )
+  expect(map.toJSON(), `${label} final`).toEqual(keys.map((k) => [k, values.get(k)]))
+  phases.finish(label)
 }
 
 /** What the LRU reference model drives. */
@@ -1357,6 +1900,7 @@ interface LruMap {
   merge(key: number, value: number, fn: (old: number, value: number) => number): unknown
   has(key: number): boolean
   delete(key: number): boolean
+  keys(): Iterator<number>
   toJSON(): Array<[number, number]>
 }
 
@@ -1365,7 +1909,10 @@ interface LruMap {
  * random operations to a map built by `make` (with the given `onEvict`) and to an array of
  * `[key, value]` pairs, most recent last. A read or write of a present key moves its pair to the
  * end; an insertion appends and, past `maxSize`, drops the front pair and records it as evicted.
- * After every step the pairs, the size and the evictions reported so far are compared.
+ * After every step the pairs, the size and the evictions reported so far are compared. With
+ * `tuning.maxOpen`, key iterators are held open and stepped: each returns the first key past the
+ * order stamp of the one it last returned, skipping keys it already returned that were moved to
+ * the end by an access.
  */
 export function runLruReferenceModel(options: {
   seed: number
@@ -1373,22 +1920,35 @@ export function runLruReferenceModel(options: {
   maxSize: number
   make: (onEvict: (value: number, key: number) => void) => LruMap
   keys?: number
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const reported: Array<[number, number]> = []
   const map = options.make((value, key) => {
     reported.push([key, value])
   })
   const model: Array<[number, number]> = []
+  /** Order stamps parallel to `model`: `seq` changes on every move, `origin` only on insertion. */
+  const stamps: Array<{ seq: number; origin: number }> = []
+  let high = 0
   const evicted: Array<[number, number]> = []
-  const top = (options.keys ?? 25) - 1
+  const iterations: Array<{
+    ours: Iterator<number>
+    boundary: number
+    visited: Set<number>
+    done: boolean
+  }> = []
+  const top = (tuning?.values ?? options.keys ?? 25) - 1
   const indexOf = (key: number): number => model.findIndex((pair) => pair[0] === key)
   /** Moves a present key to the end and returns its value, or returns `undefined`. */
   const touch = (key: number): number | undefined => {
     const index = indexOf(key)
     if (index < 0) return undefined
     const pair = model.splice(index, 1)[0] as [number, number]
+    const stamp = stamps.splice(index, 1)[0] as { seq: number; origin: number }
     model.push(pair)
+    stamps.push({ seq: ++high, origin: stamp.origin })
     return pair[1]
   }
   const write = (key: number, value: number): number | undefined => {
@@ -1398,22 +1958,38 @@ export function runLruReferenceModel(options: {
       return old
     }
     model.push([key, value])
-    while (model.length > options.maxSize) evicted.push(model.shift() as [number, number])
+    high++
+    stamps.push({ seq: high, origin: high })
+    while (model.length > options.maxSize) {
+      evicted.push(model.shift() as [number, number])
+      stamps.shift()
+    }
     return undefined
   }
   const ops = ['get', 'getOrDefault', 'set', 'set', 'put', 'getOrInsert', 'merge', 'has', 'delete']
+  if (tuning?.maxOpen !== undefined) ops.push('iter', 'step', 'step')
+  const phases = new Phases(tuning?.marks, {
+    grow: ['set', 'put', 'getOrInsert', 'merge'],
+    shrink: ['delete'],
+    wipe: [],
+  })
+  const label = `LRU reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `LRU reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const k = integer(random, 0, top)
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = integer(random, 0, top)
+    const k = aimed(
+      phases.aim(random, op, () => model.map((pair) => pair[0])),
+      drawn,
+    )
     const v = integer(random, 0, 99)
     switch (op) {
       case 'get':
-        expect(map.get(k), at).toBe(touch(k))
+        is(map.get(k), touch(k), at)
         break
       case 'getOrDefault': {
         const old = touch(k)
-        expect(map.getOrDefault(k, -1), at).toBe(old === undefined ? -1 : old)
+        is(map.getOrDefault(k, -1), old === undefined ? -1 : old, at)
         break
       }
       case 'set':
@@ -1421,38 +1997,84 @@ export function runLruReferenceModel(options: {
         write(k, v)
         break
       case 'put':
-        expect(map.put(k, v), at).toBe(write(k, v))
+        is(map.put(k, v), write(k, v), at)
         break
       case 'getOrInsert': {
         const old = touch(k)
         if (old === undefined) write(k, v)
-        expect(map.getOrInsert(k, v), at).toBe(old === undefined ? v : old)
+        is(map.getOrInsert(k, v), old === undefined ? v : old, at)
         break
       }
       case 'merge': {
         const index = indexOf(k)
         const value = index < 0 ? v : (model[index] as [number, number])[1] + v
         write(k, value)
-        expect(
+        is(
           map.merge(k, v, (old, add) => old + add),
+          value,
           at,
-        ).toBe(value)
+        )
         break
       }
       case 'has':
-        expect(map.has(k), at).toBe(indexOf(k) >= 0)
+        is(map.has(k), indexOf(k) >= 0, at)
         break
       case 'delete': {
         const index = indexOf(k)
-        if (index >= 0) model.splice(index, 1)
-        expect(map.delete(k), at).toBe(index >= 0)
+        if (index >= 0) {
+          model.splice(index, 1)
+          stamps.splice(index, 1)
+        }
+        is(map.delete(k), index >= 0, at)
+        break
+      }
+      case 'iter':
+        iterations.push({ ours: map.keys(), boundary: 0, visited: new Set(), done: false })
+        cap(iterations, tuning?.maxOpen)
+        break
+      case 'step': {
+        if (iterations.length === 0) break
+        const it = pick(random, iterations)
+        let found = -1
+        if (!it.done) {
+          found = stamps.findIndex((s) => s.seq > it.boundary && !it.visited.has(s.origin))
+          if (found < 0) it.done = true
+        }
+        if (found < 0) {
+          isEqual(it.ours.next(), { done: true, value: undefined }, at)
+        } else {
+          const stamp = stamps[found] as { seq: number; origin: number }
+          it.boundary = stamp.seq
+          it.visited.add(stamp.origin)
+          isEqual(
+            it.ours.next(),
+            {
+              done: false,
+              value: (model[found] as [number, number])[0],
+            },
+            at,
+          )
+        }
         break
       }
     }
-    expect(map.toJSON(), at).toEqual(model)
-    expect(map.size, at).toBe(model.length)
-    expect(reported, at).toEqual(evicted)
+    is(map.size, model.length, at)
+    if (tuning?.checkEvery === undefined) {
+      isEqual(map.toJSON(), model, at)
+      isEqual(reported, evicted, at)
+    } else {
+      is(reported.length, evicted.length, `${at}: evictions reported`)
+      if (fullCheck(tuning, step, options.steps)) {
+        expectSameSequence(map.toJSON(), model, at)
+        expectSameSequence(reported, evicted, `${at}: evictions`)
+        // Compared: start the next period's evictions afresh, so long runs compare each once.
+        reported.length = 0
+        evicted.length = 0
+      }
+    }
+    phases.after(model.length)
   }
+  phases.finish(label)
 }
 
 /** A mapping of the sequenced-map model, with its order stamp and its identity across accesses. */
@@ -1495,8 +2117,10 @@ export function runSequencedMapReferenceModel(options: {
   maxSize?: number | undefined
   /** How many distinct integers keys are drawn from (from 0), besides `-0` and `null`. */
   values?: number
+  tuning?: RunTuning
 }): void {
   const random = seeded(options.seed)
+  const tuning = options.tuning
   const reported: Array<[unknown, number]> = []
   const map = options.make((value, key) => {
     reported.push([key, value])
@@ -1519,7 +2143,7 @@ export function runSequencedMapReferenceModel(options: {
     looked: { key: unknown } | 'done' | undefined
     last: { key: unknown } | undefined
   }> = []
-  const top = (options.values ?? 10) - 1
+  const top = (tuning?.values ?? options.values ?? 10) - 1
   const ops = [
     'set',
     'set',
@@ -1649,59 +2273,70 @@ export function runSequencedMapReferenceModel(options: {
   const pairOf = (entry: MapEntry<unknown, number> | undefined): unknown =>
     entry === undefined ? undefined : [entry.key, entry.value]
 
+  const phases = new Phases(tuning?.marks, {
+    grow: ['set', 'put', 'getOrInsert', 'getOrInsertComputed', 'putAll', 'putFirst', 'putLast'],
+    shrink: ['delete', 'remove', 'poll', 'cursorRemove'],
+    wipe: ['clear'],
+  })
+  const label = `sequenced map reference model seed ${options.seed}`
   for (let step = 0; step < options.steps; step++) {
-    const at = `sequenced map reference model seed ${options.seed} step ${step}`
-    const op = pick(random, ops)
-    const k = draw()
+    const op = phases.choose(random, ops)
+    const at = `${label} step ${step} op ${op}`
+    const drawn = draw()
+    const k = aimed(
+      phases.aim(random, op, () => records.map((r) => r.key)),
+      drawn,
+    )
     const v = integer(random, 0, 99)
     const viaView = random() < 0.3
     const target = viaView ? view : map
     switch (op) {
       case 'set':
-        expect(target.set(k, v), at).toBe(target)
+        is(target.set(k, v), target, at)
         write(k, v, viaView)
         break
       case 'put':
-        expect(target.put(k, v), at).toBe(write(k, v, viaView))
+        is(target.put(k, v), write(k, v, viaView), at)
         break
       case 'get':
-        expect(target.get(k), at).toBe(read(k))
+        is(target.get(k), read(k), at)
         break
       case 'getOrDefault': {
         const value = read(k)
-        expect(target.getOrDefault(k, -1), at).toBe(value === undefined ? -1 : value)
+        is(target.getOrDefault(k, -1), value === undefined ? -1 : value, at)
         break
       }
       case 'has':
-        expect(target.has(k), at).toBe(indexOf(k) >= 0)
+        is(target.has(k), indexOf(k) >= 0, at)
         break
       case 'keySetHas':
-        expect(target.keySet().has(k), at).toBe(indexOf(k) >= 0)
+        is(target.keySet().has(k), indexOf(k) >= 0, at)
         break
       case 'delete':
-        expect(target.delete(k), at).toBe(removeKey(k) !== undefined)
+        is(target.delete(k), removeKey(k) !== undefined, at)
         break
       case 'remove':
-        expect(target.remove(k), at).toBe(removeKey(k))
+        is(target.remove(k), removeKey(k), at)
         break
       case 'replace': {
         const present = indexOf(k) >= 0
-        expect(target.replace(k, v), at).toBe(present ? write(k, v, viaView) : undefined)
+        is(target.replace(k, v), present ? write(k, v, viaView) : undefined, at)
         break
       }
       case 'getOrInsert': {
         const value = read(k)
         if (value === undefined) insert(k, v, viaView)
-        expect(target.getOrInsert(k, v), at).toBe(value === undefined ? v : value)
+        is(target.getOrInsert(k, v), value === undefined ? v : value, at)
         break
       }
       case 'getOrInsertComputed': {
         const value = read(k)
         if (value === undefined) insert(k, v, viaView)
-        expect(
+        is(
           target.getOrInsertComputed(k, () => v),
+          value === undefined ? v : value,
           at,
-        ).toBe(value === undefined ? v : value)
+        )
         break
       }
       case 'compute':
@@ -1718,10 +2353,11 @@ export function runSequencedMapReferenceModel(options: {
           if (expected === undefined) records.splice(index, 1)
           else write(k, expected, viaView)
         }
-        expect(
+        is(
           op === 'compute' ? target.compute(k, fn) : target.computeIfPresent(k, fn as never),
+          expected,
           at,
-        ).toBe(expected)
+        )
         break
       }
       case 'merge': {
@@ -1734,7 +2370,7 @@ export function runSequencedMapReferenceModel(options: {
           if (expected === undefined) records.splice(index, 1)
           else write(k, expected, viaView)
         }
-        expect(target.merge(k, v, fn), at).toBe(expected)
+        is(target.merge(k, v, fn), expected, at)
         break
       }
       case 'putAll': {
@@ -1750,7 +2386,7 @@ export function runSequencedMapReferenceModel(options: {
       case 'putFirst':
       case 'putLast': {
         const ownFront = op === 'putFirst'
-        expect(ownFront ? target.putFirst(k, v) : target.putLast(k, v), at).toBe(target)
+        is(ownFront ? target.putFirst(k, v) : target.putLast(k, v), target, at)
         place(k, v, ownFront !== viaView)
         break
       }
@@ -1758,18 +2394,14 @@ export function runSequencedMapReferenceModel(options: {
         const fromBack = random() < 0.5
         const record = endOf(fromBack !== viaView)
         const entry = fromBack ? target.lastEntry() : target.firstEntry()
-        expect(pairOf(entry), at).toEqual(
-          record === undefined ? undefined : [record.key, record.value],
-        )
+        isEqual(pairOf(entry), record === undefined ? undefined : [record.key, record.value], at)
         break
       }
       case 'poll': {
         const fromBack = random() < 0.5
         const record = endOf(fromBack !== viaView)
         const entry = fromBack ? target.pollLastEntry() : target.pollFirstEntry()
-        expect(pairOf(entry), at).toEqual(
-          record === undefined ? undefined : [record.key, record.value],
-        )
+        isEqual(pairOf(entry), record === undefined ? undefined : [record.key, record.value], at)
         if (record !== undefined) records.splice(records.indexOf(record), 1)
         break
       }
@@ -1778,7 +2410,7 @@ export function runSequencedMapReferenceModel(options: {
         const entry = fromBack ? map.lastEntry() : map.firstEntry()
         const record = endOf(fromBack)
         if (entry === undefined || record === undefined) break
-        expect(entry.setValue(v), at).toBe(record.value)
+        is(entry.setValue(v), record.value, at)
         record.value = v
         break
       }
@@ -1829,16 +2461,19 @@ export function runSequencedMapReferenceModel(options: {
           model: open(fromBack),
           read: readOf,
         })
+        cap(iterations, tuning?.maxOpen)
         break
       }
       case 'step': {
         if (iterations.length === 0) break
         const it = pick(random, iterations)
         const expected = advance(it.model)
-        expect(it.ours.next(), at).toEqual(
+        isEqual(
+          it.ours.next(),
           expected === 'done'
             ? { done: true, value: undefined }
             : { done: false, value: it.read(expected) },
+          at,
         )
         break
       }
@@ -1850,6 +2485,7 @@ export function runSequencedMapReferenceModel(options: {
           looked: undefined,
           last: undefined,
         })
+        cap(cursors, tuning?.maxOpen)
         break
       }
       case 'look': {
@@ -1859,7 +2495,7 @@ export function runSequencedMapReferenceModel(options: {
           const found = advance(cur.model)
           cur.looked = found === 'done' ? 'done' : { key: found.key }
         }
-        expect(cur.ours.hasNext(), at).toBe(cur.looked !== 'done')
+        is(cur.ours.hasNext(), cur.looked !== 'done', at)
         break
       }
       case 'next': {
@@ -1872,7 +2508,7 @@ export function runSequencedMapReferenceModel(options: {
         if (cur.looked === 'done') {
           expect(() => cur.ours.next(), at).toThrow(NoSuchElementError)
         } else {
-          expect(cur.ours.next(), at).toBe(cur.looked.key)
+          is(cur.ours.next(), cur.looked.key, at)
           cur.last = cur.looked
           cur.looked = undefined
         }
@@ -1888,10 +2524,24 @@ export function runSequencedMapReferenceModel(options: {
         break
       }
     }
-    const expected = records.map((r) => [r.key, r.value])
-    expect(map.toJSON(), at).toEqual(expected)
-    expect(view.toJSON(), at).toEqual(expected.slice().reverse())
-    expect(map.size, at).toBe(records.length)
-    expect(reported, at).toEqual(evicted)
+    is(map.size, records.length, at)
+    if (tuning?.checkEvery === undefined) {
+      const expected = records.map((r) => [r.key, r.value])
+      isEqual(map.toJSON(), expected, at)
+      isEqual(view.toJSON(), expected.slice().reverse(), at)
+      isEqual(reported, evicted, at)
+    } else {
+      is(reported.length, evicted.length, `${at}: evictions reported`)
+      if (fullCheck(tuning, step, options.steps)) {
+        const expected = records.map((r) => [r.key, r.value])
+        expectSameSequence(map.toJSON(), expected, at)
+        expectSameSequence(view.toJSON(), expected.reverse(), at)
+        expectSameSequence(reported, evicted, `${at}: evictions`)
+        reported.length = 0
+        evicted.length = 0
+      }
+    }
+    phases.after(records.length)
   }
+  phases.finish(label)
 }

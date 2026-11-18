@@ -14,6 +14,8 @@ in browsers, on edge runtimes and in React Native.
 | **Targeted**     | Current Chrome, Firefox and Safari, and browsers back to Chrome 51, Firefox 45, Safari 10 · React Native (Hermes) · Cloudflare Workers, Vercel Edge and other edge runtimes · Electron · web workers · TypeScript 4.7–4.9 (best effort) | Every built file is verified to be ES2015 and free of platform APIs; dedicated tests for these environments are added before `1.0.0`                                                                                                       |
 | **Unsupported**  | ES5-only engines (Internet Explorer 11, very old smart TVs) · AMD/UMD loaders · TypeScript before 4.7                                                                                                                                   | Transpiling the package with Babel and core-js may work but is not tested                                                                                                                                                                  |
 
+What each kind of test covers, and what is not tested, is in [how this library is tested](testing.md).
+
 ## Ways to load it
 
 ```js
