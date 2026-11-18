@@ -1030,3 +1030,29 @@ describe('unmodifiable views across two copies', () => {
     expect(set.equals(view)).toBe(true)
   })
 })
+
+describe('algorithms across two copies', () => {
+  type Namespace = Record<string, unknown>
+
+  async function load(): Promise<[Namespace, Namespace]> {
+    const a = { ...(await import('../src/index')) } as Namespace
+    vi.resetModules()
+    const b = { ...(await import('../src/index')) } as Namespace
+    return [a, b]
+  }
+
+  it("work on the other copy's lists and sets [020 S4-AC1] [020 S4-AC2]", async () => {
+    const [a, b] = await load()
+    const list = new (b.ArrayList as new (e: unknown[]) => { toArray(): unknown[] })([1, 3, 5])
+    expect((a.binarySearch as (l: unknown, k: unknown) => number)(list, 3)).toBe(1)
+    ;(a.reverse as (l: unknown) => void)(list)
+    expect(list.toArray()).toEqual([5, 3, 1])
+    const keyed = new (b.HashSet as new (e: unknown[], o: unknown) => unknown)(['A'], {
+      key: (s: string) => s.toLowerCase(),
+    })
+    expect((a.disjoint as (x: unknown, y: unknown) => boolean)(['a'], keyed)).toBe(false)
+    expect(() =>
+      (a.reverse as (l: unknown) => void)(new (b.ArrayDeque as new () => unknown)()),
+    ).toThrow(TypeError)
+  })
+})

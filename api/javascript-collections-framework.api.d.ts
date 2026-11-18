@@ -942,6 +942,7 @@ declare class UnsupportedOperationError extends TypeError {
     static [Symbol.hasInstance](value: unknown): boolean;
 }
 declare function asList<E>(array: E[]): List<E>;
+declare function binarySearch<E>(list: ReadonlyList<E>, key: E, comparator?: Comparator<E>): number;
 declare const compareSymbol: unique symbol;
 declare function comparing<T, U>(key: (value: T) => U, comparator?: Comparator<U>): Comparator<T>;
 declare function copyOfList<E>(elements: Iterable<E>): ReadonlyList<E>;
@@ -950,10 +951,14 @@ declare function copyOfMap<K, V>(entries: Iterable<readonly [
     V
 ] | MapEntry<K, V>>, options?: HashMapOptions<K> | null): ReadonlyMapCollection<K, V>;
 declare function copyOfSet<E>(elements: Iterable<E>, options?: HashSetOptions<E> | null): ReadonlySetCollection<E>;
+declare function disjoint(a: Iterable<unknown>, b: Iterable<unknown>): boolean;
 declare function equals(a: unknown, b: unknown): boolean;
 declare const equalsSymbol: unique symbol;
+declare function fill<E>(list: List<E>, element: E): void;
+declare function frequency(elements: Iterable<unknown>, element: unknown): number;
 declare function hashCode(value: unknown): number;
 declare const hashCodeSymbol: unique symbol;
+declare function indexOfSubList(source: ReadonlyList<unknown>, target: ReadonlyList<unknown>): number;
 declare function isCollection(value: unknown): value is ReadonlyCollection<unknown>;
 declare function isDeque(value: unknown): value is ReadonlyDeque<unknown>;
 declare function isList(value: unknown): value is ReadonlyList<unknown>;
@@ -963,18 +968,26 @@ declare function isSequencedCollection(value: unknown): value is ReadonlySequenc
 declare function isSetCollection(value: unknown): value is ReadonlySetCollection<unknown>;
 declare function isSortedMap(value: unknown): value is ReadonlySortedMap<unknown, unknown>;
 declare function isSortedSet(value: unknown): value is ReadonlySortedSet<unknown>;
+declare function lastIndexOfSubList(source: ReadonlyList<unknown>, target: ReadonlyList<unknown>): number;
 declare function listOf<E>(...elements: E[]): ReadonlyList<E>;
 declare function mapOf<K, V>(...entries: Array<readonly [
     K,
     V
 ] | MapEntry<K, V>>): ReadonlyMapCollection<K, V>;
+declare function max<E>(elements: Iterable<E>, comparator?: Comparator<E>): E | undefined;
+declare function min<E>(elements: Iterable<E>, comparator?: Comparator<E>): E | undefined;
 declare function naturalOrder<T>(): Comparator<T>;
 declare function newSetFromMap<E>(map: MapCollection<E, boolean>): SetCollection<E>;
 declare function nullsFirst<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
 declare function nullsLast<T>(comparator?: Comparator<T>): Comparator<T | null | undefined>;
+declare function reverse(list: List<unknown>): void;
 declare function reverseOrder<T>(comparator?: Comparator<T>): Comparator<T>;
+declare function rotate(list: List<unknown>, distance: number): void;
 declare const sameValueZeroEquivalence: Equivalence<unknown>;
 declare function setOf<E>(...elements: E[]): ReadonlySetCollection<E>;
+declare function shuffle(list: List<unknown>, random?: () => number): void;
+declare function sortedIndex<E>(list: ReadonlyList<E>, key: E, comparator?: Comparator<E>): number;
+declare function swap(list: List<unknown>, i: number, j: number): void;
 declare function thenComparing<T>(first: Comparator<T>, ...next: Comparator<T>[]): Comparator<T>;
 declare function unmodifiableCollection<E>(collection: ReadonlyCollection<E>): ReadonlyCollection<E>;
 declare function unmodifiableList<E>(list: ReadonlyList<E>): ReadonlyList<E>;
@@ -986,5 +999,5 @@ declare function unmodifiableSet<E>(set: ReadonlySetCollection<E>): ReadonlySetC
 declare function unmodifiableSortedMap<K, V>(map: ReadonlySortedMap<K, V>): ReadonlySortedMap<K, V>;
 declare function unmodifiableSortedSet<E>(set: ReadonlySortedSet<E>): ReadonlySortedSet<E>;
 declare const valueEquivalence: Equivalence<unknown>;
-export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashMap, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, asList, compareSymbol, comparing, copyOfList, copyOfMap, copyOfSet, equals, equalsSymbol, hashCode, hashCodeSymbol, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, listOf, mapOf, naturalOrder, newSetFromMap, nullsFirst, nullsLast, reverseOrder, sameValueZeroEquivalence, setOf, thenComparing, unmodifiableCollection, unmodifiableList, unmodifiableMap, unmodifiableSequencedCollection, unmodifiableSequencedMap, unmodifiableSequencedSet, unmodifiableSet, unmodifiableSortedMap, unmodifiableSortedSet, valueEquivalence };
+export { ArrayDeque, ArrayList, ClassCastError, ConcurrentModificationError, HashMap, HashSet, IllegalArgumentError, IllegalStateError, IndexOutOfBoundsError, LinkedHashMap, LinkedHashSet, LinkedList, NoSuchElementError, NullElementError, PriorityQueue, TreeMap, TreeSet, UnsupportedOperationError, asList, binarySearch, compareSymbol, comparing, copyOfList, copyOfMap, copyOfSet, disjoint, equals, equalsSymbol, fill, frequency, hashCode, hashCodeSymbol, indexOfSubList, isCollection, isDeque, isList, isMapCollection, isQueue, isSequencedCollection, isSetCollection, isSortedMap, isSortedSet, lastIndexOfSubList, listOf, mapOf, max, min, naturalOrder, newSetFromMap, nullsFirst, nullsLast, reverse, reverseOrder, rotate, sameValueZeroEquivalence, setOf, shuffle, sortedIndex, swap, thenComparing, unmodifiableCollection, unmodifiableList, unmodifiableMap, unmodifiableSequencedCollection, unmodifiableSequencedMap, unmodifiableSequencedSet, unmodifiableSet, unmodifiableSortedMap, unmodifiableSortedSet, valueEquivalence };
 export type { BoundOptions, Collection, Comparable, Comparator, Cursor, Deque, Equatable, Equivalence, HashFunction, HashMapOptions, HashSetOptions, KeyOf, LinkedHashMapOptions, LinkedHashSetOptions, LinkedListNode, List, ListCursor, MapCollection, MapEntry, PriorityQueueOptions, Queue, ReadonlyCollection, ReadonlyDeque, ReadonlyList, ReadonlyMapCollection, ReadonlyQueue, ReadonlySequencedCollection, ReadonlySequencedMap, ReadonlySequencedSet, ReadonlySetCollection, ReadonlySortedMap, ReadonlySortedSet, SequencedCollection, SequencedMap, SequencedSet, SetCollection, SortedMap, SortedSet, SubSetOptions, TreeMapOptions, TreeSetOptions };

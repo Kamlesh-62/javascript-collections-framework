@@ -36,6 +36,22 @@ export {
   NullElementError,
   UnsupportedOperationError,
 } from './errors/errors'
+// Algorithms
+export {
+  binarySearch,
+  disjoint,
+  fill,
+  frequency,
+  indexOfSubList,
+  lastIndexOfSubList,
+  max,
+  min,
+  reverse,
+  rotate,
+  shuffle,
+  sortedIndex,
+  swap,
+} from './functions/algorithms'
 // Comparators
 export type { Comparable, Comparator } from './functions/comparators'
 export {

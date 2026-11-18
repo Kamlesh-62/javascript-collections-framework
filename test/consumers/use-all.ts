@@ -49,6 +49,7 @@ import {
   ArrayDeque,
   ArrayList,
   asList,
+  binarySearch,
   ClassCastError,
   ConcurrentModificationError,
   compareSymbol,
@@ -56,8 +57,11 @@ import {
   copyOfList,
   copyOfMap,
   copyOfSet,
+  disjoint,
   equals,
   equalsSymbol,
+  fill,
+  frequency,
   HashMap,
   HashSet,
   hashCode,
@@ -65,6 +69,7 @@ import {
   IllegalArgumentError,
   IllegalStateError,
   IndexOutOfBoundsError,
+  indexOfSubList,
   isCollection,
   isDeque,
   isList,
@@ -77,8 +82,11 @@ import {
   LinkedHashMap,
   LinkedHashSet,
   LinkedList,
+  lastIndexOfSubList,
   listOf,
   mapOf,
+  max,
+  min,
   NoSuchElementError,
   NullElementError,
   naturalOrder,
@@ -86,9 +94,14 @@ import {
   nullsFirst,
   nullsLast,
   PriorityQueue,
+  reverse,
   reverseOrder,
+  rotate,
   sameValueZeroEquivalence,
   setOf,
+  shuffle,
+  sortedIndex,
+  swap,
   TreeMap,
   TreeSet,
   thenComparing,
@@ -356,3 +369,16 @@ export const readOnlyLevels: ReadonlySortedMap<number, string> = unmodifiableSor
 )
 const scores = [3, 1, 2]
 export const scoreList: List<number> = asList(scores)
+export const found: number = binarySearch(scoreList, 2)
+export const insertAt: number = sortedIndex(scoreList, 2, (a, b) => a - b)
+reverse(scoreList)
+rotate(scoreList, 1)
+shuffle(scoreList, () => 0.5)
+swap(scoreList, 0, 1)
+fill(new ArrayList([0]), 1)
+export const smallest: number | undefined = min(scoreList)
+export const largest: number | undefined = max(scoreList, (a, b) => a - b)
+export const twos: number = frequency(scoreList, 2)
+export const apart: boolean = disjoint(scoreList, [9])
+export const at: number = indexOfSubList(scoreList, scoreList)
+export const lastAt: number = lastIndexOfSubList(scoreList, scoreList)

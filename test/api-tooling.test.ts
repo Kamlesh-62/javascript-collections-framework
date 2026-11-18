@@ -567,7 +567,7 @@ describe('published shape of the lists', () => {
     expect(report).toContain('declare class ArrayList<E> implements List<E>')
     expect(report).not.toMatch(/\bprotected\b/)
     expect(report).not.toMatch(
-      /AbstractList|AbstractCollection|ArrayListEngine|SubList|ReversedList/,
+      /AbstractList|AbstractCollection|ArrayListEngine|\bSubList\b|\bReversedList\b/,
     )
     const start = report.indexOf('declare class ArrayList')
     const classBody = report.slice(start, report.indexOf('\n}', start))
@@ -949,6 +949,44 @@ describe('published shape of unmodifiable views and asList', () => {
       'unmodifiableSortedMap',
       'unmodifiableCollection',
     ]) {
+      expect(report.entries.find((e) => e.name === name)?.gzip, name).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('published shape of the algorithms', () => {
+  const root = new URL('..', import.meta.url)
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
+
+  it('the API report shows thirteen functions [020 S4-AC1]', () => {
+    const report = read('api/javascript-collections-framework.api.d.ts')
+    for (const name of [
+      'binarySearch',
+      'sortedIndex',
+      'reverse',
+      'rotate',
+      'shuffle',
+      'swap',
+      'fill',
+      'min',
+      'max',
+      'frequency',
+      'disjoint',
+      'indexOfSubList',
+      'lastIndexOfSubList',
+    ]) {
+      expect(report, name).toMatch(new RegExp(`declare function ${name}[<(]`))
+    }
+    expect(report).toContain(
+      'declare function min<E>(elements: Iterable<E>, comparator?: Comparator<E>): E | undefined;',
+    )
+  })
+
+  it('the size report records each algorithm imported alone', () => {
+    const report = JSON.parse(read('api/javascript-collections-framework.size.json')) as {
+      entries: Array<{ name: string; gzip: number }>
+    }
+    for (const name of ['binarySearch', 'shuffle', 'min', 'disjoint']) {
       expect(report.entries.find((e) => e.name === name)?.gzip, name).toBeGreaterThan(0)
     }
   })

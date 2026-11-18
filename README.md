@@ -52,6 +52,7 @@ Or without a build step:
 | Immutable         | [`listOf`, `setOf`, `mapOf`, `copyOfList`, `copyOfSet`, `copyOfMap`](docs/immutable.md)                          |
 | Read-only views   | [`unmodifiableList`, `unmodifiableSet`, `unmodifiableMap` and six more](docs/unmodifiable.md)                    |
 | Lists over arrays | [`asList`](docs/unmodifiable.md#aslist-a-list-over-an-array)                                                     |
+| Algorithms        | [`binarySearch`, `sortedIndex`, `rotate`, `shuffle`, `min`, `max` and seven more](docs/algorithms.md)            |
 
 ## Planned collections
 
