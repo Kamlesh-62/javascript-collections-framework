@@ -17,7 +17,8 @@ list.get(5) // throws IndexOutOfBoundsError
 `delete`, `forEach`, iteration, cursors, `revision`, `equals`, printing and JSON. For a list that
 cannot change, see [immutable lists](immutable.md) (`listOf`, `copyOfList`); for a read-only view of
 a list that keeps changing, or a list over an existing array, see
-[unmodifiable views and `asList`](unmodifiable.md).
+[unmodifiable views and `asList`](unmodifiable.md). To search, rotate or shuffle any list,
+see [algorithms](algorithms.md).
 
 ## Creating a list
 

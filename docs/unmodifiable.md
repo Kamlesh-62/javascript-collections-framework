@@ -124,6 +124,9 @@ returns a new, independent list.
   a write fail part-way and leave elements shifted.
 - **Holes** read as `undefined`. A write may turn holes into stored `undefined` elements.
 
+To search a sorted array in O(log n), wrap it: `binarySearch(asList(array), key)` (see
+[algorithms](algorithms.md)).
+
 ### Differences from the array's own methods
 
 | `Array`                                                   | `asList(array)`                                                                                                                         |
