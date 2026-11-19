@@ -510,14 +510,16 @@ let previous: ts.Program | undefined
 
 export function typeCheck(pages: ReadonlyMap<string, BuiltPage>): Map<string, PageTypeError[]> {
   const files = new Map<string, string>()
-  const fileOf = (page: string) => join(ROOT, `${page}.example.ts`)
+  // TypeScript names files with forward slashes on every platform, so the in-memory files do too.
+  const posix = (fileName: string) => fileName.replace(/\\/g, '/')
+  const fileOf = (page: string) => posix(join(ROOT, `${page}.example.ts`))
   for (const [page, built] of pages) files.set(fileOf(page), built.typeSource)
   const host = ts.createCompilerHost(EXAMPLE_OPTIONS)
   const getSourceFile = host.getSourceFile.bind(host)
   const fileExists = host.fileExists.bind(host)
   const readFile = host.readFile.bind(host)
   host.getSourceFile = (fileName, language, onError, create) => {
-    const text = files.get(fileName)
+    const text = files.get(posix(fileName))
     if (text !== undefined)
       return ts.createSourceFile(fileName, text, language, true, ts.ScriptKind.TS)
     let file = parsed.get(fileName)
@@ -527,8 +529,8 @@ export function typeCheck(pages: ReadonlyMap<string, BuiltPage>): Map<string, Pa
     }
     return file
   }
-  host.fileExists = (fileName) => files.has(fileName) || fileExists(fileName)
-  host.readFile = (fileName) => files.get(fileName) ?? readFile(fileName)
+  host.fileExists = (fileName) => files.has(posix(fileName)) || fileExists(fileName)
+  host.readFile = (fileName) => files.get(posix(fileName)) ?? readFile(fileName)
   const program = ts.createProgram([...files.keys()], EXAMPLE_OPTIONS, host, previous)
   previous = program
   const out = new Map<string, PageTypeError[]>()
