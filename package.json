@@ -1,6 +1,6 @@
 {
   "name": "javascript-collections-framework",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and deques with shared interfaces, sorted and navigable collections, and documented complexity.",
   "keywords": [
     "collections",
