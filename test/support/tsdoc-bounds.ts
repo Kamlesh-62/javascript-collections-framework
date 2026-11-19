@@ -1,6 +1,6 @@
-// Reads the `Time:` paragraph of every documented member exported from `src/index.ts`, with the
-// TypeScript compiler API: classes (static and instance members), functions and consts. Aliases
-// are resolved and overloads merged, so each member appears once.
+// Reads the `Time:` paragraph of every documented member exported from `src/index.ts`, and the list
+// of runtime exports, with the TypeScript compiler API: classes (static and instance members),
+// functions and consts. Aliases are resolved and overloads merged, so each member appears once.
 
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -62,8 +62,11 @@ function record(out: Map<string, string | undefined>, key: string, time: string 
   if (!out.has(key) || (out.get(key) === undefined && time !== undefined)) out.set(key, time)
 }
 
-/** Every documented member exported from `src/index.ts`, sorted by name. */
-export function readDocumentedBounds(): DocumentedBound[] {
+/** The type checker and the resolved exports of `src/index.ts`. */
+function readEntry(): {
+  checker: ts.TypeChecker
+  exports: Array<{ name: string; symbol: ts.Symbol }>
+} {
   const program = ts.createProgram([ENTRY], {
     target: ts.ScriptTarget.ES2016,
     module: ts.ModuleKind.ESNext,
@@ -76,11 +79,34 @@ export function readDocumentedBounds(): DocumentedBound[] {
   if (entry === undefined) throw new Error(`tsdoc-bounds: cannot read ${ENTRY}`)
   const moduleSymbol = checker.getSymbolAtLocation(entry)
   if (moduleSymbol === undefined) throw new Error('tsdoc-bounds: src/index.ts is not a module')
+  const exports = checker.getExportsOfModule(moduleSymbol).map((exported) => ({
+    name: exported.getName(),
+    symbol: exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported,
+  }))
+  return { checker, exports }
+}
+
+/** What a runtime export of `src/index.ts` is. */
+export type ExportKind = 'class' | 'function' | 'const'
+
+/** Every export of `src/index.ts` that exists at runtime (types left out), sorted by name. */
+export function readRuntimeExports(): Array<{ readonly name: string; readonly kind: ExportKind }> {
+  const out: Array<{ name: string; kind: ExportKind }> = []
+  for (const { name, symbol } of readEntry().exports) {
+    const declaration = symbol.getDeclarations()?.[0]
+    if (declaration === undefined) continue
+    if (ts.isClassDeclaration(declaration)) out.push({ name, kind: 'class' })
+    else if (ts.isFunctionDeclaration(declaration)) out.push({ name, kind: 'function' })
+    else if (ts.isVariableDeclaration(declaration)) out.push({ name, kind: 'const' })
+  }
+  return out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+}
+
+/** Every documented member exported from `src/index.ts`, sorted by name. */
+export function readDocumentedBounds(): DocumentedBound[] {
+  const { exports } = readEntry()
   const out = new Map<string, string | undefined>()
-  for (const exported of checker.getExportsOfModule(moduleSymbol)) {
-    const symbol =
-      exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
-    const name = exported.getName()
+  for (const { name, symbol } of exports) {
     for (const declaration of symbol.getDeclarations() ?? []) {
       if (ts.isClassDeclaration(declaration)) {
         const source = declaration.getSourceFile()

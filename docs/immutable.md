@@ -52,7 +52,9 @@ The sets and maps are built by the rules of `new Set` and `new Map`:
 | `['a', 1], ['a', 2]`                          | `'a'` first, value `2`    | `'a'` first, value `2`    |
 | `null`, `undefined` as elements, keys, values | stored                    | stored                    |
 
-A repeated key keeps its first position and its first key object and takes its last value.
+A repeated key keeps its first position and its first key object and takes its last value. Keys
+named after built-in properties, such as `'__proto__'` and `'constructor'`, are ordinary keys, so
+`copyOfMap(Object.entries(JSON.parse(text)))` keeps every one of them.
 
 ## Value-keyed copies
 
@@ -72,6 +74,9 @@ points.get({ x: 0, y: 0 }) // 'origin'
 The options are checked before the source is read, and the whole source is read before the first
 `key`, `equals` or `hash` call. A callback that changes the source therefore cannot change the
 result, or make the copy run without end.
+
+Options are read as native option objects are: an option inherited from the options object's
+prototype counts as given.
 
 ## What "immutable" covers
 

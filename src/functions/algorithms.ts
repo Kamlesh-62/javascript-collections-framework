@@ -287,10 +287,10 @@ export function rotate(list: List<unknown>, distance: number): void {
 
 /**
  * Puts the elements of `list` in a random order, in place, using the Fisher–Yates method: every
- * permutation is equally likely when `random` is uniform. `random` is called `size − 1` times and
- * must return a number in `[0, 1)`; pass a seeded generator for a repeatable order. The default,
- * `Math.random`, is not cryptographically secure. Elements are written with `set`, so open
- * iterators and cursors stay valid.
+ * permutation is equally likely when `random` is uniform. `random` is called max(size − 1, 0)
+ * times and must return a number in `[0, 1)`; pass a seeded generator for a repeatable order. The
+ * default, `Math.random`, is not cryptographically secure. Elements are written with `set`, so
+ * open iterators and cursors stay valid.
  *
  * Time: O(n).
  *
@@ -301,6 +301,7 @@ export function rotate(list: List<unknown>, distance: number): void {
  * @throws IllegalArgumentError when `random` returns `NaN` or a value outside `[0, 1)`; the swaps
  *   made before stay.
  * @throws ConcurrentModificationError when `random` changes the list.
+ * @throws Error whatever `random` throws; the swaps made before stay.
  *
  * @example
  * ```ts

@@ -503,6 +503,8 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    *   `equals` or `hash` function returns an invalid result.
    * @throws ConcurrentModificationError when a `key`, `equals` or `hash` function adds or removes
    *   mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -527,6 +529,8 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    *   an invalid result.
    * @throws ConcurrentModificationError when `fn` adds or removes mappings; its changes stay and
    *   the call makes none of its own.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -553,6 +557,8 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    * @throws TypeError when `fn` is not a function, or a `key`, `equals` or `hash` function returns
    *   an invalid result.
    * @throws ConcurrentModificationError when `fn` adds or removes mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -580,6 +586,8 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    * @throws TypeError when `fn` is not a function, or a `key`, `equals` or `hash` function returns
    *   an invalid result.
    * @throws ConcurrentModificationError when `fn` adds or removes mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts

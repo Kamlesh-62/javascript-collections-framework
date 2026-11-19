@@ -35,9 +35,9 @@ with few hashes, views, access order, `maxSize`). Each run grows its collection 
 and shrinks it below a low mark again and again, so tables resize and trees rebalance while
 iterators and cursors are held open.
 
-**The built package.** The scale suites, the deep random runs and the worst-case suites run a
-second and third time against the built files, `dist/index.js` (ESM) and `dist/index.cjs`
-(CommonJS), loaded without a transform: the code that is published.
+**The built package.** The scale suites, the deep random runs, the worst-case suites and the
+realistic workloads run a second and third time against the built files, `dist/index.js` (ESM)
+and `dist/index.cjs` (CommonJS), loaded without a transform: the code that is published.
 
 **Two loaded copies.** The ESM and CommonJS builds are loaded together in one process, as two
 copies of the package, and their collections are mixed: `equals` both ways, `addAll`, the
@@ -191,6 +191,75 @@ reason; among them are the members that call no user code, whose work no counter
   - Functions and constants: `comparing`, `equals`, `hashCode`, `isCollection`, `isDeque`, `isList`, `isMapCollection`, `isQueue`, `isSequencedCollection`, `isSetCollection`, `isSortedMap`, `isSortedSet`, `naturalOrder`, `nullsFirst`, `nullsLast`, `reverseOrder`, `sameValueZeroEquivalence`, `thenComparing`
 <!-- unchecked:end -->
 
+## Realistic workloads
+
+Each workload in `test/scenarios/` runs on seeded data shaped like real use and is compared with a
+plain reference. `pnpm test` runs every workload at small sizes; the stress suites run them at full
+size against the source and both builds.
+
+**Word counting.** A multilingual text (Latin, Cyrillic and CJK letters, emoji outside the Basic
+Multilingual Plane, combining marks) is split on spaces and counted with a `HashMap` and a
+`TreeMap`. The counts, the insertion order, the sorted order (by code unit, as
+`Array.prototype.sort` without a comparator), `min`, `max`, `frequency` and `sortedIndex` must match
+a native `Map`. No case folding or normalisation is applied, so a precomposed and a decomposed form
+are different words.
+
+**A least-recently-used cache.** A `LinkedHashMap` with `accessOrder` and `maxSize` replays an
+access trace in which a few keys are far more frequent than the rest. The hits, the misses and the
+keys `onEvict` reports must match a reference cache after every call, and `has` must never change
+which key goes next.
+
+**An event log.** Events with shared timestamps are grouped through `getOrInsertComputed` in two
+`TreeMap`s, one keyed by milliseconds and one by `Date`. Range views with every combination of
+bounds, and the nearest-match queries, must match a sorted array; equal dates are one key, the
+first `Date` object kept.
+
+**A scheduler.** A `PriorityQueue` ordered by time and then by sequence number dispatches events
+with ties while events are re-scheduled, in the order of a sorted reference.
+
+**Records with their own equality.** Records implementing `equalsSymbol` and `hashCodeSymbol`, with
+nested lists and maps, are de-duplicated in a `HashSet` with `valueEquivalence`, grouped in a
+`HashMap`, written with `JSON.stringify`, revived and rebuilt with `from`. The result must equal the
+original and a reference keyed by each record's canonical JSON.
+
+**Windows, searching and shuffling.** A sliding window over a stream is kept in an `ArrayDeque` and
+in a `LinkedList` through node handles. A large sorted array with duplicates is searched through
+`asList` with `binarySearch` and `sortedIndex`, then rotated and reversed. `shuffle` must give a
+permutation, call `random` once per element after the first, and repeat its order for the same
+seed, through `asList` and on an `ArrayList`.
+
+All data comes from seeded generators in `test/support/data/`. The access trace is drawn with
+integer weights and no locale data is used, so every engine sees the same data.
+
+## Unusual and hostile values
+
+One table in `test/support/hostile-values.ts` lists unusual values and the result every collection
+must give for each: `NaN`, `-0`, `null`, `undefined`, symbols, bigints, functions, a very long
+string, lone surrogates, frozen and sealed objects, an object without a prototype, a `Proxy` and a
+revoked `Proxy`, strings named after built-in properties (`'__proto__'`, `'constructor'`,
+`'prototype'`, `'hasOwnProperty'`), objects whose protocol keys, `toString`, `Symbol.toPrimitive` or
+`toJSON` are getters that throw, and objects whose `equalsSymbol` or `hashCodeSymbol` throws or
+returns a bad value.
+
+**Families.** Every exported class and factory, and every collection a member returns, belongs to
+one family by how it treats values: lists, linked lists, array deques, priority queues in natural
+order or with a comparator, hash sets and maps by default, with `key` or with an equivalence, and
+sorted sets and maps in natural order or with a comparator. Immutable collections and unmodifiable
+views follow their source and refuse every change. A test reads the package's exports with the
+TypeScript compiler and fails when one has no family.
+
+**The table.** Each value goes into every member of its family as an element or key and as a map
+value, alone and next to numbers and next to strings. Whether it is accepted or which error is
+thrown, what `has` answers for it and for every other value, its printed and JSON forms, `equals`
+and `hashCode` must all match the table, and `valueOf` is never called.
+
+**Bad input and callbacks.** Map constructors, `from`, `putAll`, `mapOf` and `copyOfMap` must
+reject items that are not pairs, and all but `mapOf` input that is not iterable, with a `TypeError`
+naming the call, and `putAll` must leave the map and its `revision` unchanged. Keys named after
+built-in properties are read from `JSON.parse` and written back. Options inherited from a
+prototype are read. Every kind of user callback is made to throw, and to change the collection
+while it runs; the error, what stays and the contents afterwards are checked against a reference.
+
 ## Long-running use
 
 These checks read the collections' internal storage, so they run against the source only.
@@ -212,36 +281,48 @@ held since it was last cleared, and to release it on `clear()`, also when it is 
 ## Counts
 
 <!-- counts:start -->
-| What                                                                 |            Count |
-| -------------------------------------------------------------------- | ---------------: |
-| Elements in each scale, view and output test                         |        1,000,000 |
-| Lookups, end removals and near-end cursor removals per class (scale) |           10,000 |
-| Lookups per class where one lookup walks the collection (scale)      |              100 |
-| Nesting depth that prints, writes JSON, compares and hashes          |              400 |
-| Nesting depth that throws `RangeError`                               |          100,000 |
-| Deep random runs (model, collection and options)                     |               44 |
-| Seeds × steps per deep random run                                    |     20 × 100,000 |
-| Steps between full-contents comparisons (deep runs)                  |            1,000 |
-| Iterators and cursors held open at once (deep runs)                  |                8 |
-| Seeds × steps per run in the fast subset                             |        2 × 2,000 |
-| Elements per collection with both builds loaded                      |          100,000 |
-| Elements in each worst-case input shape                              |          100,000 |
-| Distinct values whose hashes all collide                             |            2,000 |
-| Elements in the target of a sub-list search (worst case)             |              100 |
-| Sizes at which the growth of each bound is counted                   | 1,000 and 10,000 |
-| Operations per inconsistent comparator                               |            2,000 |
-| Depth of each chain of nested views                                  |           10,000 |
-| Unmodifiable-view functions applied in turn                          |           10,000 |
-| Grow-and-drain cycles per class (long-running)                       |               20 |
-| Size each cycle grows to (long-running)                              |          100,000 |
-| Small collections created per class (long-running)                   |          100,000 |
-| Largest size of a small collection                                   |               10 |
-| Storage limit checked for each small collection (array slots)        |               16 |
-| Values in the hash-flooding check                                    |          100,000 |
-| Of those, values crafted to share one bucket                         |            2,000 |
-| Buckets the crafted values are aimed at                              |            4,096 |
-| Longest bucket chain allowed after flooding                          |               16 |
-| Nightly stress job timeout                                           |       60 minutes |
+| What                                                                     |             Count |
+| ------------------------------------------------------------------------ | ----------------: |
+| Elements in each scale, view and output test                             |         1,000,000 |
+| Lookups, end removals and near-end cursor removals per class (scale)     |            10,000 |
+| Lookups per class where one lookup walks the collection (scale)          |               100 |
+| Nesting depth that prints, writes JSON, compares and hashes              |               400 |
+| Nesting depth that throws `RangeError`                                   |           100,000 |
+| Deep random runs (model, collection and options)                         |                44 |
+| Seeds × steps per deep random run                                        |      20 × 100,000 |
+| Steps between full-contents comparisons (deep runs)                      |             1,000 |
+| Iterators and cursors held open at once (deep runs)                      |                 8 |
+| Seeds × steps per run in the fast subset                                 |         2 × 2,000 |
+| Elements per collection with both builds loaded                          |           100,000 |
+| Elements in each worst-case input shape                                  |           100,000 |
+| Distinct values whose hashes all collide                                 |             2,000 |
+| Elements in the target of a sub-list search (worst case)                 |               100 |
+| Sizes at which the growth of each bound is counted                       |  1,000 and 10,000 |
+| Operations per inconsistent comparator                                   |             2,000 |
+| Depth of each chain of nested views                                      |            10,000 |
+| Unmodifiable-view functions applied in turn                              |            10,000 |
+| Grow-and-drain cycles per class (long-running)                           |                20 |
+| Size each cycle grows to (long-running)                                  |           100,000 |
+| Small collections created per class (long-running)                       |           100,000 |
+| Largest size of a small collection                                       |                10 |
+| Storage limit checked for each small collection (array slots)            |                16 |
+| Values in the hash-flooding check                                        |           100,000 |
+| Of those, values crafted to share one bucket                             |             2,000 |
+| Buckets the crafted values are aimed at                                  |             4,096 |
+| Longest bucket chain allowed after flooding                              |                16 |
+| Seeds per realistic workload (unit tests / stress)                       |             3 / 3 |
+| Words in the multilingual text (unit tests / stress)                     | 2,000 / 1,000,000 |
+| Calls in the cache access trace (unit tests / stress)                    |   2,000 / 100,000 |
+| Cache size (unit tests / stress)                                         |          32 / 100 |
+| Events in the event log and the scheduler (unit tests / stress)          |     500 / 100,000 |
+| Records with their own equality (unit tests / stress)                    |      300 / 20,000 |
+| Values in the sliding-window stream (unit tests / stress)                |   1,000 / 100,000 |
+| Values in each sliding window (unit tests / stress)                      |           24 / 64 |
+| Elements in the sorted array searched and shuffled (unit tests / stress) |   1,000 / 100,000 |
+| Code units in the very long string (hostile values)                      |         1,048,576 |
+| Companions of each kind next to a hostile value                          |                 2 |
+| Bytes allowed in checked-in test data                                    |            65,536 |
+| Nightly stress job timeout                                               |        60 minutes |
 <!-- counts:end -->
 
 ## Running the tests
@@ -250,7 +331,7 @@ held since it was last cleared, and to release it on `clear()`, also when it is 
 pnpm test             # every suite on the source, including a fast subset of every deep random run
 pnpm test:coverage    # the same, with coverage thresholds
 pnpm build            # the stress suites need the built package
-pnpm test:stress      # scale, deep random runs, worst cases and two copies, on the source and both builds
+pnpm test:stress      # scale, deep random runs, worst cases, workloads and two copies, on the source and both builds
 ```
 
 The stress suites run as four projects: `src`, `esm`, `cjs` and `copies`. To run one project, one
@@ -287,8 +368,6 @@ replays each one.
 - **Engines and runtimes outside CI.** Browsers, React Native, edge runtimes and the other targeted
   environments in [compatibility](compatibility.md) are checked for syntax and platform APIs, not
   run.
-- **Workloads and hostile values.** Dedicated suites for realistic workloads and for hostile values
-  across every class are not part of these runs yet.
 
 ## Nightly runs
 

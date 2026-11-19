@@ -102,7 +102,8 @@ export class LinkedList<E> implements Deque<E> {
   static from<T>(elements: Iterable<T>): LinkedList<T>
   /**
    * Returns a new list of `mapFn(element, index)` for each element of `elements`, in order, with
-   * `this` set to `thisArg`, as `Array.from` does.
+   * `this` set to `thisArg`, as `Array.from` does. `elements` is read while `mapFn` runs, so
+   * items `mapFn` appends to an array source are included.
    *
    * Time: O(m) plus the calls.
    *
@@ -112,6 +113,7 @@ export class LinkedList<E> implements Deque<E> {
    * @returns A new list.
    * @throws TypeError when `mapFn` is not a function (checked first) or `elements` is not
    *   iterable.
+   * @throws Error whatever `mapFn` throws; no collection is returned.
    *
    * @example
    * ```ts

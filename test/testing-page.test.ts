@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as config from './stress/config'
 import { REASONS, renderUnchecked } from './support/complexity'
@@ -57,6 +57,9 @@ describe('the testing page', () => {
       ...Object.values(config.NIGHTLY),
       ...Object.values(config.WORST),
       ...Object.values(config.LONG),
+      ...Object.values(config.WORKLOADS.fast),
+      ...Object.values(config.WORKLOADS.full),
+      ...Object.values(config.HOSTILE),
       config.RUNS.length,
     ]
     // Single digits also appear in formulas and ordinary prose; every larger count must not.
@@ -107,5 +110,40 @@ describe('the testing page', () => {
     const notTested = page.slice(page.indexOf('## What is not tested'))
     expect(notTested).not.toMatch(/worst case/i)
     expect(notTested).toMatch(/garbage collection/)
+  })
+
+  it('describes the realistic workloads and the hostile values, and keeps the checked-in test data within its budget [035 S3-AC1]', () => {
+    expect(page).toContain('## Realistic workloads')
+    expect(page).toContain('## Unusual and hostile values')
+    for (const kind of [
+      'Word counting',
+      'A least-recently-used cache',
+      'An event log',
+      'A scheduler',
+      'Records with their own equality',
+      'Windows, searching and shuffling',
+      'Families',
+      'The table',
+      'Bad input and callbacks',
+    ]) {
+      expect(page, kind).toContain(`**${kind}.**`)
+    }
+    const notTested = page.slice(page.indexOf('## What is not tested'))
+    expect(notTested).not.toMatch(/workload|hostile/i)
+    const built = page.slice(
+      page.indexOf('**The built package.**'),
+      page.indexOf('**Two loaded copies.**'),
+    )
+    expect(built).toContain('realistic workloads')
+    const table = page.slice(page.indexOf(START), page.indexOf(END))
+    expect(table).toContain(
+      `${grouped(config.WORKLOADS.fast.words)} / ${grouped(config.WORKLOADS.full.words)}`,
+    )
+    expect(table).toContain(grouped(config.HOSTILE.longString))
+    const data = new URL('support/data/', import.meta.url)
+    let bytes = 0
+    for (const name of readdirSync(data)) bytes += statSync(new URL(name, data)).size
+    expect(bytes).toBeGreaterThan(0)
+    expect(bytes).toBeLessThanOrEqual(config.HOSTILE.dataBudget)
   })
 })

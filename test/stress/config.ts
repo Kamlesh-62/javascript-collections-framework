@@ -110,6 +110,64 @@ export const LONG = {
   maxChain: 16,
 } as const
 
+/** The sizes of one set of realistic workloads (`test/scenarios/`). */
+export interface WorkloadSizes {
+  /** Seeds each workload runs with. */
+  readonly seeds: number
+  /** Tokens in the multilingual text of the word count. */
+  readonly words: number
+  /** Calls in the access trace of the cache. */
+  readonly trace: number
+  /** The cache's `maxSize`. */
+  readonly cacheSize: number
+  /** Events in the event log and the scheduler. */
+  readonly events: number
+  /** Records de-duplicated, grouped and written as JSON. */
+  readonly records: number
+  /** Values in the stream of the sliding window. */
+  readonly stream: number
+  /** Values in each window. */
+  readonly window: number
+  /** Elements in the sorted array searched, and in the largest list shuffled. */
+  readonly sorted: number
+}
+
+/** The realistic workloads: `fast` in `pnpm test`, `full` in `pnpm test:stress`. */
+export const WORKLOADS: { readonly fast: WorkloadSizes; readonly full: WorkloadSizes } = {
+  fast: {
+    seeds: 3,
+    words: 2_000,
+    trace: 2_000,
+    cacheSize: 32,
+    events: 500,
+    records: 300,
+    stream: 1_000,
+    window: 24,
+    sorted: 1_000,
+  },
+  full: {
+    seeds: 3,
+    words: 1_000_000,
+    trace: 100_000,
+    cacheSize: 100,
+    events: 100_000,
+    records: 20_000,
+    stream: 100_000,
+    window: 64,
+    sorted: 100_000,
+  },
+} as const
+
+/** The table of unusual and hostile values. */
+export const HOSTILE = {
+  /** Code units in the very long string. */
+  longString: 1_048_576,
+  /** Companions of each kind stored next to a value. */
+  companions: 2,
+  /** Bytes allowed in all of `test/support/data/`. */
+  dataBudget: 65_536,
+} as const
+
 /** The nightly job. */
 export const NIGHTLY = {
   /** Stops a hung run; never a pass condition. */

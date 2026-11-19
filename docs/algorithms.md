@@ -90,8 +90,9 @@ fraction or an unsafe integer throws `IllegalArgumentError`.
 ## Shuffling
 
 `shuffle` uses the Fisher–Yates method: with a uniform `random`, every permutation is equally
-likely. It calls `random` exactly `size − 1` times, each time expecting a number in `[0, 1)`. Pass a
-seeded generator to get the same order every time:
+likely. It calls `random` once per element after the first, max(size − 1, 0) times, each time
+expecting a number in `[0, 1)`; if `random` throws, the swaps made before stay and the error
+propagates. Pass a seeded generator to get the same order every time:
 
 ```ts
 function seeded(seed: number): () => number {

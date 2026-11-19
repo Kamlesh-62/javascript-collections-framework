@@ -41,7 +41,8 @@ has to be written by hand around every insertion.
 is one key, `-0` is stored as `0`), `null` and `undefined` as keys and values, the
 [`key` and `equivalence` options](maps.md#comparing-keys-by-value), live entries, `copy`,
 `toJSON` and the same rules for callbacks that change the map. `set` of a key already present
-keeps it where it is; a key deleted and set again goes to the end.
+keeps it where it is; a key deleted and set again goes to the end. Keys named after built-in
+properties, such as `'__proto__'` and `'constructor'`, are ordinary keys, as in a `HashMap`.
 
 A `LinkedHashMap` is not a `HashMap` (`instanceof HashMap` is `false`); both are maps, and both
 answer `true` to `isMapCollection`.
@@ -183,7 +184,8 @@ sequenced: `getFirst`, `getLast`, `removeFirst` and `removeLast` act on the ends
 | `maxSize`     | none    | the most mappings kept; a positive safe integer                        |
 | `onEvict`     | none    | `(value, key, map) => void`, told about each mapping `maxSize` removed |
 
-Each option is read once at construction. A wrong type throws `TypeError`
+Each option is read once at construction, as native option objects are read: an option inherited
+from the options object's prototype counts as given. A wrong type throws `TypeError`
 (`LinkedHashMap: accessOrder is not a boolean (1)`); a `maxSize` that is `0`, negative, fractional,
 `NaN`, `Infinity` or above `Number.MAX_SAFE_INTEGER` throws `IllegalArgumentError`
 (`LinkedHashMap: maxSize must be a positive safe integer (0)`), before anything is stored. Options

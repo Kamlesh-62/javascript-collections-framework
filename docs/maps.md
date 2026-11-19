@@ -210,7 +210,13 @@ return the same hash degrade those operations to O(n).
 
 `new HashMap({ a: 1 })` is an empty map: a first argument that is not iterable is read as the
 options, and unknown option names are ignored. Use `HashMap.from(Object.entries(object))` to copy
-an object's properties.
+an object's properties. Options are read as native option objects are: an option inherited from
+the options object's prototype counts as given.
+
+Keys named after built-in properties, such as `'__proto__'`, `'constructor'`, `'prototype'` and
+`'hasOwnProperty'`, are ordinary keys: a map never stores its keys as properties of an object, so
+`HashMap.from(Object.entries(JSON.parse(text)))` keeps every one of them, and they round-trip
+through `JSON.stringify` and `from`.
 
 ## Types
 

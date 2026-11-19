@@ -56,6 +56,9 @@ largestFirst.poll() // 9
 | `new PriorityQueue(elements, options)`   | the elements, ordered by `options.comparator`      |
 | `PriorityQueue.from(elements, options?)` | the same as the previous form; `elements` required |
 
+Options are read as native option objects are: an option inherited from the options object's
+prototype counts as given.
+
 - `comparator` is read once, when the queue is created; other keys are ignored. A `comparator`
   that is not a function throws `TypeError`, and so does passing a bare function where the
   elements go (pass it as `{ comparator }`).
