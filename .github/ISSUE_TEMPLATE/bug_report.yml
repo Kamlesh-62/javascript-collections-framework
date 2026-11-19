@@ -1,0 +1,46 @@
+name: Bug report
+description: A collection behaves differently from its documentation, or the package fails to load.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. A security problem goes through the security policy instead,
+        never a public issue.
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: The installed version of javascript-collections-framework.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and version
+      description: Node.js, Bun, Deno, a browser or another runtime, with its version, and the bundler if one is used.
+      placeholder: Node.js 24.11.1
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The shortest code that shows the problem, using only this package.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: The value returned, or the error thrown with its message.
+    validations:
+      required: true

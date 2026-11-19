@@ -8,6 +8,9 @@ import { defineConfig } from 'tsdown'
 //   dist/index.d.ts       types for import, single file
 //   dist/index.d.cts      types for require, single file
 //
+// No source maps are published: the ES module and CommonJS builds are readable as they are, and
+// maps would more than double the installed size.
+//
 // The ES module build keeps one file per module so that bundlers which keep every class of a
 // file they import (esbuild) still leave out the collections that are not imported.
 export default defineConfig([
@@ -19,7 +22,7 @@ export default defineConfig([
     target: 'es2015',
     platform: 'neutral',
     dts: false,
-    sourcemap: true,
+    sourcemap: false,
     clean: true,
     fixedExtension: false,
   },
@@ -38,7 +41,7 @@ export default defineConfig([
     target: 'es2015',
     platform: 'neutral',
     dts: true,
-    sourcemap: true,
+    sourcemap: false,
     clean: false,
     fixedExtension: false,
   },
@@ -49,7 +52,7 @@ export default defineConfig([
     target: 'es2015',
     platform: 'browser',
     minify: true,
-    sourcemap: true,
+    sourcemap: false,
     clean: false,
     dts: false,
     outExtensions: () => ({ js: '.js' }),

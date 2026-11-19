@@ -94,7 +94,7 @@
     "changeset": "changeset",
     "prepublishOnly": "pnpm check",
     "check:syntax": "node scripts/check-syntax.mjs",
-    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs",
+    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs && node scripts/playground.mjs",
     "test:worker": "node scripts/worker.mjs",
     "api:check": "node scripts/api-report.mjs check",
     "api:update": "node scripts/api-report.mjs update",
@@ -103,7 +103,7 @@
     "test:copies": "node scripts/two-copies.mjs",
     "test:consumers": "node scripts/old-typescript.mjs",
     "docs:api": "typedoc",
-    "docs:site": "typedoc && node scripts/site-coverage.mjs coverage/coverage-summary.json coverage site/coverage"
+    "docs:site": "typedoc && node scripts/site-coverage.mjs coverage/coverage-summary.json coverage site/coverage && node scripts/site-badges.mjs site/badges"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",

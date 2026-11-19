@@ -70,8 +70,8 @@ describe('the coverage badge', () => {
     const config = read('vitest.config.ts')
     expect(config).toContain("'json-summary'")
     const scripts = JSON.parse(read('package.json')).scripts as Record<string, string>
-    expect(scripts['docs:site']).toBe(
-      'typedoc && node scripts/site-coverage.mjs coverage/coverage-summary.json coverage site/coverage',
+    expect(scripts['docs:site']).toMatch(
+      /^typedoc && node scripts\/site-coverage\.mjs coverage\/coverage-summary\.json coverage site\/coverage( && |$)/,
     )
   })
 })

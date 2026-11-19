@@ -1,0 +1,11 @@
+{
+  "name": "javascript-collections-framework-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "javascript-collections-framework": "latest"
+  }
+}

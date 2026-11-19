@@ -27,7 +27,8 @@ export function budgetFor(gzip) {
 const byName = (a, b) => (a === '*' ? -1 : b === '*' ? 1 : a < b ? -1 : a > b ? 1 : 0)
 
 /**
- * Reads a budget file: `{ "budgets": { "<entry>": <bytes>, ... } }`.
+ * Reads the bundle budgets of a budget file: `{ "budgets": { "<entry>": <bytes>, ... },
+ * "unpacked": <bytes> }`.
  * @param {string} text
  * @returns {Map<string, number>}
  */
@@ -54,15 +55,32 @@ export function parseBudgets(text) {
 }
 
 /**
- * The budget file's text for the given budgets: `*` first, then names by code unit.
+ * The budget file's text for the given budgets: `*` first, then names by code unit, then the
+ * unpacked-size budget when there is one.
  * @param {ReadonlyMap<string, number>} budgets
+ * @param {number} [unpacked]
  * @returns {string}
  */
-export function formatBudgets(budgets) {
+export function formatBudgets(budgets, unpacked) {
   const lines = [...budgets.keys()]
     .sort(byName)
     .map((name) => `    ${JSON.stringify(name)}: ${budgets.get(name)}`)
-  return `{\n  "budgets": {\n${lines.join(',\n')}\n  }\n}\n`
+  const tail = unpacked === undefined ? '' : `,\n  "unpacked": ${unpacked}`
+  return `{\n  "budgets": {\n${lines.join(',\n')}\n  }${tail}\n}\n`
+}
+
+/**
+ * Reads the unpacked-size budget of a budget file: the top-level `unpacked` field, in bytes, set
+ * like the other budgets (`budgetFor` of the measured size), or `undefined` when there is none.
+ * @param {string} text
+ * @returns {number | undefined}
+ */
+export function parseUnpacked(text) {
+  const { unpacked } = JSON.parse(text)
+  if (unpacked === undefined) return undefined
+  if (typeof unpacked !== 'number' || !Number.isInteger(unpacked) || unpacked <= 0)
+    throw new TypeError('size budgets: "unpacked" must be a positive integer')
+  return unpacked
 }
 
 /**
