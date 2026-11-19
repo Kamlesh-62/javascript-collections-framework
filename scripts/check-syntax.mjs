@@ -8,8 +8,11 @@ import { parse } from 'acorn'
 
 const DIST = path.join(import.meta.dirname, '..', 'dist')
 const EXPECTED = ['index.js', 'index.cjs', 'index.iife.js']
-const present = existsSync(DIST) ? readdirSync(DIST) : []
-const files = present.filter((name) => /\.(c?js)$/.test(name))
+// The ES module build is one file per module, so every file under dist/ is checked.
+const present = existsSync(DIST)
+  ? readdirSync(DIST, { recursive: true }).map((name) => String(name).split(path.sep).join('/'))
+  : []
+const files = present.filter((name) => /\.(c?js)$/.test(name)).sort()
 
 let failures = 0
 for (const name of files) {
@@ -22,6 +25,15 @@ for (const name of files) {
     failures++
     console.log(`✗ ${name}: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+// The ES module build must stay one file per module (bundlers such as esbuild rely on it).
+const perModule = files.filter((name) => name.endsWith('.js') && !name.endsWith('.iife.js'))
+if (!present.includes('collections/array-list.js') || perModule.length < 10) {
+  failures++
+  console.log(
+    '✗ the ES module build is not one file per module (dist/collections/array-list.js missing)',
+  )
 }
 
 for (const name of EXPECTED) {
