@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/Kamlesh-62/javascript-collections-framework/security/policy
+    about: Report privately, never in a public issue.
+  - name: Documentation
+    url: https://github.com/Kamlesh-62/javascript-collections-framework/tree/main/docs
+    about: Guides for each collection, behaviour notes and compatibility.
+  - name: API reference
+    url: https://kamlesh-62.github.io/javascript-collections-framework/
+    about: Every export with its signature, cost and examples.

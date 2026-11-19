@@ -287,6 +287,8 @@ describe('API report command', () => {
 })
 
 describe('size report', () => {
+  /** Stands in for npm pack, so no test starts npm. */
+  const stubPack = () => ({ unpackedSize: 1, files: ['dist/index.js'] })
   const roots: string[] = []
   afterEach(() => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -358,9 +360,9 @@ describe('size report', () => {
 
   it('names the update command when the build differs from the committed report [005 S6-AC2]', async () => {
     const root = tree(build)
-    await sizeReport(root, 'update')
+    await sizeReport(root, 'update', undefined, stubPack)
     writeFileSync(join(root, 'dist', 'index.js'), `${build}export const extra = 2\n`)
-    const result = await sizeReport(root, 'check')
+    const result = await sizeReport(root, 'check', undefined, stubPack)
     expect(result.ok).toBe(false)
     expect(result.message).toContain('extra')
     expect(result.message).toContain('added')
@@ -373,11 +375,15 @@ describe('size report', () => {
     writeFileSync(join(root, SIZE_REPORT_PATH), formatReport([entry('*', 1, 1)]))
     writeFileSync(
       join(root, BUDGET_PATH),
-      formatBudgets(new Map(['*', 'large', 'small'].map((name) => [name, 1024]))),
+      formatBudgets(new Map(['*', 'large', 'small'].map((name) => [name, 1024])), 1024),
     )
-    expect((await sizeReport(root, 'check')).ok).toBe(false)
-    expect((await sizeReport(root, 'update')).message).toBe(`wrote ${SIZE_REPORT_PATH} (3 entries)`)
-    expect(await sizeReport(root, 'check')).toEqual({
+    writeFileSync(join(root, 'dist', 'index.d.ts'), '/** @example small */\nexport {}\n')
+    const pack = () => ({ unpackedSize: 512, files: ['dist/index.js'] })
+    expect((await sizeReport(root, 'check', undefined, pack)).ok).toBe(false)
+    expect((await sizeReport(root, 'update', undefined, pack)).message).toBe(
+      `wrote ${SIZE_REPORT_PATH} (3 entries)`,
+    )
+    expect(await sizeReport(root, 'check', undefined, pack)).toEqual({
       ok: true,
       message: 'matches the committed report (3 entries)',
     })
@@ -388,7 +394,7 @@ describe('size report', () => {
   it('fails naming the entry when bundling it twice gives different sizes [005 S6-AC4]', async () => {
     let calls = 0
     const unstable = async () => (++calls === 4 ? 'xx' : 'x')
-    const result = await sizeReport(tree(build), 'check', unstable)
+    const result = await sizeReport(tree(build), 'check', unstable, stubPack)
     expect(result).toEqual({
       ok: false,
       message: "bundling 'large' twice gave different minified sizes (1 and 2 bytes)",
@@ -400,7 +406,7 @@ describe('size report', () => {
 
   it('fails in both modes, saying to build first, when the build is missing [005 S6-AC5]', async () => {
     for (const mode of ['check', 'update'] as const) {
-      expect(await sizeReport(tree(null), mode)).toEqual({
+      expect(await sizeReport(tree(null), mode, undefined, stubPack)).toEqual({
         ok: false,
         message: 'dist/index.js is missing — run pnpm build first',
       })

@@ -165,6 +165,15 @@ describe('source rules', () => {
       expect(pkg.scripts?.[hook]).toBeUndefined()
     }
   })
+
+  it('builds no source maps and keeps the TSDoc in the type declarations [042 S4-AC1] [042 S4-AC3]', () => {
+    const config = readFileSync(join(ROOT, 'tsdown.config.ts'), 'utf8')
+    expect(config).not.toMatch(/sourcemap:\s*(true|'inline'|"inline")/)
+    expect(config.match(/sourcemap: false/g)).toHaveLength(3)
+    expect(config).not.toMatch(/removeComments|stripInternal/)
+    const tsconfig = readFileSync(join(ROOT, 'tsconfig.json'), 'utf8')
+    expect(tsconfig).not.toMatch(/"removeComments":\s*true/)
+  })
 })
 
 describe('workflow and install hardening', () => {

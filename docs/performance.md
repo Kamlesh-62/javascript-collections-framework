@@ -96,3 +96,11 @@ reason for it, is named in the release notes of the change.
 | `unmodifiableSortedSet`           |            13214 |            4336 |                    4800 |
 | `valueEquivalence`                |             2998 |            1335 |                    1472 |
 <!-- sizes:end -->
+
+## Package size
+
+The published package holds the ES module build (one file per module), the CommonJS build, the
+script-tag build and the type declarations with their full documentation. It holds no source maps:
+the ES module and CommonJS builds are readable as published. Its unpacked size, as
+`npm pack --dry-run` reports it, has a budget set the same way as the bundle budgets, and every
+change is checked against it.

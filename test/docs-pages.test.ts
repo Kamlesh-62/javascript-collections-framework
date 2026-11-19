@@ -86,7 +86,7 @@ describe('the README badges', () => {
 
   it('show the CI result for main and the coverage, at the top, with absolute URLs [038 S2-AC3]', () => {
     expect(readme.indexOf('[![')).toBeLessThan(readme.indexOf('\n## '))
-    expect(badges).toEqual([
+    expect(badges.slice(0, 2)).toEqual([
       {
         alt: 'CI',
         image: `${REPO}/actions/workflows/ci.yml/badge.svg?branch=main`,

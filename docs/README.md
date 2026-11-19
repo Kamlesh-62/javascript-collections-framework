@@ -8,6 +8,8 @@ cost and examples, is in the
 
 ## Using the package
 
+- [Coming from native JavaScript](coming-from-native.md) — `Array`, `Map`, `Set`, sorted arrays, `shift` queues, hand-written heaps and the `Map` LRU trick, each next to its collection, with what it costs and when to keep the native one
+- [Open the playground in StackBlitz](https://stackblitz.com/github/Kamlesh-62/javascript-collections-framework/tree/main/examples/playground) — try the package in the browser, without installing it
 - [Behaviour notes](behaviour-notes.md) — the behaviours that most often surprise newcomers: absence and throwing reads, `delete` vs `removeAt`, `set` vs `put`, live and fail-fast iteration, identity equality, views, `sort()` order
 - [Compatibility](compatibility.md) — supported runtimes, frameworks, TypeScript versions and ways to load the package
 - [Errors](errors.md) — the error classes, when each is thrown, catching, subclassing, and two copies of the package

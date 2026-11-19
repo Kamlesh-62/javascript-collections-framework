@@ -15,9 +15,7 @@ export default async function setup(): Promise<void> {
   const pkg = createRequire(join(fixtures, 'package.json')).resolve(
     'javascript-collections-framework/package.json',
   )
-  for (const file of ['index.iife.js', 'index.iife.js.map']) {
-    copyFileSync(join(dirname(pkg), 'dist', file), join(out, file))
-  }
+  copyFileSync(join(dirname(pkg), 'dist', 'index.iife.js'), join(out, 'index.iife.js'))
   await build({
     configFile: false,
     logLevel: 'warn',

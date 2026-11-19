@@ -11,11 +11,14 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { Rolldown } from 'tsdown'
+import { builtScripts, packageProblems, packDryRun, sourceExampleCount } from './package-size.mjs'
 import {
   BUDGET_PATH,
+  budgetFor,
   checkBudgets,
   PERFORMANCE_PAGE,
   parseBudgets,
+  parseUnpacked,
   renderSizeTable,
   TABLE_END,
   TABLE_START,
@@ -94,14 +97,16 @@ export async function measureSizes(root, bundle = bundleMinified) {
 
 /**
  * Checks the measured sizes against the committed report, then the committed sizes against their
- * budgets and the size table of the performance page against both; or rewrites the report and the
- * size table. The budget file is only ever read.
+ * budgets and the size table of the performance page against both, then the packed package (no
+ * source maps, TSDoc kept, unpacked size within its budget); or rewrites the report and the size
+ * table. The budget file is only ever read.
  * @param {string} root
  * @param {'check' | 'update'} mode
  * @param {Bundler} [bundle]
+ * @param {import('./package-size.mjs').Packer} [pack]
  * @returns {Promise<{ ok: boolean, message: string }>}
  */
-export async function sizeReport(root, mode, bundle = bundleMinified) {
+export async function sizeReport(root, mode, bundle = bundleMinified, pack = packDryRun) {
   const measured = await measureSizes(root, bundle)
   if (!measured.ok) return measured
   const reportFile = join(root, SIZE_REPORT_PATH)
@@ -157,6 +162,42 @@ export async function sizeReport(root, mode, bundle = bundleMinified) {
     return {
       ok: false,
       message: `the size table in ${PERFORMANCE_PAGE} is out of date — run pnpm size:update`,
+    }
+  }
+  const unpacked = parseUnpacked(readFileSync(budgetFile, 'utf8'))
+  /** @type {import('./package-size.mjs').Pack} */
+  let packed
+  try {
+    packed = pack(root)
+  } catch (error) {
+    return {
+      ok: false,
+      message: `npm pack --dry-run failed: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+  if (unpacked === undefined) {
+    return {
+      ok: false,
+      message:
+        `no unpacked-size budget in ${BUDGET_PATH} — add "unpacked": ${budgetFor(packed.unpackedSize)} ` +
+        `(${packed.unpackedSize} bytes plus 10 %)`,
+    }
+  }
+  const declarationsFile = join(root, 'dist', 'index.d.ts')
+  const declarations = existsSync(declarationsFile)
+    ? readFileSync(declarationsFile, 'utf8')
+    : undefined
+  const problems = packageProblems(
+    packed,
+    builtScripts(root),
+    declarations,
+    unpacked,
+    sourceExampleCount(root),
+  )
+  if (problems.length > 0) {
+    return {
+      ok: false,
+      message: `the packed package fails its checks:\n${problems.map((p) => `  ${p}`).join('\n')}`,
     }
   }
   return { ok: true, message: `matches the committed report (${measured.entries.length} entries)` }

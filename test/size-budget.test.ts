@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { packageProblems, sourceExampleCount, tsdocProblems } from '../scripts/lib/package-size.mjs'
 import {
   BUDGET_PATH,
   budgetFor,
@@ -9,6 +10,7 @@ import {
   formatBudgets,
   PERFORMANCE_PAGE,
   parseBudgets,
+  parseUnpacked,
   renderSizeTable,
   TABLE_END,
   TABLE_START,
@@ -44,7 +46,7 @@ describe('size budgets', () => {
       expect(e.gzip, e.name).toBeLessThanOrEqual(budget)
       expect(budget % 64, e.name).toBe(0)
     }
-    expect(read(BUDGET_PATH)).toBe(formatBudgets(budgets))
+    expect(read(BUDGET_PATH)).toBe(formatBudgets(budgets, parseUnpacked(read(BUDGET_PATH))))
   })
 
   it('fails on an entry over its budget, an entry with no budget, and a budget for no entry [039 S2-AC3]', () => {
@@ -142,6 +144,7 @@ describe('size command with budgets and the size table', () => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
   })
 
+  const fakePack = () => ({ unpackedSize: 1000, files: ['dist/index.js', 'package.json'] })
   const build =
     "export const small = 1\nexport function large() { return 'x'.repeat(40) + String(small) }\n"
   const emptyPage = `# Performance\n\n${TABLE_START}\n${TABLE_END}\n`
@@ -158,8 +161,12 @@ describe('size command with budgets and the size table', () => {
     const measured = await measureSizes(root)
     if (!measured.ok) throw new Error(measured.message)
     const gzip = new Map(measured.entries.map((e) => [e.name, e.gzip]))
-    writeFileSync(join(root, BUDGET_PATH), formatBudgets(budgets(gzip)))
-    expect((await sizeReport(root, 'update')).ok).toBe(true)
+    writeFileSync(join(root, BUDGET_PATH), formatBudgets(budgets(gzip), 1088))
+    writeFileSync(
+      join(root, 'dist', 'index.d.ts'),
+      '/** Summary. @example x */\nexport declare const small: 1\n',
+    )
+    expect((await sizeReport(root, 'update', undefined, fakePack)).ok).toBe(true)
     return root
   }
   const byFormula = (gzip: Map<string, number>) =>
@@ -167,7 +174,7 @@ describe('size command with budgets and the size table', () => {
 
   it('passes when the report matches, every entry fits its budget and the table is current [039 S2-AC3]', async () => {
     const root = await tree(byFormula)
-    expect(await sizeReport(root, 'check')).toEqual({
+    expect(await sizeReport(root, 'check', undefined, fakePack)).toEqual({
       ok: true,
       message: 'matches the committed report (3 entries)',
     })
@@ -179,7 +186,7 @@ describe('size command with budgets and the size table', () => {
       budgets.set('large', (gzip.get('large') ?? 0) - 1)
       return budgets
     })
-    const overResult = await sizeReport(over, 'check')
+    const overResult = await sizeReport(over, 'check', undefined, fakePack)
     expect(overResult.ok).toBe(false)
     expect(overResult.message).toContain(BUDGET_PATH)
     expect(overResult.message).toMatch(/'large' is \d+ bytes gzipped, over its budget/)
@@ -190,20 +197,20 @@ describe('size command with budgets and the size table', () => {
       budgets.set('gone', 64)
       return budgets
     })
-    const missingResult = await sizeReport(missing, 'check')
+    const missingResult = await sizeReport(missing, 'check', undefined, fakePack)
     expect(missingResult.ok).toBe(false)
     expect(missingResult.message).toContain("'small' has no budget")
     expect(missingResult.message).toContain("the budget for 'gone' names no entry")
 
     // The exact comparison runs first: a changed build reports the size change, not the budget.
     writeFileSync(join(missing, 'dist', 'index.js'), `${build}export const extra = 2\n`)
-    const changed = await sizeReport(missing, 'check')
+    const changed = await sizeReport(missing, 'check', undefined, fakePack)
     expect(changed.message).toContain('pnpm size:update')
     expect(changed.message).not.toContain('budget')
 
     const root = await tree(byFormula)
     rmSync(join(root, BUDGET_PATH))
-    expect(await sizeReport(root, 'check')).toEqual({
+    expect(await sizeReport(root, 'check', undefined, fakePack)).toEqual({
       ok: false,
       message: `no budget file — add ${BUDGET_PATH}`,
     })
@@ -213,13 +220,13 @@ describe('size command with budgets and the size table', () => {
     const root = await tree(byFormula)
     const page = readFileSync(join(root, PERFORMANCE_PAGE), 'utf8')
     writeFileSync(join(root, PERFORMANCE_PAGE), page.replace('`small`', '`other`'))
-    expect(await sizeReport(root, 'check')).toEqual({
+    expect(await sizeReport(root, 'check', undefined, fakePack)).toEqual({
       ok: false,
       message: `the size table in ${PERFORMANCE_PAGE} is out of date — run pnpm size:update`,
     })
     writeFileSync(join(root, PERFORMANCE_PAGE), '# Performance\n')
     for (const mode of ['check', 'update'] as const) {
-      expect((await sizeReport(root, mode)).message).toBe(
+      expect((await sizeReport(root, mode, undefined, fakePack)).message).toBe(
         `${PERFORMANCE_PAGE} needs a size table between ${TABLE_START} and ${TABLE_END}`,
       )
     }
@@ -231,7 +238,7 @@ describe('size command with budgets and the size table', () => {
     writeFileSync(join(root, BUDGET_PATH), stale)
     writeFileSync(join(root, SIZE_REPORT_PATH), formatReport([entry('*', 1, 1)]))
     writeFileSync(join(root, PERFORMANCE_PAGE), emptyPage)
-    expect(await sizeReport(root, 'update')).toEqual({
+    expect(await sizeReport(root, 'update', undefined, fakePack)).toEqual({
       ok: true,
       message: `wrote ${SIZE_REPORT_PATH} (3 entries)`,
     })
@@ -242,13 +249,156 @@ describe('size command with budgets and the size table', () => {
       renderSizeTable(report, parseBudgets(stale)),
     )
     // The budgets still fail the check: update never makes them fit.
-    expect((await sizeReport(root, 'check')).ok).toBe(false)
+    expect((await sizeReport(root, 'check', undefined, fakePack)).ok).toBe(false)
   })
 
   it('update never writes the budget file, even when there is none [039 S2-AC3]', async () => {
     const root = await tree(byFormula)
     rmSync(join(root, BUDGET_PATH))
-    expect((await sizeReport(root, 'update')).ok).toBe(true)
+    expect((await sizeReport(root, 'update', undefined, fakePack)).ok).toBe(true)
     expect(() => readFileSync(join(root, BUDGET_PATH))).toThrow()
+  })
+})
+
+describe('the packed package', () => {
+  const pack = (unpackedSize: number, files: string[] = ['dist/index.js', 'package.json']) => ({
+    unpackedSize,
+    files,
+  })
+  const docs = '/** Summary. @example x */\nexport declare const a: 1\n'
+
+  it('has no source map and no built file pointing to one [042 S4-AC1]', () => {
+    expect(packageProblems(pack(10), new Map([['dist/index.js', 'x']]), docs, 64)).toEqual([])
+    expect(
+      packageProblems(
+        pack(10, ['dist/index.js', 'dist/index.js.map', 'dist/a/b.js.map']),
+        new Map([
+          ['dist/index.js', 'x\n//# sourceMappingURL=index.js.map\n'],
+          ['dist/index.cjs', 'x\n//@ sourceMappingURL=index.cjs.map'],
+          ['dist/ok.js', 'const sourceMappingURL = 1'],
+        ]),
+        docs,
+        64,
+      ),
+    ).toEqual([
+      'the package contains the source map dist/a/b.js.map',
+      'the package contains the source map dist/index.js.map',
+      'dist/index.cjs has a sourceMappingURL comment',
+      'dist/index.js has a sourceMappingURL comment',
+    ])
+  })
+
+  it('keeps its unpacked size within the budget, and reports both figures [042 S4-AC2]', () => {
+    expect(packageProblems(pack(64), new Map(), docs, 64)).toEqual([])
+    expect(packageProblems(pack(65), new Map(), docs, 64)).toEqual([
+      'the package is 65 bytes unpacked, over its budget of 64 bytes',
+    ])
+  })
+
+  it('keeps the TSDoc in its type declarations [042 S4-AC3]', () => {
+    const documented =
+      '/**\n * Returns one.\n *\n * @example\n * one() // 1\n */\nexport declare function one(): 1;\n'
+    expect(tsdocProblems(documented, 1)).toEqual([])
+    expect(tsdocProblems('export declare function one(): 1;\n', 0)).toEqual([
+      'dist/index.d.ts: one has no summary and @example',
+    ])
+    expect(tsdocProblems('/** Returns one. */\nexport declare class One {}\n', 0)).toEqual([
+      'dist/index.d.ts: One has no summary and @example',
+    ])
+    expect(tsdocProblems('/**\n * @example x\n */\nexport declare const one: 1;\n', 0)).toEqual([
+      'dist/index.d.ts: one has no summary and @example',
+    ])
+    expect(tsdocProblems(documented, 2)).toEqual([
+      'dist/index.d.ts has 1 @example tags, fewer than the 2 in src/',
+    ])
+    expect(packageProblems(pack(1), new Map(), undefined, 64)).toEqual([
+      'dist/index.d.ts is missing',
+    ])
+  })
+
+  it('finds every export of the built declarations documented, when built [042 S4-AC3]', () => {
+    const file = join(ROOT, 'dist', 'index.d.ts')
+    if (!existsSync(file)) return
+    expect(tsdocProblems(readFileSync(file, 'utf8'), sourceExampleCount(ROOT))).toEqual([])
+  })
+
+  it('records the unpacked budget beside the bundle budgets, set by the same formula [042 S4-AC2]', () => {
+    const text = read(BUDGET_PATH)
+    const unpacked = parseUnpacked(text)
+    expect(unpacked).toBeDefined()
+    expect((unpacked ?? 0) % 64).toBe(0)
+    expect(parseUnpacked('{ "budgets": {} }')).toBeUndefined()
+    expect(() => parseUnpacked('{ "budgets": {}, "unpacked": 0 }')).toThrow(TypeError)
+    expect(() => parseUnpacked('{ "budgets": {}, "unpacked": 1.5 }')).toThrow(
+      '"unpacked" must be a positive integer',
+    )
+    expect(formatBudgets(new Map([['*', 64]]), 128)).toBe(
+      '{\n  "budgets": {\n    "*": 64\n  },\n  "unpacked": 128\n}\n',
+    )
+  })
+})
+
+describe('size command with the package check', () => {
+  const roots: string[] = []
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+
+  async function tree(unpacked: number | undefined, files: string[], script: string) {
+    const root = mkdtempSync(join(tmpdir(), 'size-pack-'))
+    roots.push(root)
+    for (const dir of ['dist', 'docs', 'api']) mkdirSync(join(root, dir))
+    writeFileSync(join(root, 'dist', 'index.js'), script)
+    writeFileSync(
+      join(root, 'dist', 'index.d.ts'),
+      '/** Summary. @example x */\nexport declare const a: 1\n',
+    )
+    writeFileSync(join(root, PERFORMANCE_PAGE), `# P\n\n${TABLE_START}\n${TABLE_END}\n`)
+    const measured = await measureSizes(root)
+    if (!measured.ok) throw new Error(measured.message)
+    const budgets = new Map(measured.entries.map((e) => [e.name, budgetFor(e.gzip)]))
+    writeFileSync(join(root, BUDGET_PATH), formatBudgets(budgets, unpacked))
+    const fake = () => ({ unpackedSize: 2000, files })
+    expect((await sizeReport(root, 'update', undefined, fake)).ok).toBe(true)
+    return { root, fake }
+  }
+
+  it('fails with both figures over the unpacked budget, and asks for one when it is missing [042 S4-AC2]', async () => {
+    const over = await tree(1984, ['dist/index.js'], 'export const a = 1\n')
+    expect(await sizeReport(over.root, 'check', undefined, over.fake)).toEqual({
+      ok: false,
+      message:
+        'the packed package fails its checks:\n  the package is 2000 bytes unpacked, over its budget of 1984 bytes',
+    })
+    const none = await tree(undefined, ['dist/index.js'], 'export const a = 1\n')
+    const result = await sizeReport(none.root, 'check', undefined, none.fake)
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain(
+      `no unpacked-size budget in ${BUDGET_PATH} — add "unpacked": ${budgetFor(2000)}`,
+    )
+    const fits = await tree(2048, ['dist/index.js'], 'export const a = 1\n')
+    expect((await sizeReport(fits.root, 'check', undefined, fits.fake)).ok).toBe(true)
+  })
+
+  it('reports a failed npm pack as a result, not a crash [042 S4-AC2]', async () => {
+    const { root } = await tree(2048, ['dist/index.js'], 'export const a = 1\n')
+    const broken = () => {
+      throw new Error('npm: not found')
+    }
+    expect(await sizeReport(root, 'check', undefined, broken)).toEqual({
+      ok: false,
+      message: 'npm pack --dry-run failed: npm: not found',
+    })
+  })
+
+  it('fails on a packed source map or a sourceMappingURL comment [042 S4-AC1]', async () => {
+    const maps = await tree(2048, ['dist/index.js', 'dist/index.js.map'], 'export const a = 1\n')
+    writeFileSync(
+      join(maps.root, 'dist', 'index.cjs'),
+      'exports.a = 1\n//# sourceMappingURL=index.cjs.map\n',
+    )
+    const result = await sizeReport(maps.root, 'check', undefined, maps.fake)
+    expect(result.message).toContain('the package contains the source map dist/index.js.map')
+    expect(result.message).toContain('dist/index.cjs has a sourceMappingURL comment')
   })
 })

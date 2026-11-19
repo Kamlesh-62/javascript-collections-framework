@@ -10,6 +10,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { flatBadge } from './lib/badge.mjs'
 
 /**
  * The line coverage `pct` rounded down to one decimal place. The summary gives two decimals; they
@@ -34,13 +35,6 @@ export function badgeColour(pct) {
   return '#c62828'
 }
 
-/** The approximate width of `text` in 11px Verdana, the badge font. */
-function textWidth(/** @type {string} */ text) {
-  let width = 0
-  for (const c of text) width += c === '.' || c === ' ' ? 3.5 : c === '%' ? 9.5 : 7
-  return Math.ceil(width)
-}
-
 /**
  * A flat two-part SVG badge: "coverage" and the line coverage, rounded down to one decimal place.
  *
@@ -51,23 +45,7 @@ export function badgeSvg(linesPct) {
   if (typeof linesPct !== 'number' || !(linesPct >= 0 && linesPct <= 100))
     throw new RangeError(`site-coverage: line coverage ${linesPct} is not a percentage`)
   const value = `${floorPct(linesPct)}%`
-  const label = 'coverage'
-  const left = textWidth(label) + 10
-  const right = textWidth(value) + 10
-  const width = left + right
-  const colour = badgeColour(floorPct(linesPct))
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="${label}: ${value}">`,
-    `<title>${label}: ${value}</title>`,
-    `<rect width="${left}" height="20" fill="#555555"/>`,
-    `<rect x="${left}" width="${right}" height="20" fill="${colour}"/>`,
-    '<g fill="#ffffff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">',
-    `<text x="${left / 2}" y="14">${label}</text>`,
-    `<text x="${left + right / 2}" y="14">${value}</text>`,
-    '</g>',
-    '</svg>',
-    '',
-  ].join('\n')
+  return flatBadge('coverage', value, badgeColour(floorPct(linesPct)))
 }
 
 /**

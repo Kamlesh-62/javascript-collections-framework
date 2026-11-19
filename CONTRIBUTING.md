@@ -1,5 +1,21 @@
 # Contributing
 
+## Quick path
+
+From a fork to an open pull request, with the [GitHub CLI](https://cli.github.com/) and pnpm 11:
+
+```sh
+gh repo fork Kamlesh-62/javascript-collections-framework --clone
+cd javascript-collections-framework && pnpm install
+git switch -c fix/short-description
+pnpm check
+pnpm changeset && gh pr create --fill
+```
+
+Make the change between the branch and `pnpm check`, with its tests. `pnpm changeset` records
+what a user would notice; for a change users do not see, run `pnpm changeset --empty`. The
+sections below give the details.
+
 ## Setup
 
 Development requires Node.js 22.18 or later (the package itself runs on Node.js 18+) and
