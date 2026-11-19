@@ -42,6 +42,13 @@ import {/* … */} from 'npm:javascript-collections-framework'
 On Node.js 20.19+ and 22.12+, `import` and `require` load the **same** copy of the package, so
 classes and `instanceof` checks agree across both module systems.
 
+The ES module build is published as one file per module (`dist/index.js` and the files beside
+it), and the package declares no side effects, so a bundler keeps only the collections that are
+imported, including bundlers such as esbuild that keep every class of a file they import. The
+CommonJS build (`dist/index.cjs`) and the script-tag build (`dist/index.iife.js`) are single
+files. Only the package root is public: the files under `dist/` are internal and may change in
+any release.
+
 ## Using collections with UI frameworks
 
 Collections are mutable objects. Frameworks that detect changes by reference (React, Angular

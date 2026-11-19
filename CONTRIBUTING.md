@@ -18,7 +18,7 @@ pnpm check      # typecheck, lint, test, build, ES2015 syntax, package shape, sm
 | `pnpm test:coverage`        | run tests with coverage thresholds                                |
 | `pnpm typecheck`            | type-check `src/` and `test/`                                     |
 | `pnpm lint` / `pnpm format` | check / fix formatting and lint rules (Biome)                     |
-| `pnpm build`                | build ESM, CommonJS and type declarations into `dist/`            |
+| `pnpm build`                | build ESM, CommonJS, IIFE and type declarations into `dist/`      |
 | `pnpm check:package`        | verify the published package shape (publint, are-the-types-wrong) |
 | `pnpm changeset`            | record a user-visible change for the changelog                    |
 
