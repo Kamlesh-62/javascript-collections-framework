@@ -278,6 +278,36 @@ size.
 **Deque storage.** An `ArrayDeque` is checked to keep storage in proportion to the largest size it
 held since it was last cleared, and to release it on `clear()`, also when it is already empty.
 
+## Per collection
+
+Every class runs the reference comparisons, the scale suites, the deep random runs, the
+built-package runs, the hostile-value table and the grow-and-drain cycles, and every class that is
+not a map runs the collection suite. The table lists the further contract suites and checks for
+each class.
+
+| Class           | Further contract suites                   | Also checked by                                                        | Realistic workload              |
+| --------------- | ----------------------------------------- | ---------------------------------------------------------------------- | ------------------------------- |
+| `ArrayList`     | list, sequenced                           | deep sub-list and reversed views; sorting worst cases                  | shuffling; nested record values |
+| `LinkedList`    | deque, queue, sequenced                   | —                                                                      | sliding window (node handles)   |
+| `ArrayDeque`    | deque, queue, sequenced                   | deque storage                                                          | sliding window                  |
+| `PriorityQueue` | queue                                     | construction and removal worst cases                                   | scheduler                       |
+| `HashSet`       | set                                       | hash flooding; colliding hashes                                        | records                         |
+| `HashMap`       | map                                       | hash flooding; colliding hashes                                        | records; word counting          |
+| `LinkedHashSet` | set, sequenced set, sequenced             | hash flooding; colliding hashes                                        | none yet                        |
+| `LinkedHashMap` | map, sequenced map                        | hash flooding; colliding hashes; eviction in the deep runs             | least-recently-used cache       |
+| `TreeSet`       | set, sequenced set, sorted set, sequenced | comparison bounds at scale; construction worst cases; deep range views | none yet                        |
+| `TreeMap`       | map, sequenced map, sorted map            | comparison bounds at scale; construction worst cases; deep range views | word counting; event log        |
+
+| Area                                                  | Checked by                                                                                                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Algorithms (`binarySearch`, `sortedIndex`, `min`, …)  | exact call counts at small sizes; every input shape in the worst-case suites; searching and shuffling workloads                                  |
+| `asList`, `newSetFromMap`                             | the list and set contract suites; the scale suites; the deep random runs; searching, shuffling and word-counting workloads                       |
+| Unmodifiable views                                    | the read-only contract suites; repeated wraps that stay one level deep; deep sub-list, range and reversed views of them; the hostile-value table |
+| Immutable collections                                 | the read-only contract suites; the hostile-value table (every change refused)                                                                    |
+| Exported comparators (`naturalOrder`, `comparing`, …) | their own suite                                                                                                                                  |
+| Comparators given by the user                         | inconsistent, throwing and non-number comparators in the worst-case suites                                                                       |
+| `equals` and `hashCode`                               | nested collections, cycles and nesting deeper than the call stack                                                                                |
+
 ## Counts
 
 <!-- counts:start -->
