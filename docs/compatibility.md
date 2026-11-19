@@ -18,6 +18,7 @@ What each kind of test covers, and what is not tested, is in [how this library i
 
 ## Ways to load it
 
+<!-- example: not run — loads the package in other module systems -->
 ```js
 // ES modules: Node.js, Deno, Bun, Vite, webpack, esbuild, Rollup, Parcel, Next.js
 import {/* … */} from 'javascript-collections-framework'
@@ -32,6 +33,7 @@ const {/* … */} = require('javascript-collections-framework')
         integrity="sha384-…" crossorigin="anonymous"></script>
 ```
 
+<!-- example: not run — loads the package in Deno -->
 ```ts
 // Deno
 import {/* … */} from 'npm:javascript-collections-framework'

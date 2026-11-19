@@ -24,7 +24,15 @@ const TREE_SET_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/TreeSet',
 )
 
-/** Options for a `TreeSet`. */
+/**
+ * Options for a `TreeSet`.
+ *
+ * @example
+ * ```ts
+ * const byLength: TreeSetOptions<string> = { comparator: (a, b) => a.length - b.length }
+ * const words = new TreeSet<string>(byLength)
+ * ```
+ */
 export interface TreeSetOptions<E> {
   /**
    * The order of the set; two values are the same member when it returns `0` for them. Natural

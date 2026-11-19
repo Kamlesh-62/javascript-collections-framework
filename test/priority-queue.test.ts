@@ -617,9 +617,9 @@ describe('PriorityQueue — iteration and output', () => {
     const guide = readFileSync(new URL('../docs/priority-queues.md', import.meta.url), 'utf8')
     expect(guide).toContain('## Iteration is not sorted')
     expect(guide).toContain('while (!queue.isEmpty()) sorted.push(queue.poll()!)')
-    // The printed example in the guide is what the queue prints.
+    // The printed example in the guide is what the queue prints, given as an example only.
     const printed = String(new PriorityQueue([5, 1, 4, 2, 3]))
-    expect(guide).toContain(`String(queue) // '${printed}'`)
+    expect(guide).toContain(`String(queue) // heap order, not sorted: for example ${printed}`)
   })
 
   it('a cursor removes the element last returned and still yields every other element once [010 S4-AC2]', () => {

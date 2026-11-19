@@ -17,3 +17,7 @@ auditConfig:
     # Reached only through development tools (here: vitest's own tooling);
     # `pnpm list --prod` has no path to it. Remove once a fixed picomatch is released.
     - GHSA-fc5q-39xc-vjpf
+    # minimatch 7.0.0 - 11.0.0, denial of service via globparts amplification (2026-11-19).
+    # Kept in step with the root list; the root reaches it only through typedoc. Remove together
+    # with the root entry once typedoc depends on minimatch >= 11.
+    - GHSA-g3hv-75wg-m249

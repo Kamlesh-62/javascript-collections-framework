@@ -1,11 +1,14 @@
 # Documentation
 
-User documentation for `javascript-collections-framework`.
+User documentation for `javascript-collections-framework`. Every export, with its signature,
+cost and examples, is in the
+[API reference](https://kamlesh-62.github.io/javascript-collections-framework/).
 
 > Pre-release: pages are added here as each collection ships.
 
 ## Using the package
 
+- [Behaviour notes](behaviour-notes.md) — the behaviours that most often surprise newcomers: absence and throwing reads, `delete` vs `removeAt`, `set` vs `put`, live and fail-fast iteration, identity equality, views, `sort()` order
 - [Compatibility](compatibility.md) — supported runtimes, frameworks, TypeScript versions and ways to load the package
 - [Errors](errors.md) — the error classes, when each is thrown, catching, subclassing, and two copies of the package
 - [How this library is tested](testing.md) — contract suites, reference comparisons, scale, deep random runs, the built package, what covers each collection, what is not tested, and how to replay a failing seed

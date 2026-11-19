@@ -40,6 +40,16 @@ When two objects should count as the same key, give the collection a function th
 primitive key for each value:
 
 ```ts
+interface User {
+  id: number
+}
+interface Profile {
+  name: string
+}
+interface Point {
+  x: number
+  y: number
+}
 const users = new HashMap<User, Profile>({ key: (user) => user.id })
 const points = new HashSet<Point>({ key: (p) => `${p.x},${p.y}` })
 ```

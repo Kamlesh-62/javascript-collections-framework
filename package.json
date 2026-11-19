@@ -101,7 +101,9 @@
     "size:check": "node scripts/size-report.mjs check",
     "size:update": "node scripts/size-report.mjs update",
     "test:copies": "node scripts/two-copies.mjs",
-    "test:consumers": "node scripts/old-typescript.mjs"
+    "test:consumers": "node scripts/old-typescript.mjs",
+    "docs:api": "typedoc",
+    "docs:site": "typedoc && node scripts/site-coverage.mjs coverage/coverage-summary.json coverage site/coverage"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
@@ -112,6 +114,7 @@
     "acorn": "8.19.0",
     "publint": "0.3.25",
     "tsdown": "0.23.7",
+    "typedoc": "0.28.20",
     "typescript": "6.0.3",
     "typescript-5.0": "npm:typescript@5.0.4",
     "typescript-5.4": "npm:typescript@5.4.5",

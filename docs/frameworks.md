@@ -7,6 +7,7 @@ collections across servers, workers and storage, and how they behave with `await
 
 ## Why an in-place change goes unseen
 
+<!-- example: not run — a framework recipe, tested in test/frameworks/ -->
 ```ts
 const [items, setItems] = useState(() => new ArrayList<string>())
 items.add('tea')
@@ -74,6 +75,7 @@ With `useState`, copy on write: `setItems((prev) => { const next = prev.copy(); 
 
 Hold the collection in a `shallowRef` and call `triggerRef` after changing it:
 
+<!-- example: not run — a framework recipe, tested in test/frameworks/ -->
 ```ts
 import { shallowRef, triggerRef } from 'vue'
 
@@ -192,6 +194,8 @@ in the loop or in a callback:
 To iterate safely across `await` while other code may change the collection, iterate a copy:
 
 ```ts
+const list = new ArrayList(['a', 'b'])
+const save = async (item: string) => item
 for (const item of list.copy()) {
   await save(item) // other tasks may change `list` meanwhile
 }

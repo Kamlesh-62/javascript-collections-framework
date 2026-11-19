@@ -104,6 +104,37 @@ compares the build with them:
 `pnpm test:consumers` type-checks a program using every export with each supported TypeScript
 version.
 
+## Code examples in the docs
+
+Every code block tagged `ts` or `js` in `README.md` and `docs/` is type-checked and run by
+`pnpm test`. The blocks of a page run in order as one program: a block sees, and may shadow, the
+names of the blocks before it, and every export of the package is in scope. Imports from the
+package are type-checked and then dropped; any other import needs the marker below. Random
+numbers are seeded, so a run is repeatable.
+
+A comment at the end of a top-level statement states its result when it has one of these forms:
+
+| Comment                                      | The statement must                                     |
+| -------------------------------------------- | ------------------------------------------------------ |
+| `// 3`, `// 'a'`, `// [1, 2]`, `// { a: 1 }` | evaluate to that value (`Object.is`, deep for objects) |
+| `// ArrayList(2) [1, 2]`                     | print as that text with `String(value)`                |
+| `// RangeError`, `// throws RangeError`      | throw that error class                                 |
+| `// compile error; at run time, TypeError`   | fail to type-check, and throw that error when run      |
+
+The stated part ends at the first spaced dash (—), or colon or semicolon followed by a space,
+outside quotes and brackets, so `// 3 — the size` states `3`. Any other comment is prose and is
+not checked: write the contents of a collection after a call as prose (`// list is [1, 2]`),
+never by comparing it with an array.
+A result that depends on `shuffle` without an explicit `random` cannot be stated.
+
+A block that cannot run as written (a framework recipe, a signature, a module system other than
+the package's) is skipped only with a marker on the line before its fence, which the test output
+lists:
+
+```html
+<!-- example: not run — a framework recipe, tested in test/frameworks/ -->
+```
+
 ## Rules for changes
 
 - **Every public export** comes from `src/index.ts`, has TSDoc with an `@example`, and states its

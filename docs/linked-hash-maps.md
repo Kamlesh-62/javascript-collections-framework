@@ -120,6 +120,9 @@ the oldest mapping goes; in access order, the least recently used.
 `undefined`, in eviction order, after the map is consistent:
 
 ```ts
+interface Session {
+  close(id: string): void
+}
 const sessions = new LinkedHashMap<string, Session>({
   accessOrder: true,
   maxSize: 1000,

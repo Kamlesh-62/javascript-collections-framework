@@ -52,6 +52,7 @@ Strings are compared by code units, not by language: `'B'` comes before `'a'`. F
 language, pass a comparator:
 
 ```ts
+const words = new ArrayList(['Zebra', 'Äpfel', 'Birne'])
 const german = new Intl.Collator('de').compare
 words.sort(german)
 ```

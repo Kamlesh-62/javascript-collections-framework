@@ -46,6 +46,14 @@ By default two distinct objects are two keys, as in `Map`. Pass **one** of two o
 for [`HashSet`](sets.md#comparing-members-by-value) (both together throw `TypeError`):
 
 ```ts
+import {
+  equalsSymbol,
+  type HashFunction,
+  hashCodeSymbol,
+  HashMap,
+  valueEquivalence,
+} from 'javascript-collections-framework'
+
 interface User {
   id: number
   name: string
@@ -54,7 +62,21 @@ const scores = new HashMap<User, number>({ key: (user) => user.id })
 scores.set({ id: 1, name: 'Ada' }, 10).set({ id: 1, name: 'Ada L.' }, 12)
 scores.size // 1 — the first key object stays, the value is 12
 
+class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+  [equalsSymbol](other: unknown): boolean {
+    return other instanceof Point && other.x === this.x && other.y === this.y
+  }
+  [hashCodeSymbol](hash: HashFunction): number {
+    return hash(this.x) * 31 + hash(this.y)
+  }
+}
 const byValue = new HashMap<Point, string>({ equivalence: valueEquivalence })
+byValue.set(new Point(1, 2), 'a').set(new Point(1, 2), 'b')
+byValue.size // 1
 ```
 
 The options apply to keys only; values are never hashed. `key` (or `hash`) is called once per key

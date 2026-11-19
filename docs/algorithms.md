@@ -22,7 +22,7 @@ binarySearch(asList(scores), 30) // 2
 sortedIndex(asList(scores), 25) // 2: insert 25 at index 2 to keep the order
 
 const list = new ArrayList(['a', 'b', 'c'])
-rotate(list, 1) // ['c', 'a', 'b']
+rotate(list, 1) // list is ['c', 'a', 'b']
 shuffle(list)
 
 max(new Set([3, 9, 4])) // 9
