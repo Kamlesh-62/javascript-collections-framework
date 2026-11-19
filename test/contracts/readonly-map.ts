@@ -25,6 +25,11 @@ export interface ReadonlyMapContractOptions {
    * by code unit.
    */
   order?: 'insertion' | 'ascending' | 'descending'
+  /**
+   * Whether to check the Node.js `inspect` output (the default). A run outside Node.js turns it
+   * off; every other check runs the same.
+   */
+  inspect?: boolean
 }
 
 /** Runs the reading half of the map contract; `name` is the tag maps print with. */
@@ -149,7 +154,11 @@ export function describeReadonlyMap(
         const quote = (v: unknown) => (typeof v === 'string' ? `'${v}'` : String(v))
         expect(String(map)).toBe(`${name}(2) {${text((k, v) => `${quote(k)} => ${quote(v)}`)}}`)
         expect(String(make())).toBe(`${name}(0) {}`)
-        expect(inspect(map)).toBe(`${name}(2) { ${text((k, v) => `${quote(k)} => ${quote(v)}`)} }`)
+        if (options.inspect !== false) {
+          expect(inspect(map)).toBe(
+            `${name}(2) { ${text((k, v) => `${quote(k)} => ${quote(v)}`)} }`,
+          )
+        }
         expect(Object.prototype.toString.call(map)).toBe(`[object ${name}]`)
         expect(JSON.stringify(map)).toBe(JSON.stringify(shown))
       })

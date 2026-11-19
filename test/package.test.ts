@@ -206,4 +206,90 @@ describe('workflow and install hardening', () => {
     const ghsas = (text: string) => text.match(/GHSA-[\w-]+/g) ?? []
     expect(ghsas(fixture)).toEqual(ghsas(root))
   })
+
+  it('the browser and bundler fixtures keep the root install protections and audit exceptions, denying the one admitted install script [039 S1-AC1]', () => {
+    const settings = [
+      'minimumReleaseAge',
+      'trustPolicy',
+      'blockExoticSubdeps',
+      'strictDepBuilds',
+      'saveExact',
+    ]
+    const pick = (text: string) =>
+      Object.fromEntries(
+        settings.map((key) => [
+          key,
+          text.match(new RegExp(`^${key}:\\s*([^#\\n]*)`, 'm'))?.[1]?.trim(),
+        ]),
+      )
+    const root = read('pnpm-workspace.yaml')
+    const fixture = read('fixtures/bundlers/pnpm-workspace.yaml')
+    expect(pick(fixture)).toEqual(pick(root))
+    expect(fixture).toMatch(/^minimumReleaseAgeExclude: \[\]/m)
+    // allowBuilds holds only the admitted entry: esbuild's script, denied by name.
+    const allow = fixture.slice(fixture.indexOf('\nallowBuilds:'), fixture.indexOf('\nsaveExact:'))
+    const entries = allow
+      .split('\n')
+      .slice(2)
+      .filter((line) => /^\s+[^#\s]/.test(line))
+      .map((line) => line.trim())
+    expect(entries).toEqual(['esbuild: false'])
+    const ghsas = (text: string) => text.match(/GHSA-[\w-]+/g) ?? []
+    expect(ghsas(fixture)).toEqual(ghsas(root))
+    const pkg = JSON.parse(read('fixtures/bundlers/package.json')) as {
+      private: boolean
+      devDependencies: Record<string, string>
+    }
+    expect(pkg.private).toBe(true)
+    expect(pkg.devDependencies['javascript-collections-framework']).toBe('link:../..')
+    for (const [name, version] of Object.entries(pkg.devDependencies)) {
+      if (name !== 'javascript-collections-framework')
+        expect(version, name).toMatch(/^\d+\.\d+\.\d+$/)
+    }
+  })
+})
+
+describe('browser and bundler job', () => {
+  const read = (path: string) => readFileSync(join(ROOT, path), 'utf8')
+  const workflow = read('.github/workflows/ci.yml')
+  const start = workflow.indexOf('\n  bundlers:\n')
+  const job = workflow.slice(start, workflow.indexOf('\n\n  ', start + 1))
+
+  it('runs on every pull request and push, on Linux with Node 24, read-only, within 30 minutes [039 S1-AC1] [039 S1-AC2] [039 S2-AC1] [039 S2-AC2]', () => {
+    expect(start).toBeGreaterThan(-1)
+    expect(workflow).toMatch(/^on:\n {2}push:\n {4}branches: \[main\]\n {2}pull_request:\n/m)
+    expect(job).not.toMatch(/^\s+if:/m)
+    expect(job).toContain('runs-on: ubuntu-latest')
+    expect(job).toContain('timeout-minutes: 30')
+    expect(job).toMatch(/permissions:\n {6}contents: read\n/)
+    expect(job).toContain('node-version: 24')
+  })
+
+  it('builds the library, installs the fixtures frozen and the pinned browsers, then runs the Node.js and browser fixtures [039 S1-AC1] [039 S1-AC2] [039 S2-AC1] [039 S2-AC2]', () => {
+    const steps = [
+      'run: pnpm install --frozen-lockfile',
+      'run: pnpm build',
+      'working-directory: fixtures/bundlers\n        run: pnpm install --frozen-lockfile',
+      'run: pnpm exec playwright install --with-deps chromium firefox webkit',
+      'run: pnpm test:node',
+      'run: pnpm test:browser',
+    ]
+    let at = -1
+    for (const step of steps) {
+      const next = job.indexOf(step, at + 1)
+      expect(next, step).toBeGreaterThan(at)
+      at = next
+    }
+    const pkg = JSON.parse(read('fixtures/bundlers/package.json')) as {
+      scripts: Record<string, string>
+    }
+    expect(pkg.scripts['test:node']).toBe('vitest run')
+    expect(pkg.scripts['test:browser']).toBe('vitest run --config browser/vitest.config.ts')
+  })
+
+  it('audits the fixtures nightly, outside pull requests', () => {
+    const nightly = read('.github/workflows/nightly.yml')
+    expect(nightly).toMatch(/working-directory: fixtures\/bundlers\n {8}run: pnpm audit/)
+    expect(workflow).not.toMatch(/fixtures\/bundlers\n {8}run: pnpm audit/)
+  })
 })

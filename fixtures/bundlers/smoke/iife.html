@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Smoke check, script tag</title>
+  </head>
+  <body>
+    <!-- dist/index.iife.js, copied by browser/global-setup.ts; it defines window.JCF. -->
+    <script src="./.out/index.iife.js"></script>
+    <script type="module">
+      import { smoke } from './smoke.js'
+
+      try {
+        window.smokeResult = smoke(window.JCF)
+      } catch (error) {
+        window.smokeResult = { error: String(error) }
+      }
+    </script>
+  </body>
+</html>

@@ -1,8 +1,12 @@
 // The size report: the minified and gzipped bytes the whole package and each export add to a
 // bundle, committed so every change shows what it costs.
 //
-//   node scripts/size-report.mjs check    compare the build with the committed report (pnpm size:check)
-//   node scripts/size-report.mjs update   rewrite the committed report from the build (pnpm size:update)
+//   node scripts/size-report.mjs check    compare the build with the committed report, then the
+//                                         report with the budgets and the docs size table
+//                                         (pnpm size:check)
+//   node scripts/size-report.mjs update   rewrite the committed report and the docs size table from
+//                                         the build; the budget file is never written
+//                                         (pnpm size:update)
 //
 // Both read the existing dist/ (run `pnpm build` first).
 

@@ -3,6 +3,7 @@ import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { ArrayDeque } from '../src/collections/array-deque'
 import { PriorityQueue } from '../src/collections/priority-queue'
+import * as lib from '../src/index'
 import {
   ClassCastError,
   type Comparator,
@@ -13,7 +14,7 @@ import {
   NullElementError,
 } from '../src/index'
 import { describeCollection } from './contracts/collection'
-import { describeQueue } from './contracts/queue'
+import { runContractPair } from './contracts/pairs'
 import { integer, seeded } from './support/random'
 import { runPriorityQueueReferenceModel } from './support/reference-model'
 
@@ -1025,7 +1026,7 @@ describeCollection(
     },
   },
 )
-describeQueue('PriorityQueue', (initial) => new PriorityQueue<number>(initial))
+runContractPair('PriorityQueue', lib)
 
 describe('PriorityQueue — reference model', () => {
   it('matches a sorted native array under seeded random operations [010 S5-AC2]', () => {

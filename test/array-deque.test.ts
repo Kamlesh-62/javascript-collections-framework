@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ArrayDeque } from '../src/collections/array-deque'
 import { ArrayList } from '../src/collections/array-list'
 import { LinkedList } from '../src/collections/linked-list'
+import * as lib from '../src/index'
 import {
   ConcurrentModificationError,
   hashCode,
@@ -11,7 +12,7 @@ import {
 } from '../src/index'
 import type { Deque } from '../src/interfaces/queue'
 import { describeCollection } from './contracts/collection'
-import { describeDeque } from './contracts/deque'
+import { runContractPair } from './contracts/pairs'
 import { describeQueue } from './contracts/queue'
 import { describeSequencedCollection } from './contracts/sequenced'
 import { runDequeReferenceModel, runReferenceModel } from './support/reference-model'
@@ -408,8 +409,8 @@ for (const [name, make] of deques) {
   })
   describeSequencedCollection(name, make as never)
   describeQueue(name, make)
-  describeDeque(name, make)
 }
+runContractPair('ArrayDeque', lib)
 
 describe('ArrayDeque — reference model', () => {
   it('matches a native array under seeded random operations [008 S6-AC5]', () => {

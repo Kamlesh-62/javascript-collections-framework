@@ -2,6 +2,7 @@ import { inspect } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HashMap, type HashMapOptions } from '../src/collections/hash-map'
 import { HashSet } from '../src/collections/hash-set'
+import * as lib from '../src/index'
 import {
   ArrayList,
   ConcurrentModificationError,
@@ -22,7 +23,7 @@ import {
 } from '../src/index'
 import { setBucketSeedSourceForTesting } from '../src/internal/engines/hash-table'
 import { describeCollection } from './contracts/collection'
-import { describeMapCollection } from './contracts/map'
+import { runContractPair } from './contracts/pairs'
 import { describeSetCollection } from './contracts/set'
 import { fixHashSeed } from './support/hash-seed'
 import { runMapReferenceModel } from './support/reference-model'
@@ -1669,12 +1670,11 @@ describe('HashMap — construction', () => {
 })
 
 describe('HashMap — shared contracts', () => {
+  runContractPair('HashMap', lib)
   const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
     elements.reduce<number>((h, e) => (h + hash(e)) | 0, 0)
   for (const path of PATHS) {
     describe(`on the ${path[0]} path`, () => {
-      describeMapCollection('HashMap', (initial) => makeOn(path, initial))
-
       // Each view is filled through the map that owns it.
       const owners = new WeakMap<object, HashMap<unknown, unknown>>()
       const ownerOf = (view: object) => owners.get(view) as HashMap<unknown, unknown>

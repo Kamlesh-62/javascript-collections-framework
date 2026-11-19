@@ -39,6 +39,11 @@ export interface ReadonlyCollectionContractOptions {
    * (`'kept'`, the default for lists, and for sets that compare with a user comparator).
    */
   minusZero?: 'zero' | 'kept'
+  /**
+   * Whether to check the Node.js `inspect` output (the default). A run outside Node.js turns it
+   * off; every other check runs the same.
+   */
+  inspect?: boolean
 }
 
 /** Builds a new collection holding `initial`, in order. */
@@ -360,27 +365,30 @@ export function describeReadonlyCollection(
         expect(Object.prototype.toString.call(c)).toBe(`[object ${name}]`)
       })
 
-      it('shows class, size and elements in Node inspect, honouring depth [004 S6-AC7]', () => {
-        const tag = name
-        const pair = make([1, 'a'])
-        const pairElements = printedElements(pair, [
-          [1, '1'],
-          ['a', "'a'"],
-        ])
-        expect(inspect(pair)).toBe(`${tag}(2) ${open} ${pairElements} ${close}`)
-        expect(inspect(make())).toBe(`${tag}(0) ${open}${close}`)
-        expect(inspect({ inner: make([{ deep: { deeper: 1 } }]) }, { depth: 0 })).toBe(
-          `{ inner: [${tag}] }`,
-        )
-        expect(inspect(make([{ a: { b: { c: { d: 1 } } } }]), { depth: null })).toContain('d: 1')
-        // Nested, a collection shows its elements exactly as deep as an array in its place would.
-        const deep = { a: { b: { c: 1 } } }
-        const viaArray = inspect({ x: { y: [deep] } }, { depth: 2 })
-        const viaCollection = inspect({ x: { y: make([deep]) } }, { depth: 2 })
-        expect(viaCollection).toBe(
-          viaArray.replace('[ ', `${name}(1) ${open} `).replace(' ]', ` ${close}`),
-        )
-      })
+      it.skipIf(options.inspect === false)(
+        'shows class, size and elements in Node inspect, honouring depth [004 S6-AC7]',
+        () => {
+          const tag = name
+          const pair = make([1, 'a'])
+          const pairElements = printedElements(pair, [
+            [1, '1'],
+            ['a', "'a'"],
+          ])
+          expect(inspect(pair)).toBe(`${tag}(2) ${open} ${pairElements} ${close}`)
+          expect(inspect(make())).toBe(`${tag}(0) ${open}${close}`)
+          expect(inspect({ inner: make([{ deep: { deeper: 1 } }]) }, { depth: 0 })).toBe(
+            `{ inner: [${tag}] }`,
+          )
+          expect(inspect(make([{ a: { b: { c: { d: 1 } } } }]), { depth: null })).toContain('d: 1')
+          // Nested, a collection shows its elements exactly as deep as an array in its place would.
+          const deep = { a: { b: { c: 1 } } }
+          const viaArray = inspect({ x: { y: [deep] } }, { depth: 2 })
+          const viaCollection = inspect({ x: { y: make([deep]) } }, { depth: 2 })
+          expect(viaCollection).toBe(
+            viaArray.replace('[ ', `${name}(1) ${open} `).replace(' ]', ` ${close}`),
+          )
+        },
+      )
     })
 
     describe('recognition', () => {

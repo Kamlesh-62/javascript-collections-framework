@@ -95,6 +95,40 @@ jobs:
       - run: |
           deno eval "await import('./dist/index.js'); console.log('smoke: deno loads ESM')"
 
+  bundlers:
+    name: Browsers and bundlers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            fixtures/bundlers/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install the browser and bundler fixtures
+        working-directory: fixtures/bundlers
+        run: pnpm install --frozen-lockfile
+      # The browser builds pinned by the installed Playwright version, with their system libraries.
+      - name: Install Chromium, Firefox and WebKit
+        working-directory: fixtures/bundlers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Smoke check, bundler fixtures and tree-shaking (Node.js and Chromium)
+        working-directory: fixtures/bundlers
+        run: pnpm test:node
+      - name: Smoke check and contract pairs in Chromium, Firefox and WebKit
+        working-directory: fixtures/bundlers
+        run: pnpm test:browser
+
   pull-request:
     name: Pull request title and changeset
     if: github.event_name == 'pull_request'
@@ -160,7 +194,7 @@ jobs:
   deploy:
     name: Deploy the site to GitHub Pages
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, windows, runtimes, audit, site]
+    needs: [check, windows, runtimes, bundlers, audit, site]
     runs-on: ubuntu-latest
     permissions:
       pages: write
