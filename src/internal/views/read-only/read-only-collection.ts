@@ -7,11 +7,11 @@ import type { Cursor, ReadonlyCollection } from '../../../interfaces/collection'
 import type { ReadonlySequencedCollection, SequencedCollection } from '../../../interfaces/list'
 import { SEQUENCED_COLLECTION_BRAND } from '../../brand'
 import { apply } from '../../intrinsics'
-import { MappedLiveIterator } from '../../iteration'
 import { AbstractCollection } from '../../skeletons/abstract-collection'
 import { ReadOnlyCursor } from './read-only-cursor'
 import { empty, refuse } from './refuse'
 import { type ReadOnlyKind, registerReadOnly } from './registry'
+import { hideSource, ReadOnlyIterator, SOURCE } from './source-key'
 
 /**
  * A read-only view of `source`, printed with `tag`, equal only to itself. With `reveal`, each
@@ -21,7 +21,7 @@ import { type ReadOnlyKind, registerReadOnly } from './registry'
  */
 export class ReadOnlyCollection<E> extends AbstractCollection<E> {
   protected readonly iterationMode = 'live' as const
-  protected readonly source: ReadonlyCollection<E>
+  declare readonly [SOURCE]: ReadonlyCollection<E>
   private readonly tag: string
   protected readonly reveal: ((member: E) => E) | undefined
 
@@ -38,7 +38,7 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
     exact: unknown = ReadOnlyCollection,
   ) {
     super()
-    this.source = source
+    hideSource(this, source)
     this.tag = tag
     this.reveal = reveal
     registerReadOnly(this, new.target === exact ? kind : undefined, source, tag, reveal)
@@ -54,28 +54,28 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
   }
 
   get size(): number {
-    return this.source.size
+    return this[SOURCE].size
   }
 
   override get revision(): number {
-    return this.source.revision
+    return this[SOURCE].revision
   }
 
   override isEmpty(): boolean {
-    return this.source.isEmpty()
+    return this[SOURCE].isEmpty()
   }
 
   [Symbol.iterator](): IterableIterator<E> {
-    const members = this.source[Symbol.iterator]()
-    return this.reveal === undefined ? members : new MappedLiveIterator(members, this.reveal)
+    const members = this[SOURCE][Symbol.iterator]()
+    return new ReadOnlyIterator(members, this.reveal)
   }
 
   override has(element: E): boolean {
-    return this.source.has(element)
+    return this[SOURCE].has(element)
   }
 
   override toArray(): E[] {
-    const members = this.source.toArray()
+    const members = this[SOURCE].toArray()
     if (this.reveal !== undefined) {
       for (let i = 0; i < members.length; i++) members[i] = this.reveal(members[i] as E)
     }
@@ -84,13 +84,13 @@ export class ReadOnlyCollection<E> extends AbstractCollection<E> {
 
   override forEach(action: (element: E) => void, thisArg?: unknown): void {
     this.requireFunction(action, 'forEach', 'action')
-    this.source.forEach((element) => {
+    this[SOURCE].forEach((element) => {
       apply(action, thisArg, [this.shown(element)])
     })
   }
 
   cursor(): Cursor<E> {
-    return new ReadOnlyCursor(this.source.cursor(), `${this.className}.cursor`, this.reveal)
+    return new ReadOnlyCursor(this[SOURCE].cursor(), `${this.className}.cursor`, this.reveal)
   }
 
   add(_element: E): this {
@@ -141,18 +141,18 @@ export class ReadOnlySequencedCollection<E>
   }
 
   getFirst(): E {
-    if (this.source.isEmpty()) throw empty(`${this.className}.getFirst`)
-    return this.shown((this.source as ReadonlySequencedCollection<E>).getFirst())
+    if (this[SOURCE].isEmpty()) throw empty(`${this.className}.getFirst`)
+    return this.shown((this[SOURCE] as ReadonlySequencedCollection<E>).getFirst())
   }
 
   getLast(): E {
-    if (this.source.isEmpty()) throw empty(`${this.className}.getLast`)
-    return this.shown((this.source as ReadonlySequencedCollection<E>).getLast())
+    if (this[SOURCE].isEmpty()) throw empty(`${this.className}.getLast`)
+    return this.shown((this[SOURCE] as ReadonlySequencedCollection<E>).getLast())
   }
 
   reversed(): SequencedCollection<E> {
     return new ReadOnlySequencedCollection(
-      (this.source as ReadonlySequencedCollection<E>).reversed(),
+      (this[SOURCE] as ReadonlySequencedCollection<E>).reversed(),
       this.className,
       this.reveal,
     )

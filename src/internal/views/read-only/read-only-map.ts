@@ -11,9 +11,10 @@ import type { SequencedSet } from '../../../interfaces/sequenced-set'
 import type { SetCollection } from '../../../interfaces/set'
 import type { ReadonlySortedMap, SortedMap } from '../../../interfaces/sorted-map'
 import type { BoundOptions, SortedSet, SubSetOptions } from '../../../interfaces/sorted-set'
-import { MAP_COLLECTION_BRAND, SEQUENCED_MAP_BRAND, SORTED_MAP_BRAND } from '../../brand'
+import { isBranded, MAP_COLLECTION_BRAND, SEQUENCED_MAP_BRAND, SORTED_MAP_BRAND } from '../../brand'
 import { requireFunction } from '../../checks'
-import { equalsSymbol, type HashFunction, hashCodeSymbol } from '../../equality'
+import { createGuard, rememberEqual } from '../../cycle'
+import { equals, equalsSymbol, type HashFunction, hashCodeSymbol } from '../../equality'
 import { apply } from '../../intrinsics'
 import { INSPECT, type InspectOptions, inspectMap, mapToString } from '../../output'
 import { ReadOnlyCollection, ReadOnlySequencedCollection } from './read-only-collection'
@@ -21,7 +22,10 @@ import { ReadOnlyEntry } from './read-only-entry'
 import { ReadOnlySequencedSet, ReadOnlySet, ReadOnlySortedSet } from './read-only-set'
 import { refuse } from './refuse'
 import { type ReadOnlyKind, registerReadOnly } from './registry'
+import { hideSource, ReadOnlyIterator, SOURCE } from './source-key'
 import type { ReadOnlyTags } from './tags'
+
+const equalsGuard = /*#__PURE__*/ createGuard()
 
 /** Wraps a source entry so it cannot be written. @internal */
 export function readOnlyEntry<K, V>(entry: MapEntry<K, V>): MapEntry<K, V> {
@@ -43,7 +47,7 @@ export type MapRole = 'map' | 'sequencedMap' | 'sortedMap'
  * @internal
  */
 export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
-  protected readonly source: ReadonlyMapCollection<K, V>
+  declare readonly [SOURCE]: ReadonlyMapCollection<K, V>
   protected readonly tags: ReadOnlyTags
   private readonly role: MapRole
 
@@ -59,7 +63,7 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
     kind: ReadOnlyKind = 'map',
     exact: unknown = ReadOnlyMap,
   ) {
-    this.source = source
+    hideSource(this, source)
     this.tags = tags
     this.role = role
     registerReadOnly(this, new.target === exact ? kind : undefined, source, tags[role])
@@ -80,70 +84,95 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   }
 
   get size(): number {
-    return this.source.size
+    return this[SOURCE].size
   }
 
   get revision(): number {
-    return this.source.revision
+    return this[SOURCE].revision
   }
 
   isEmpty(): boolean {
-    return this.source.isEmpty()
+    return this[SOURCE].isEmpty()
   }
 
   get(key: K): V | undefined {
-    return this.source.get(key)
+    return this[SOURCE].get(key)
   }
 
   getOrDefault<D>(key: K, fallback: D): V | D {
-    return this.source.getOrDefault(key, fallback)
+    return this[SOURCE].getOrDefault(key, fallback)
   }
 
   has(key: K): boolean {
-    return this.source.has(key)
+    return this[SOURCE].has(key)
   }
 
   containsValue(value: V): boolean {
-    return this.source.containsValue(value)
+    return this[SOURCE].containsValue(value)
   }
 
   keySet(): SetCollection<K> {
-    return new ReadOnlySet(this.source.keySet(), this.tags.keySet)
+    return new ReadOnlySet(this[SOURCE].keySet(), this.tags.keySet)
   }
 
   entrySet(): SetCollection<MapEntry<K, V>> {
-    return new ReadOnlySet(this.source.entrySet(), this.tags.entrySet, readOnlyEntry)
+    return new ReadOnlySet(this[SOURCE].entrySet(), this.tags.entrySet, readOnlyEntry)
   }
 
   valueCollection(): Collection<V> {
-    return new ReadOnlyCollection(this.source.valueCollection(), this.tags.values)
+    return new ReadOnlyCollection(this[SOURCE].valueCollection(), this.tags.values)
   }
 
   keys(): IterableIterator<K> {
-    return this.source.keys()
+    return new ReadOnlyIterator(this[SOURCE].keys())
   }
 
   values(): IterableIterator<V> {
-    return this.source.values()
+    return new ReadOnlyIterator(this[SOURCE].values())
   }
 
   entries(): IterableIterator<[K, V]> {
-    return this.source.entries()
+    return new ReadOnlyIterator(this[SOURCE].entries())
   }
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
-    return this.source.entries()
+    return new ReadOnlyIterator(this[SOURCE].entries())
   }
 
   forEach(action: (value: V, key: K, map: MapCollection<K, V>) => void, thisArg?: unknown): void {
     requireFunction(action, `${this.className}.forEach`, 'action')
-    this.source.forEach((value, key) => {
+    this[SOURCE].forEach((value, key) => {
       apply(action, thisArg, [value, key, this])
     })
   }
 
+  // Compares through this view's own read-only entries, never the source's, so `other` (which may
+  // be user code) is never handed an entry that could change the source.
   equals(other: unknown): boolean {
-    return other === this || this.source.equals(other)
+    if (other === this) return true
+    if (!isBranded(other, MAP_COLLECTION_BRAND)) return false
+    const that = other as ReadonlyMapCollection<K, V>
+    if (that.size !== this.size) return false
+    return rememberEqual(this, that, () =>
+      equalsGuard(
+        this,
+        () => false,
+        () => {
+          const theirs = that.entrySet()
+          const ours = this.entrySet()[Symbol.iterator]()
+          for (let step = ours.next(); step.done !== true; step = ours.next()) {
+            if (!theirs.has(step.value)) return false
+          }
+          const source = this[SOURCE]
+          const pairs = that[Symbol.iterator]()
+          for (let step = pairs.next(); step.done !== true; step = pairs.next()) {
+            const [key, value] = step.value
+            if (!source.has(key) || !equals(value, source.get(key))) return false
+          }
+          return true
+        },
+      ),
+    )
   }
 
   [equalsSymbol](other: unknown): boolean {
@@ -151,7 +180,7 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   }
 
   [hashCodeSymbol](hash: HashFunction): number {
-    return this.source[hashCodeSymbol](hash)
+    return this[SOURCE][hashCodeSymbol](hash)
   }
 
   toString(): string {
@@ -159,7 +188,7 @@ export class ReadOnlyMap<K, V> implements MapCollection<K, V> {
   }
 
   toJSON(): Array<[K, V]> {
-    return this.source.toJSON()
+    return this[SOURCE].toJSON()
   }
 
   [INSPECT](
@@ -258,7 +287,7 @@ export class ReadOnlySequencedMap<K, V> extends ReadOnlyMap<K, V> implements Seq
   }
 
   private get sequenced(): ReadonlySequencedMap<K, V> {
-    return this.source as ReadonlySequencedMap<K, V>
+    return this[SOURCE] as ReadonlySequencedMap<K, V>
   }
 
   firstEntry(): MapEntry<K, V> | undefined {
@@ -326,7 +355,7 @@ export class ReadOnlySortedMap<K, V> extends ReadOnlySequencedMap<K, V> implemen
   }
 
   private get sorted(): ReadonlySortedMap<K, V> {
-    return this.source as ReadonlySortedMap<K, V>
+    return this[SOURCE] as ReadonlySortedMap<K, V>
   }
 
   comparator(): Comparator<K> | undefined {

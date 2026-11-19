@@ -8,6 +8,7 @@ import { NativeLiveIterator } from '../../iteration'
 import { INSPECT, type InspectOptions, inspectMapping, mappingToString } from '../../output'
 import { mappingHash } from '../../skeletons/abstract-map'
 import { refuse } from './refuse'
+import { hideSource, SOURCE } from './source-key'
 
 /**
  * A read-only entry over a source entry.
@@ -15,18 +16,18 @@ import { refuse } from './refuse'
  * @internal
  */
 export class ReadOnlyEntry<K, V> implements MapEntry<K, V> {
-  private readonly source: MapEntry<K, V>
+  declare readonly [SOURCE]: MapEntry<K, V>
 
   constructor(source: MapEntry<K, V>) {
-    this.source = source
+    hideSource(this, source)
   }
 
   get key(): K {
-    return this.source.key
+    return this[SOURCE].key
   }
 
   get value(): V {
-    return this.source.value
+    return this[SOURCE].value
   }
 
   /** Marks every map entry, across loaded copies. */

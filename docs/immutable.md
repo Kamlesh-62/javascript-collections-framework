@@ -97,7 +97,10 @@ prototype counts as given.
   not show through, and `revision` never changes.
 - **It is not a security boundary.** Immutability holds through the public API. The collections
   are ordinary objects, not frozen, so they work inside framework proxies such as Vue's
-  `reactive`. Code that reaches into their internal fields can still change them.
+  `reactive`. The storage behind them, and behind their views, iterators, cursors and entries,
+  sits under a non-enumerable symbol key, out of reach of property access, spread and
+  `Object.assign`, but reflection (`Object.getOwnPropertySymbols`) can
+  still find and change it.
 
 ## Views and cursors
 

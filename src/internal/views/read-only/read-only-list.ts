@@ -12,6 +12,7 @@ import { AbstractList } from '../../skeletons/abstract-list'
 import { ReadOnlyListCursor } from './read-only-cursor'
 import { refuse } from './refuse'
 import { registerReadOnly } from './registry'
+import { hideSource, ReadOnlyIterator, SOURCE } from './source-key'
 import type { ReadOnlyTags } from './tags'
 
 /** The roles a read-only list can play. @internal */
@@ -24,7 +25,7 @@ export type ListRole = 'list' | 'subList' | 'reversedList'
  * @internal
  */
 export class ReadOnlyList<E> extends AbstractList<E> {
-  private readonly source: ReadonlyList<E>
+  declare readonly [SOURCE]: ReadonlyList<E>
   private readonly tags: ReadOnlyTags
   private readonly role: ListRole
 
@@ -39,7 +40,7 @@ export class ReadOnlyList<E> extends AbstractList<E> {
     exact: unknown = ReadOnlyList,
   ) {
     super()
-    this.source = source
+    hideSource(this, source)
     this.tags = tags
     this.role = role
     registerReadOnly(this, new.target === exact ? 'list' : undefined, source, tags[role])
@@ -50,35 +51,35 @@ export class ReadOnlyList<E> extends AbstractList<E> {
   }
 
   get size(): number {
-    return this.source.size
+    return this[SOURCE].size
   }
 
   override get revision(): number {
-    return this.source.revision
+    return this[SOURCE].revision
   }
 
   override isEmpty(): boolean {
-    return this.source.isEmpty()
+    return this[SOURCE].isEmpty()
   }
 
   getAt(index: number): E {
-    return this.source.get(index)
+    return this[SOURCE].get(index)
   }
 
   override [Symbol.iterator](): IterableIterator<E> {
-    return this.source[Symbol.iterator]()
+    return new ReadOnlyIterator(this[SOURCE][Symbol.iterator]())
   }
 
   override indexOf(element: E): number {
-    return this.source.indexOf(element)
+    return this[SOURCE].indexOf(element)
   }
 
   override lastIndexOf(element: E): number {
-    return this.source.lastIndexOf(element)
+    return this[SOURCE].lastIndexOf(element)
   }
 
   override toArray(): E[] {
-    return this.source.toArray()
+    return this[SOURCE].toArray()
   }
 
   override forEach(
@@ -86,36 +87,36 @@ export class ReadOnlyList<E> extends AbstractList<E> {
     thisArg?: unknown,
   ): void {
     this.requireFunction(action, 'forEach', 'action')
-    this.source.forEach((element, index) => {
+    this[SOURCE].forEach((element, index) => {
       apply(action, thisArg, [element, index, this])
     })
   }
 
   override equals(other: unknown): boolean {
-    return other === this || this.source.equals(other)
+    return other === this || this[SOURCE].equals(other)
   }
 
   override [hashCodeSymbol](hash: HashFunction): number {
-    return this.source[hashCodeSymbol](hash)
+    return this[SOURCE][hashCodeSymbol](hash)
   }
 
   override cursor(): ListCursor<E> {
-    return new ReadOnlyListCursor(this.source.listCursor(0), `${this.className}.cursor`)
+    return new ReadOnlyListCursor(this[SOURCE].listCursor(0), `${this.className}.cursor`)
   }
 
   override listCursor(index?: number): ListCursor<E> {
     const where = `${this.className}.listCursor`
     const position = index === undefined ? 0 : checkPosition(index, this.size, where)
-    return new ReadOnlyListCursor(this.source.listCursor(position), where)
+    return new ReadOnlyListCursor(this[SOURCE].listCursor(position), where)
   }
 
   subList(from: number, to: number): List<E> {
     this.checkSubList(from, to)
-    return new ReadOnlyList(this.source.subList(from, to), this.tags, 'subList')
+    return new ReadOnlyList(this[SOURCE].subList(from, to), this.tags, 'subList')
   }
 
   reversed(): List<E> {
-    return new ReadOnlyList(this.source.reversed(), this.tags, 'reversedList')
+    return new ReadOnlyList(this[SOURCE].reversed(), this.tags, 'reversedList')
   }
 
   // ── Every change is refused ──
