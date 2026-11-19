@@ -14,8 +14,8 @@ import { LinkedList, type LinkedListNode } from 'javascript-collections-framewor
 
 const list = new LinkedList<string>(['b', 'd'])
 const d = list.lastNode()! // the handle of 'd'
-list.insertBefore(d, 'c') // ['b', 'c', 'd']
-list.addFirstNode('a') // ['a', 'b', 'c', 'd']
+list.insertBefore(d, 'c') // list is ['b', 'c', 'd']
+list.addFirstNode('a') // list is ['a', 'b', 'c', 'd']
 list.removeNode(d) // 'd'; list is ['a', 'b', 'c']
 ```
 
@@ -88,6 +88,8 @@ return `undefined` both for an empty list and for a stored `undefined`. Tell the
 `isEmpty()`, or use the throwing forms:
 
 ```ts
+const queue = new LinkedList(['a', 'b'])
+const handle = (job: string | undefined) => job
 while (!queue.isEmpty()) handle(queue.poll())
 // or: queue.removeFirst() throws NoSuchElementError only when the list is empty
 ```

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "tsconfig": "tsconfig.json",
+  "out": "site",
+  "name": "javascript-collections-framework",
+  "readme": "README.md",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "treatWarningsAsErrors": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "disableSources": true,
+  "githubPages": true,
+  "projectDocuments": ["docs/*.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md"],
+  "highlightLanguages": [
+    "bash",
+    "console",
+    "css",
+    "html",
+    "javascript",
+    "json",
+    "jsonc",
+    "json5",
+    "yaml",
+    "tsx",
+    "typescript",
+    "svelte",
+    "sh",
+    "text"
+  ]
+}

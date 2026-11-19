@@ -132,7 +132,7 @@ the whole [`TreeSet`](sorted-sets.md) API:
 const keys = bookings.keySet()
 keys.floor(1100) // 1030
 keys.getFirst() // 900; NoSuchElementError when empty
-keys.pollLast() // 1400, and the mapping is removed from the map
+keys.pollLast() // 1400 — the mapping is removed from the map
 ```
 
 ## Entries are live handles

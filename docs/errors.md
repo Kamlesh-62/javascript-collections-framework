@@ -78,6 +78,8 @@ nested installs. Errors created by one copy are still recognised by `instanceof`
 long as both copies have the same major version (every `0.x` release counts as major `1`; see
 [versioning](versioning.md#before-10)):
 
+<!-- example: not run — needs two loaded copies of the package -->
+
 ```ts
 // error thrown by copy A, checked against the class from copy B
 error instanceof IndexOutOfBoundsError // true

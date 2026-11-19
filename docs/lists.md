@@ -7,9 +7,9 @@ array: reading and writing by index is O(1) and appending is amortised O(1).
 import { ArrayList, type List } from 'javascript-collections-framework'
 
 const list: List<number> = new ArrayList([3, 1, 2])
-list.add(4).insert(0, 0) // [0, 3, 1, 2, 4]
-list.sort() // [0, 1, 2, 3, 4]
-list.subList(1, 3).clear() // [0, 3, 4]
+list.add(4).insert(0, 0) // list is [0, 3, 1, 2, 4]
+list.sort() // list is [0, 1, 2, 3, 4]
+list.subList(1, 3).clear() // list is [0, 3, 4]
 list.get(5) // throws IndexOutOfBoundsError
 ```
 
@@ -86,7 +86,11 @@ strings by UTF-16 code unit, dates by time, and your own types through `compareS
 ```ts
 list.sort() // natural order
 list.sort(reverseOrder()) // largest first
-list.sort(comparing((p) => p.age)) // by a key
+const people = new ArrayList([
+  { name: 'Ada', age: 36 },
+  { name: 'Alan', age: 41 },
+])
+people.sort(comparing((p) => p.age)) // by a key
 list.sort(nullsLast(naturalOrder<number>())) // null and undefined last
 ```
 
@@ -136,7 +140,7 @@ while (cursor.hasNext()) {
 otherwise they throw `IllegalStateError`. Changes through a cursor keep it working and make other
 open cursors and iterators throw `ConcurrentModificationError`.
 
-## Views: `subList` and `reversed`
+## Views: subList and reversed
 
 `subList(from, to)` is a live window onto `[from, to)`; `reversed()` is the list back to front.
 Neither copies anything, and changes through a view reach the list:

@@ -115,7 +115,7 @@ iteration order; and every library set and map can be built from a native `Set` 
 linked collections keep the native order). The output of `Map.groupBy` can be passed straight to
 `new HashMap(…)`, `new LinkedHashMap(…)` or `new TreeMap(…)`.
 
-## `newSetFromMap`
+## newSetFromMap
 
 `newSetFromMap(map)` returns a `SetCollection` whose members are the keys of `map`. The map must be
 an empty library map (from any loaded copy of the same major version), or an empty range or
@@ -138,6 +138,7 @@ const seen = newSetFromMap(
     onEvict: (_value, id) => console.log('forgot', id),
   }),
 )
+const id = 'user:42'
 seen.add(id) // re-adding a present id makes it the most recent; has(id) does not
 ```
 
@@ -199,6 +200,8 @@ range view counts its range); `addAll` of `k` elements is `k` lookups and `k` in
 and `removeIf` are O(n); `clear`, `removeAll` and `retainAll` cost what the key set's do.
 
 ## Types
+
+<!-- example: not run — a signature -->
 
 ```ts
 function newSetFromMap<E>(map: MapCollection<E, boolean>): SetCollection<E>

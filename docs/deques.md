@@ -56,6 +56,10 @@ adding any. In return, `undefined` from `poll()`, `peek()` or `pop()` always mea
 
 ```ts
 // Breadth-first search.
+interface TreeNode {
+  children: TreeNode[]
+}
+const start: TreeNode = { children: [{ children: [] }, { children: [] }] }
 const queue = new ArrayDeque([start])
 for (let node = queue.poll(); node !== undefined; node = queue.poll()) {
   for (const next of node.children) queue.add(next)

@@ -17,7 +17,8 @@
     "../scripts/api-report.mjs",
     "../scripts/size-report.mjs",
     "../scripts/two-copies.mjs",
-    "../scripts/old-typescript.mjs"
+    "../scripts/old-typescript.mjs",
+    "../scripts/site-coverage.mjs"
   ],
   "exclude": ["consumers"]
 }

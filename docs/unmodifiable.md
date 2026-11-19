@@ -111,7 +111,7 @@ and entries handed out by an entry view stay read-only:
 const tree = new TreeSet([1, 2, 3])
 const sorted = unmodifiableSortedSet(tree)
 unmodifiableSortedSet(sorted) === sorted // true
-String(unmodifiableCollection(sorted)) // "UnmodifiableCollection(3) [1, 2, 3]", reading `tree`
+String(unmodifiableCollection(sorted)) // "UnmodifiableCollection(3) [1, 2, 3]" — reading `tree`
 
 const entries = unmodifiableSet(mapOf(['a', 1]).entrySet())
 entries.toArray()[0].setValue(2) // UnsupportedOperationError
@@ -126,7 +126,7 @@ prototype are wrapped like any other collection.
 
 `newSetFromMap` accepts an empty unmodifiable map, but the set it returns cannot add.
 
-## `asList`: a list over an array
+## asList: a list over an array
 
 `asList(array)` returns a list whose elements are the array itself, without copying it. Each call
 returns a new, independent list.

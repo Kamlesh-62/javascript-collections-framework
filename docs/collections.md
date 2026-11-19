@@ -65,6 +65,8 @@ Collections behave in one of two ways, fixed per class:
   skipped, added elements are visited, and nothing throws.
 
   ```ts
+  const seen = new HashSet(['a1', 'b2', 'a3'])
+  const expired = (id: string) => id.startsWith('a')
   for (const id of seen) if (expired(id)) seen.delete(id) // fine
   ```
 
@@ -88,6 +90,7 @@ such error is thrown; with a comparator, whatever the comparator throws propagat
 A cursor walks a collection and can remove the element it just returned:
 
 ```ts
+const numbers = new ArrayList([3, -1, 4, -5])
 const cursor = numbers.cursor()
 while (cursor.hasNext()) {
   if (cursor.next() < 0) cursor.remove()
@@ -106,6 +109,8 @@ following `next()` returns it.
 an element — and never when the collection is only read. Frameworks can use it to know when to
 re-render:
 
+<!-- example: not run — a framework recipe, tested in test/frameworks/ -->
+
 ```ts
 const snapshot = useSyncExternalStore(subscribe, () => collection.revision)
 ```
@@ -123,6 +128,8 @@ A collection that contains itself can still be compared, hashed and printed.
 ## Printing and JSON
 
 ```ts
+const list = new ArrayList<number | string>([1, 2, 'a'])
+const set = new HashSet([1, 2])
 String(list) // "ArrayList(3) [1, 2, 'a']"
 String(set) // "HashSet(2) {1, 2}"
 ```
@@ -139,6 +146,7 @@ cannot be written as JSON: `JSON.stringify` fails with the engine's error.
 ## Recognising a collection
 
 ```ts
+const value: unknown = new ArrayList()
 isCollection(value) // true for any collection from this package, even another loaded copy
 ```
 

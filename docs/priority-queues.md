@@ -76,7 +76,8 @@ All of them use the same order between changes. For sorted output, take the elem
 
 ```ts
 const queue = new PriorityQueue([5, 1, 4, 2, 3])
-String(queue) // 'PriorityQueue(5) [1, 2, 4, 5, 3]' — heap order, not sorted
+String(queue) // heap order, not sorted: for example PriorityQueue(5) [1, 2, 4, 5, 3]
+queue.peek() // 1
 
 const sorted: number[] = []
 while (!queue.isEmpty()) sorted.push(queue.poll()!)
@@ -106,6 +107,7 @@ Every way of adding — `add`, `addAll`, the constructor, `from` — throws `Nul
 any. In return, `undefined` from `poll()` or `peek()` always means "empty":
 
 ```ts
+const run = (job: Job) => job.name
 for (let job = jobs.poll(); job !== undefined; job = jobs.poll()) run(job)
 ```
 
@@ -148,8 +150,16 @@ Adding or removing elements while a `for…of`, `forEach` or cursor is open make
 still visits every other element exactly once:
 
 ```ts
+const queue = new PriorityQueue(
+  [
+    { priority: 2, cancelled: true },
+    { priority: 1, cancelled: false },
+  ],
+  { comparator: (a, b) => a.priority - b.priority },
+)
 const cursor = queue.cursor()
 while (cursor.hasNext()) if (cursor.next().cancelled) cursor.remove()
+queue.size // 1
 ```
 
 ## Cost

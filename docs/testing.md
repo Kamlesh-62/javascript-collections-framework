@@ -51,6 +51,10 @@ on every change, and against the real framework packages every night.
 change, and the built package is loaded on older Node.js, Bun and Deno. See
 [compatibility](compatibility.md) for the exact matrix.
 
+**Documentation examples.** Every `ts` and `js` code block in the README and these pages
+type-checks and runs on every change, and each result a comment states is checked; see
+[contributing](../CONTRIBUTING.md#code-examples-in-the-docs).
+
 ## Worst-case inputs
 
 **Colliding hashes.** Hash sets and maps with an `equivalence` whose `hash` is the same for every

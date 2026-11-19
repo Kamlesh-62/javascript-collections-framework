@@ -60,11 +60,31 @@ users.has({ id: 1, name: '' }) // true
 classes:
 
 ```ts
-import { HashSet, valueEquivalence } from 'javascript-collections-framework'
+import {
+  equalsSymbol,
+  type HashFunction,
+  hashCode,
+  hashCodeSymbol,
+  HashSet,
+  valueEquivalence,
+} from 'javascript-collections-framework'
+
+class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+  [equalsSymbol](other: unknown): boolean {
+    return other instanceof Point && other.x === this.x && other.y === this.y
+  }
+  [hashCodeSymbol](hash: HashFunction): number {
+    return hash(this.x) * 31 + hash(this.y)
+  }
+}
 
 const points = new HashSet<Point>({ equivalence: valueEquivalence })
 points.add(new Point(1, 2)).add(new Point(1, 2))
-points.size // 1 when Point implements the protocol
+points.size // 1 — Point implements the protocol
 
 const caseless = new HashSet<string>({
   equivalence: {

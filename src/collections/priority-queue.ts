@@ -17,7 +17,15 @@ const PRIORITY_QUEUE_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
   'javascript-collections-framework/1/PriorityQueue',
 )
 
-/** Options for a `PriorityQueue`. */
+/**
+ * Options for a `PriorityQueue`.
+ *
+ * @example
+ * ```ts
+ * const longestFirst: PriorityQueueOptions<string> = { comparator: (a, b) => b.length - a.length }
+ * const tasks = new PriorityQueue<string>(longestFirst)
+ * ```
+ */
 export interface PriorityQueueOptions<E> {
   /**
    * The order of the queue: `poll()` returns an element for which no other element compares less.

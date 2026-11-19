@@ -1,5 +1,8 @@
 # javascript-collections-framework
 
+[![CI](https://github.com/Kamlesh-62/javascript-collections-framework/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Kamlesh-62/javascript-collections-framework/actions/workflows/ci.yml?query=branch%3Amain)
+[![coverage](https://kamlesh-62.github.io/javascript-collections-framework/coverage/badge.svg)](https://kamlesh-62.github.io/javascript-collections-framework/coverage/report/)
+
 A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and
 deques behind shared interfaces, with documented complexity.
 
@@ -64,7 +67,12 @@ Every collection planned so far is available. New ones are listed here, and move
 Using collections with React, Vue, Svelte or other frameworks, or sending them through JSON or
 workers: see [docs/frameworks.md](docs/frameworks.md).
 
-See [`docs/`](docs/README.md). What each release may change is in
+New to the library? The [behaviour notes](docs/behaviour-notes.md) list what most often surprises
+newcomers.
+
+See [`docs/`](docs/README.md), and the
+[API reference](https://kamlesh-62.github.io/javascript-collections-framework/) for every export.
+What each release may change is in
 [versioning](docs/versioning.md). What is tested, at what scale, and what is not, is in
 [how this library is tested](docs/testing.md).
 
