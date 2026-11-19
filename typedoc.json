@@ -17,6 +17,7 @@
   "disableSources": true,
   "githubPages": true,
   "projectDocuments": ["docs/*.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md"],
+  "alwaysCreateEntryPointModule": false,
   "highlightLanguages": [
     "bash",
     "console",
