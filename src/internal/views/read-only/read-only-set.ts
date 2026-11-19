@@ -15,11 +15,11 @@ import type {
 import { SEQUENCED_COLLECTION_BRAND, SORTED_SET_BRAND } from '../../brand'
 import { type HashFunction, hashCodeSymbol } from '../../equality'
 import { apply } from '../../intrinsics'
-import { MappedLiveIterator } from '../../iteration'
 import { AbstractSet } from '../../skeletons/abstract-set'
 import { ReadOnlyCursor } from './read-only-cursor'
 import { empty, refuse } from './refuse'
 import { type ReadOnlyKind, registerReadOnly } from './registry'
+import { hideSource, ReadOnlyIterator, SOURCE } from './source-key'
 
 /**
  * A read-only view of `source`, printed with `tag`. With `reveal`, each member is passed through
@@ -28,7 +28,7 @@ import { type ReadOnlyKind, registerReadOnly } from './registry'
  * @internal
  */
 export class ReadOnlySet<E> extends AbstractSet<E> {
-  protected readonly source: ReadonlySetCollection<E>
+  declare readonly [SOURCE]: ReadonlySetCollection<E>
   private readonly tag: string
   protected readonly reveal: ((member: E) => E) | undefined
 
@@ -45,7 +45,7 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
     exact: unknown = ReadOnlySet,
   ) {
     super()
-    this.source = source
+    hideSource(this, source)
     this.tag = tag
     this.reveal = reveal
     registerReadOnly(this, new.target === exact ? kind : undefined, source, tag, reveal)
@@ -60,15 +60,15 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
   }
 
   get size(): number {
-    return this.source.size
+    return this[SOURCE].size
   }
 
   override get revision(): number {
-    return this.source.revision
+    return this[SOURCE].revision
   }
 
   override isEmpty(): boolean {
-    return this.source.isEmpty()
+    return this[SOURCE].isEmpty()
   }
 
   /** `member` as handed out: through `reveal` when there is one. */
@@ -77,20 +77,23 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
   }
 
   [Symbol.iterator](): IterableIterator<E> {
-    const members = this.source[Symbol.iterator]()
-    return this.reveal === undefined ? members : new MappedLiveIterator(members, this.reveal)
+    const members = this[SOURCE][Symbol.iterator]()
+    return new ReadOnlyIterator(members, this.reveal)
   }
 
   protected hasMember(element: E, _method: string): boolean {
-    return this.source.has(element)
+    return this[SOURCE].has(element)
   }
 
   protected memberHashes(hash: HashFunction): number {
-    return this.source[hashCodeSymbol](hash)
+    return this[SOURCE][hashCodeSymbol](hash)
   }
 
   override equals(other: unknown): boolean {
-    return other === this || this.source.equals(other)
+    if (other === this) return true
+    // A set that reveals its members (an entry set) compares through the revealed members, so
+    // `other` is never handed an entry that could change the source.
+    return this.reveal === undefined ? this[SOURCE].equals(other) : super.equals(other)
   }
 
   override forEach(
@@ -98,14 +101,14 @@ export class ReadOnlySet<E> extends AbstractSet<E> {
     thisArg?: unknown,
   ): void {
     this.requireFunction(action, 'forEach', 'action')
-    this.source.forEach((member) => {
+    this[SOURCE].forEach((member) => {
       const shown = this.shown(member)
       apply(action, thisArg, [shown, shown, this])
     })
   }
 
   cursor(): Cursor<E> {
-    return new ReadOnlyCursor(this.source.cursor(), `${this.className}.cursor`, this.reveal)
+    return new ReadOnlyCursor(this[SOURCE].cursor(), `${this.className}.cursor`, this.reveal)
   }
 
   add(_element: E): this {
@@ -159,18 +162,18 @@ export class ReadOnlySequencedSet<E> extends ReadOnlySet<E> implements Sequenced
   }
 
   getFirst(): E {
-    if (this.source.isEmpty()) throw empty(`${this.className}.getFirst`)
-    return this.shown((this.source as ReadonlySequencedSet<E>).getFirst())
+    if (this[SOURCE].isEmpty()) throw empty(`${this.className}.getFirst`)
+    return this.shown((this[SOURCE] as ReadonlySequencedSet<E>).getFirst())
   }
 
   getLast(): E {
-    if (this.source.isEmpty()) throw empty(`${this.className}.getLast`)
-    return this.shown((this.source as ReadonlySequencedSet<E>).getLast())
+    if (this[SOURCE].isEmpty()) throw empty(`${this.className}.getLast`)
+    return this.shown((this[SOURCE] as ReadonlySequencedSet<E>).getLast())
   }
 
   reversed(): SequencedSet<E> {
     return new ReadOnlySequencedSet(
-      (this.source as ReadonlySequencedSet<E>).reversed(),
+      (this[SOURCE] as ReadonlySequencedSet<E>).reversed(),
       this.className,
       this.reveal,
     )
@@ -209,7 +212,7 @@ export class ReadOnlySortedSet<E> extends ReadOnlySequencedSet<E> implements Sor
   }
 
   private get sorted(): ReadonlySortedSet<E> {
-    return this.source as ReadonlySortedSet<E>
+    return this[SOURCE] as ReadonlySortedSet<E>
   }
 
   comparator(): Comparator<E> | undefined {

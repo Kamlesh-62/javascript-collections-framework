@@ -53,6 +53,10 @@ export const bigintToString: ((self: bigint, radix?: number) => string) | undefi
   /*#__PURE__*/ (() =>
     typeof BigInt === 'function' ? uncurry(BigInt.prototype.toString) : undefined)()
 
+/** `Object.defineProperty`, captured when the library loads. @internal */
+export const defineProperty: <T>(target: T, key: PropertyKey, descriptor: PropertyDescriptor) => T =
+  /*#__PURE__*/ (() => Object.defineProperty)()
+
 /** `Math.imul`. @internal */
 export const imul: (a: number, b: number) => number = /*#__PURE__*/ (() => Math.imul)()
 

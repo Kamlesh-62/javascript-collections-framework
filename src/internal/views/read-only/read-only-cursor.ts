@@ -5,6 +5,7 @@
 import type { Cursor } from '../../../interfaces/collection'
 import type { ListCursor } from '../../../interfaces/list'
 import { refuse } from './refuse'
+import { hideSource, SOURCE } from './source-key'
 
 /**
  * A forward cursor over a source cursor; with `reveal`, each element is passed through it.
@@ -12,7 +13,7 @@ import { refuse } from './refuse'
  * @internal
  */
 export class ReadOnlyCursor<E> implements Cursor<E> {
-  private readonly source: Cursor<E>
+  declare readonly [SOURCE]: Cursor<E>
   private readonly where: string
   private readonly reveal: ((element: E) => E) | undefined
 
@@ -22,17 +23,17 @@ export class ReadOnlyCursor<E> implements Cursor<E> {
    * @param reveal - Maps each element before it is returned.
    */
   constructor(source: Cursor<E>, where: string, reveal?: (element: E) => E) {
-    this.source = source
+    hideSource(this, source)
     this.where = where
     this.reveal = reveal
   }
 
   hasNext(): boolean {
-    return this.source.hasNext()
+    return this[SOURCE].hasNext()
   }
 
   next(): E {
-    const element = this.source.next()
+    const element = this[SOURCE].next()
     return this.reveal === undefined ? element : this.reveal(element)
   }
 
@@ -47,7 +48,7 @@ export class ReadOnlyCursor<E> implements Cursor<E> {
  * @internal
  */
 export class ReadOnlyListCursor<E> implements ListCursor<E> {
-  private readonly source: ListCursor<E>
+  declare readonly [SOURCE]: ListCursor<E>
   private readonly where: string
 
   /**
@@ -55,32 +56,32 @@ export class ReadOnlyListCursor<E> implements ListCursor<E> {
    * @param where - The name refusals start with: `<Tag>.cursor` or `<Tag>.listCursor`.
    */
   constructor(source: ListCursor<E>, where: string) {
-    this.source = source
+    hideSource(this, source)
     this.where = where
   }
 
   hasNext(): boolean {
-    return this.source.hasNext()
+    return this[SOURCE].hasNext()
   }
 
   next(): E {
-    return this.source.next()
+    return this[SOURCE].next()
   }
 
   hasPrevious(): boolean {
-    return this.source.hasPrevious()
+    return this[SOURCE].hasPrevious()
   }
 
   previous(): E {
-    return this.source.previous()
+    return this[SOURCE].previous()
   }
 
   nextIndex(): number {
-    return this.source.nextIndex()
+    return this[SOURCE].nextIndex()
   }
 
   previousIndex(): number {
-    return this.source.previousIndex()
+    return this[SOURCE].previousIndex()
   }
 
   remove(): void {

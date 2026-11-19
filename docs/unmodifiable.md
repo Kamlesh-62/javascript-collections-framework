@@ -64,8 +64,11 @@ The read-only types make these calls compile errors too, except for cursor and e
 which share their types with mutable collections.
 
 A view does not hand out its source: not as a callback argument (`forEach` passes the view), a
-view, a cursor, an entry or a `toJSON` result. A view is not a security boundary, though. It is an
-ordinary object, so code that reaches into its internal fields can find the source.
+view, a cursor, an entry or a `toJSON` result. Views, their iterators, cursors and entries keep
+their source under a non-enumerable symbol key that the package does not export, so property
+access, spread, `Object.assign` and `JSON.stringify` never reach it. A view is not a security
+boundary, though: it is an ordinary object, so reflection (`Object.getOwnPropertySymbols`) can
+still find the source.
 
 ## Reads show the owner's changes
 
