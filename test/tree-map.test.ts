@@ -4,6 +4,7 @@ import { HashMap } from '../src/collections/hash-map'
 import { HashSet } from '../src/collections/hash-set'
 import { TreeMap } from '../src/collections/tree-map'
 import { TreeSet } from '../src/collections/tree-set'
+import * as lib from '../src/index'
 import {
   ClassCastError,
   type Comparator,
@@ -29,11 +30,11 @@ import {
 } from '../src/index'
 import { type CollectionFactory, describeCollection } from './contracts/collection'
 import { describeMapCollection, type MapFactory } from './contracts/map'
+import { runContractPair } from './contracts/pairs'
 import { describeSequencedCollection } from './contracts/sequenced'
 import { describeSequencedMap } from './contracts/sequenced-map'
 import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
-import { describeSortedMap } from './contracts/sorted-map'
 import { describeSortedSet } from './contracts/sorted-set'
 import { integer, seeded } from './support/random'
 import { runSortedMapReferenceModel } from './support/reference-model'
@@ -2010,20 +2011,7 @@ for (const [name, make] of mapObjects(() => undefined, 'A', '~')) {
 }
 
 // The sorted-map suite on the map, a range view and a reversed view.
-describeSortedMap('TreeMap', (initial) => new TreeMap<number, string>(initial ?? []))
-describeSortedMap('TreeSubMap', (initial) => {
-  const view = new TreeMap<number, string>([
-    [-1e9, 'low'],
-    [1e9, 'high'],
-  ]).subMap(-1e6, 1e6)
-  view.putAll(initial ?? [])
-  return view
-})
-describeSortedMap('ReversedTreeMap', (initial) => {
-  const view = new TreeMap<number, string>({ comparator: descending }).reversed()
-  view.putAll(initial ?? [])
-  return view
-})
+runContractPair('TreeMap', lib)
 
 // The sequenced-map suite on the map, a range view and a reversed view (over a descending map, so
 // it iterates in ascending order), fail-fast and with putFirst/putLast unsupported; the

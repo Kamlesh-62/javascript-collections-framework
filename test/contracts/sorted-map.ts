@@ -4,11 +4,11 @@
 // `describeSortedMap`.
 
 import { describe, expect, it } from 'vitest'
-import { isSortedMap } from '../../src/functions/guards'
 import {
   ConcurrentModificationError,
   IllegalArgumentError,
   IllegalStateError,
+  isSortedMap,
   isSortedSet,
   type MapEntry,
   UnsupportedOperationError,

@@ -2,7 +2,8 @@
 //
 // Each runtime export of dist/index.js is bundled alone (an entry `export { X } from` the build),
 // and the whole package once (`export * from`), minified, with the build tool's own bundler; the
-// minified bytes and the gzipped (level 9) bytes are recorded.
+// minified bytes and the gzipped (level 9) bytes are recorded. The check then holds the committed
+// sizes to their budgets and the performance page's size table to both (see size-budget.mjs).
 
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -10,6 +11,17 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { Rolldown } from 'tsdown'
+import {
+  BUDGET_PATH,
+  checkBudgets,
+  PERFORMANCE_PAGE,
+  parseBudgets,
+  renderSizeTable,
+  TABLE_END,
+  TABLE_START,
+  tableIn,
+  withTable,
+} from './size-budget.mjs'
 import { compareSizes, formatChanges, formatReport, parseReport } from './size-compare.mjs'
 
 export const SIZE_REPORT_PATH = 'api/javascript-collections-framework.size.json'
@@ -81,7 +93,9 @@ export async function measureSizes(root, bundle = bundleMinified) {
 }
 
 /**
- * Checks the measured sizes against the committed report, or rewrites the report.
+ * Checks the measured sizes against the committed report, then the committed sizes against their
+ * budgets and the size table of the performance page against both; or rewrites the report and the
+ * size table. The budget file is only ever read.
  * @param {string} root
  * @param {'check' | 'update'} mode
  * @param {Bundler} [bundle]
@@ -91,17 +105,32 @@ export async function sizeReport(root, mode, bundle = bundleMinified) {
   const measured = await measureSizes(root, bundle)
   if (!measured.ok) return measured
   const reportFile = join(root, SIZE_REPORT_PATH)
+  const budgetFile = join(root, BUDGET_PATH)
+  const pageFile = join(root, PERFORMANCE_PAGE)
+  const page = existsSync(pageFile) ? readFileSync(pageFile, 'utf8') : undefined
+  if (page === undefined || tableIn(page) === undefined) {
+    return {
+      ok: false,
+      message: `${PERFORMANCE_PAGE} needs a size table between ${TABLE_START} and ${TABLE_END}`,
+    }
+  }
+  const budgets = existsSync(budgetFile)
+    ? parseBudgets(readFileSync(budgetFile, 'utf8'))
+    : undefined
 
   if (mode === 'update') {
     mkdirSync(join(root, 'api'), { recursive: true })
     writeFileSync(reportFile, formatReport(measured.entries))
+    const table = renderSizeTable(measured.entries, budgets ?? new Map())
+    writeFileSync(pageFile, /** @type {string} */ (withTable(page, table)))
     return { ok: true, message: `wrote ${SIZE_REPORT_PATH} (${measured.entries.length} entries)` }
   }
 
   if (!existsSync(reportFile)) {
     return { ok: false, message: 'no committed size report — run pnpm size:update and commit it' }
   }
-  const changes = compareSizes(parseReport(readFileSync(reportFile, 'utf8')), measured.entries)
+  const committed = parseReport(readFileSync(reportFile, 'utf8'))
+  const changes = compareSizes(committed, measured.entries)
   if (changes.length > 0) {
     return {
       ok: false,
@@ -109,6 +138,25 @@ export async function sizeReport(root, mode, bundle = bundleMinified) {
         'bundle sizes differ from the committed report (bytes, minified / gzipped):\n' +
         `${formatChanges(changes)}\n` +
         'If the change is intended, update the report with: pnpm size:update',
+    }
+  }
+  if (budgets === undefined) {
+    return { ok: false, message: `no budget file — add ${BUDGET_PATH}` }
+  }
+  const verdict = checkBudgets(committed, budgets)
+  if (!verdict.ok) {
+    return {
+      ok: false,
+      message:
+        `the committed sizes do not fit ${BUDGET_PATH}:\n` +
+        `${verdict.problems.map((problem) => `  ${problem}`).join('\n')}\n` +
+        'A budget is set by hand, and its change and reason go in the pull request changeset.',
+    }
+  }
+  if (tableIn(page) !== renderSizeTable(committed, budgets)) {
+    return {
+      ok: false,
+      message: `the size table in ${PERFORMANCE_PAGE} is out of date — run pnpm size:update`,
     }
   }
   return { ok: true, message: `matches the committed report (${measured.entries.length} entries)` }

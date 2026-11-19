@@ -1,6 +1,7 @@
 import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { ArrayList } from '../src/collections/array-list'
+import * as lib from '../src/index'
 import {
   ClassCastError,
   ConcurrentModificationError,
@@ -17,7 +18,7 @@ import {
 } from '../src/index'
 import type { List } from '../src/interfaces/list'
 import { describeCollection } from './contracts/collection'
-import { describeList } from './contracts/list'
+import { runContractPair } from './contracts/pairs'
 import { describeSequencedCollection } from './contracts/sequenced'
 import { combine } from './fixtures/structural-list'
 import { ALL_LISTS } from './support/list-factories'
@@ -754,8 +755,8 @@ for (const [name, make] of ALL_LISTS.filter(([kind]) => kind === 'ArrayList')) {
     structural: { expectedHash: combine },
   })
   describeSequencedCollection(name, make)
-  describeList(name, make, peers)
 }
+runContractPair('ArrayList', lib)
 
 describe('ArrayList — reference model', () => {
   it('matches a native array under seeded random operations [006 S8-AC5]', () => {

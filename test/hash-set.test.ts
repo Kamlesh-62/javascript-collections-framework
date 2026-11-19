@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ArrayDeque } from '../src/collections/array-deque'
 import { ArrayList } from '../src/collections/array-list'
 import { HashSet, type HashSetOptions } from '../src/collections/hash-set'
+import * as lib from '../src/index'
 import {
   ConcurrentModificationError,
   type Equivalence,
@@ -14,7 +15,7 @@ import {
 } from '../src/index'
 import { setBucketSeedSourceForTesting } from '../src/internal/engines/hash-table'
 import { describeCollection } from './contracts/collection'
-import { describeSetCollection } from './contracts/set'
+import { runContractPair } from './contracts/pairs'
 import { fixHashSeed } from './support/hash-seed'
 import { runReferenceModel } from './support/reference-model'
 
@@ -1144,9 +1145,9 @@ describe('HashSet — shared contracts', () => {
             },
           }),
       })
-      describeSetCollection('HashSet', make)
     })
   }
+  runContractPair('HashSet', lib)
 })
 
 describe('HashSet — reference model against a native Set', () => {

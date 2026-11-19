@@ -1,0 +1,27 @@
+{
+  "name": "bundler-fixtures",
+  "private": true,
+  "type": "module",
+  "description": "Browser and bundler checks of the built library. Not published.",
+  "scripts": {
+    "test": "pnpm test:node && pnpm test:browser",
+    "test:node": "vitest run",
+    "test:browser": "vitest run --config browser/vitest.config.ts"
+  },
+  "devDependencies": {
+    "@rspack/core": "2.3.1",
+    "@vitest/browser": "5.1.0",
+    "@vitest/browser-playwright": "5.1.0",
+    "esbuild": "0.28.2",
+    "javascript-collections-framework": "link:../..",
+    "next": "16.4.5",
+    "playwright": "1.65.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "rollup": "4.67.5",
+    "vite": "8.3.6",
+    "vitest": "5.1.0",
+    "webpack": "5.112.2"
+  },
+  "packageManager": "pnpm@11.28.9+sha512.35421cea2720eca3f5ad722b67e8ef18f4d3cd4745ed2fcfeb0dc288d4e9437fad3870d91ee6e83f268f0f6f7e0f62723317b19617bb45ee4333172ef51159f8"
+}

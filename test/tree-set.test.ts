@@ -4,6 +4,7 @@ import { ArrayList } from '../src/collections/array-list'
 import { HashMap } from '../src/collections/hash-map'
 import { HashSet } from '../src/collections/hash-set'
 import { TreeSet } from '../src/collections/tree-set'
+import * as lib from '../src/index'
 import {
   ClassCastError,
   type Comparator,
@@ -20,10 +21,10 @@ import {
   UnsupportedOperationError,
 } from '../src/index'
 import { type CollectionFactory, describeCollection } from './contracts/collection'
+import { runContractPair } from './contracts/pairs'
 import { describeSequencedCollection } from './contracts/sequenced'
 import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
-import { describeSortedSet } from './contracts/sorted-set'
 import { integer, seeded } from './support/random'
 import { runSortedSetReferenceModel } from './support/reference-model'
 
@@ -1346,17 +1347,7 @@ for (const [name, make] of shared) {
   })
   describeSequencedCollection(name, make as never, { addAtEnds: 'unsupported' })
 }
-describeSortedSet('TreeSet', (initial) => new TreeSet<number>(initial))
-describeSortedSet('TreeSubSet', (initial) => {
-  const view = new TreeSet<number>([-1e9, 1e9]).subSet(-1e6, 1e6)
-  view.addAll(initial ?? [])
-  return view
-})
-describeSortedSet('ReversedTreeSet', (initial) => {
-  const view = new TreeSet<number>({ comparator: descending }).reversed()
-  view.addAll(initial ?? [])
-  return view
-})
+runContractPair('TreeSet', lib)
 
 describeSequencedSet(
   'TreeSet',

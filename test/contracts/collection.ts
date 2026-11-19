@@ -543,8 +543,10 @@ export function describeCollection(
         expect(a.equals(a)).toBe(true)
         expect(typeof hashCode(a)).toBe('number')
         expect(String(a)).toContain('[Circular]')
-        expect(inspect(a, { depth: null })).toContain('[Circular]')
-        expect(inspect(a)).toContain('[Circular]')
+        if (options.inspect !== false) {
+          expect(inspect(a, { depth: null })).toContain('[Circular]')
+          expect(inspect(a)).toContain('[Circular]')
+        }
         const b = make([1])
         put(b, b)
         expect(() => a.equals(b)).not.toThrow()

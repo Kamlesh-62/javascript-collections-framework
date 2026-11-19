@@ -3,10 +3,10 @@
 // flags, and reversed views. Each implementation's test file runs it through `describeSortedSet`.
 
 import { describe, expect, it } from 'vitest'
-import { isSortedSet } from '../../src/functions/guards'
 import {
   ConcurrentModificationError,
   IllegalArgumentError,
+  isSortedSet,
   NoSuchElementError,
   UnsupportedOperationError,
 } from '../../src/index'

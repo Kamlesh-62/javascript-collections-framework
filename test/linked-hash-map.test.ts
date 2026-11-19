@@ -4,6 +4,7 @@ import { HashMap } from '../src/collections/hash-map'
 import { HashSet } from '../src/collections/hash-set'
 import { LinkedHashMap, type LinkedHashMapOptions } from '../src/collections/linked-hash-map'
 import { TreeMap } from '../src/collections/tree-map'
+import * as lib from '../src/index'
 import {
   ConcurrentModificationError,
   type Equivalence,
@@ -29,8 +30,8 @@ import type { SequencedMap } from '../src/interfaces/sequenced-map'
 import { setBucketSeedSourceForTesting } from '../src/internal/engines/hash-table'
 import { describeCollection } from './contracts/collection'
 import { describeMapCollection } from './contracts/map'
+import { runContractPair } from './contracts/pairs'
 import { describeSequencedCollection } from './contracts/sequenced'
-import { describeSequencedMap } from './contracts/sequenced-map'
 import { describeSequencedSet } from './contracts/sequenced-set'
 import { describeSetCollection } from './contracts/set'
 import { fixHashSeed } from './support/hash-seed'
@@ -1676,6 +1677,7 @@ describe('LinkedHashMap — construction, equality, copy and output', () => {
 })
 
 describe('LinkedHashMap — shared contracts', () => {
+  runContractPair('LinkedHashMap', lib)
   const sumOf = (elements: unknown[], hash: (value: unknown) => number) =>
     elements.reduce<number>((h, e) => (h + hash(e)) | 0, 0)
   for (const path of PATHS) {
@@ -1693,7 +1695,6 @@ describe('LinkedHashMap — shared contracts', () => {
       }
       describe(`${name} on the ${path[0]} path`, () => {
         describeMapCollection(name, make)
-        describeSequencedMap(name, make)
 
         // Each view is filled through the map that owns it.
         const owners = new WeakMap<object, SequencedMap<unknown, unknown>>()

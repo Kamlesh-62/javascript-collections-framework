@@ -47,6 +47,16 @@ those of a single copy.
 **Frameworks.** Recipes for React, Vue, Svelte and plain change signals run in `test/frameworks/`
 on every change, and against the real framework packages every night.
 
+**Browsers and bundlers.** On every change, the built package runs in Chromium, Firefox and WebKit
+through Playwright: a smoke check builds, reads, iterates and writes as JSON every collection
+class and constructs every error class, once from an ES module bundle and once from the
+script-tag build through `window.JCF`; and eight contract suites (list on `ArrayList`, set on
+`HashSet`, map on `HashMap`, sequenced map on `LinkedHashMap`, sorted set on `TreeSet`, sorted map
+on `TreeMap`, deque on `ArrayDeque` and queue on `PriorityQueue`) run against the built package. A
+production build with webpack 5, Rspack, Vite (client and server rendering), esbuild, Rollup and
+Next.js runs its output in Node.js or in a browser, and a bundle of a single import must contain
+only the internal structures that import needs.
+
 **Runtimes.** The full suite runs on several Node.js versions and operating systems on every
 change, and the built package is loaded on older Node.js, Bun and Deno. See
 [compatibility](compatibility.md) for the exact matrix.
@@ -399,9 +409,9 @@ replays each one.
   collects, so they cannot be deterministic.
 - **Speed.** No test measures time, and the documentation makes no speed claims; the stated time
   complexities are bounds on work, not timings.
-- **Engines and runtimes outside CI.** Browsers, React Native, edge runtimes and the other targeted
-  environments in [compatibility](compatibility.md) are checked for syntax and platform APIs, not
-  run.
+- **Engines and runtimes outside CI.** Safari itself, browsers older than the current ones, React
+  Native, edge runtimes and the other targeted environments in [compatibility](compatibility.md)
+  are checked for syntax and platform APIs, not run.
 
 ## Nightly runs
 

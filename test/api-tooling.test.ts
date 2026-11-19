@@ -14,6 +14,13 @@ import {
 } from '../scripts/lib/normalise-dts.mjs'
 import { COMPILERS, MODES, runMatrix, tsconfigFor } from '../scripts/lib/old-typescript.mjs'
 import {
+  BUDGET_PATH,
+  formatBudgets,
+  PERFORMANCE_PAGE,
+  TABLE_END,
+  TABLE_START,
+} from '../scripts/lib/size-budget.mjs'
+import {
   compareSizes,
   formatChanges,
   formatReport,
@@ -290,6 +297,8 @@ describe('size report', () => {
     const root = mkdtempSync(join(tmpdir(), 'size-report-'))
     roots.push(root)
     mkdirSync(join(root, 'dist'))
+    mkdirSync(join(root, 'docs'))
+    writeFileSync(join(root, PERFORMANCE_PAGE), `${TABLE_START}\n${TABLE_END}\n`)
     if (code !== null) writeFileSync(join(root, 'dist', 'index.js'), code)
     return root
   }
@@ -362,6 +371,10 @@ describe('size report', () => {
     const root = tree(build)
     mkdirSync(join(root, 'api'))
     writeFileSync(join(root, SIZE_REPORT_PATH), formatReport([entry('*', 1, 1)]))
+    writeFileSync(
+      join(root, BUDGET_PATH),
+      formatBudgets(new Map(['*', 'large', 'small'].map((name) => [name, 1024]))),
+    )
     expect((await sizeReport(root, 'check')).ok).toBe(false)
     expect((await sizeReport(root, 'update')).message).toBe(`wrote ${SIZE_REPORT_PATH} (3 entries)`)
     expect(await sizeReport(root, 'check')).toEqual({
