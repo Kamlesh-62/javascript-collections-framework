@@ -90,7 +90,8 @@ export class ArrayList<E> implements List<E> {
   static from<T>(elements: Iterable<T>): ArrayList<T>
   /**
    * Returns a new list of `mapFn(element, index)` for each element of `elements`, in order, with
-   * `this` set to `thisArg`, as `Array.from` does.
+   * `this` set to `thisArg`, as `Array.from` does. `elements` is read while `mapFn` runs, so
+   * items `mapFn` appends to an array source are included.
    *
    * Time: O(m) plus the calls.
    *
@@ -100,6 +101,7 @@ export class ArrayList<E> implements List<E> {
    * @returns A new list.
    * @throws TypeError when `mapFn` is not a function (checked before `elements` is read), or
    *   `elements` is not iterable.
+   * @throws Error whatever `mapFn` throws; no collection is returned.
    *
    * @example
    * ```ts
@@ -635,8 +637,8 @@ export class ArrayList<E> implements List<E> {
    * Without a comparator, natural order is used (numbers by value, strings by code unit, …).
    * Unlike `Array.prototype.sort`, `null` and `undefined` reach the comparator like any other
    * element (natural order rejects them: sort with `nullsLast(naturalOrder())` to put them last),
-   * and a comparator result that is not a number throws. If anything throws, the list is left as
-   * it was.
+   * and a comparator result that is not a number throws. If anything throws, the sort itself
+   * writes nothing to the list.
    *
    * Time: O(n log n); at most `n·⌈log₂ n⌉` comparator calls.
    *
@@ -646,7 +648,8 @@ export class ArrayList<E> implements List<E> {
    *   or a non-number.
    * @throws ClassCastError when natural order cannot compare two elements.
    * @throws NullElementError when natural order meets `null` or `undefined`.
-   * @throws ConcurrentModificationError when the comparator adds or removes elements.
+   * @throws ConcurrentModificationError when the comparator adds or removes elements; its changes
+   *   stay and the sort makes none of its own.
    *
    * @example
    * ```ts

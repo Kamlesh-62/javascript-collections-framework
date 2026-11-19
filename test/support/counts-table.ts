@@ -1,7 +1,17 @@
 // Renders the counts table of docs/testing.md from test/stress/config.ts, so the page states
 // exactly what runs.
 
-import type { DEEP, FAST, LONG, NIGHTLY, RUNS, SCALE, WORST } from '../stress/config'
+import type {
+  DEEP,
+  FAST,
+  HOSTILE,
+  LONG,
+  NIGHTLY,
+  RUNS,
+  SCALE,
+  WORKLOADS,
+  WORST,
+} from '../stress/config'
 
 export interface CountsConfig {
   readonly SCALE: typeof SCALE
@@ -11,6 +21,8 @@ export interface CountsConfig {
   readonly RUNS: typeof RUNS
   readonly WORST: typeof WORST
   readonly LONG: typeof LONG
+  readonly WORKLOADS: typeof WORKLOADS
+  readonly HOSTILE: typeof HOSTILE
 }
 
 /** `1234567` as `1,234,567`, independent of the locale. */
@@ -26,7 +38,10 @@ export function grouped(n: number): string {
 
 /** The Markdown table that sits between the counts markers on the testing page. */
 export function renderCountsTable(config: CountsConfig): string {
-  const { SCALE, DEEP, FAST, NIGHTLY, RUNS, WORST, LONG } = config
+  const { SCALE, DEEP, FAST, NIGHTLY, RUNS, WORST, LONG, WORKLOADS, HOSTILE } = config
+  /** One workload size, as `unit tests / stress`. */
+  const both = (key: keyof (typeof WORKLOADS)['fast']) =>
+    `${grouped(WORKLOADS.fast[key])} / ${grouped(WORKLOADS.full[key])}`
   const rows: Array<[string, string]> = [
     ['Elements in each scale, view and output test', grouped(SCALE.elements)],
     [
@@ -64,6 +79,18 @@ export function renderCountsTable(config: CountsConfig): string {
     ['Of those, values crafted to share one bucket', grouped(LONG.craftedValues)],
     ['Buckets the crafted values are aimed at', grouped(LONG.craftedBuckets)],
     ['Longest bucket chain allowed after flooding', grouped(LONG.maxChain)],
+    ['Seeds per realistic workload (unit tests / stress)', both('seeds')],
+    ['Words in the multilingual text (unit tests / stress)', both('words')],
+    ['Calls in the cache access trace (unit tests / stress)', both('trace')],
+    ['Cache size (unit tests / stress)', both('cacheSize')],
+    ['Events in the event log and the scheduler (unit tests / stress)', both('events')],
+    ['Records with their own equality (unit tests / stress)', both('records')],
+    ['Values in the sliding-window stream (unit tests / stress)', both('stream')],
+    ['Values in each sliding window (unit tests / stress)', both('window')],
+    ['Elements in the sorted array searched and shuffled (unit tests / stress)', both('sorted')],
+    ['Code units in the very long string (hostile values)', grouped(HOSTILE.longString)],
+    ['Companions of each kind next to a hostile value', grouped(HOSTILE.companions)],
+    ['Bytes allowed in checked-in test data', grouped(HOSTILE.dataBudget)],
     ['Nightly stress job timeout', `${grouped(NIGHTLY.timeoutMinutes)} minutes`],
   ]
   const width = Math.max(...rows.map((r) => r[0].length), 'What'.length)

@@ -101,7 +101,8 @@ export class ArrayDeque<E> implements Deque<E> {
   static from<T>(elements: Iterable<T>): ArrayDeque<T>
   /**
    * Returns a new deque of `mapFn(element, index)` for each element of `elements`, in order, with
-   * `this` set to `thisArg`, as `Array.from` does.
+   * `this` set to `thisArg`, as `Array.from` does. `elements` is read while `mapFn` runs, so
+   * items `mapFn` appends to an array source are included.
    *
    * Time: O(m) plus the calls.
    *
@@ -113,6 +114,7 @@ export class ArrayDeque<E> implements Deque<E> {
    *   iterable.
    * @throws NullElementError when `mapFn` returns `null` or `undefined`.
    * @throws IllegalStateError when the elements would not fit (over 2^30 in total).
+   * @throws Error whatever `mapFn` throws; no collection is returned.
    *
    * @example
    * ```ts

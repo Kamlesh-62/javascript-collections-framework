@@ -14,7 +14,10 @@ import { ArrayListView } from '../internal/views/array-list-view'
  * view and cursors — writes to the array, and changes made to the array directly show through the
  * list. A direct change of the array's length makes open iterators, cursors and sub-lists of the
  * list throw `ConcurrentModificationError` on their next move; same-length direct writes show
- * through but are not detected and do not change `revision`.
+ * through but are not detected and do not change `revision`. The same holds for callbacks: a
+ * comparator, `forEach` action, `removeIf` predicate or `replaceAll` function that changes the
+ * array's length makes the call throw `ConcurrentModificationError` once it returns, and its writes
+ * stay; same-length writes are not detected, and `sort` writes its result over them.
  *
  * The list follows the list rules, not the array's: `indexOf` uses SameValueZero, `equals`
  * compares with any list by elements, and `sort` is stable and throws `NullElementError` for

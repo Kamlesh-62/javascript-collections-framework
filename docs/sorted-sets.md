@@ -72,6 +72,9 @@ then unspecified: the set can hold an element twice.
 | `new TreeSet(elements, options)`   | the elements, ordered by `options.comparator`      |
 | `TreeSet.from(elements, options?)` | the same as the previous form; `elements` required |
 
+Options are read as native option objects are: an option inherited from the options object's
+prototype counts as given.
+
 - Of several equal elements, the first is kept. Elements already in ascending order are built
   into the tree directly, with one comparison per neighbouring pair.
 - `comparator` is read once, when the set is created; other keys are ignored. A `comparator` that

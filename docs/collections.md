@@ -71,10 +71,17 @@ Collections behave in one of two ways, fixed per class:
 - **Fail-fast** — collections with no native counterpart (lists, deques, priority queues, sorted
   sets and maps): adding or removing elements during a loop, other than through the cursor doing
   the walking, makes the next step throw `ConcurrentModificationError`, so the bug shows up where
-  it happens. Replacing an element in place does not count.
+  it happens. Replacing an element in place does not count. `forEach` throws right after the call
+  of your action that added or removed elements, the last call included, and the change the action
+  made stays.
 
 `removeIf` and `removeAll`/`retainAll` throw `ConcurrentModificationError` in both kinds if your
 callback adds or removes elements while they decide.
+
+An error thrown while a value is inspected (by a getter on it, or by a revoked `Proxy`, which throws
+`TypeError` on every property read) propagates like an error from your own callback. In natural
+order, a lookup in a sorted collection answers `false` for a value it cannot order only when no
+such error is thrown; with a comparator, whatever the comparator throws propagates.
 
 ### Removing while iterating: cursors
 

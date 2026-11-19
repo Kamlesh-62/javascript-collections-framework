@@ -76,6 +76,11 @@ map can hold a key twice.
 | `new TreeMap(entries, options)`   | the mappings, ordered by `options.comparator`     |
 | `TreeMap.from(entries, options?)` | the same as the previous form; `entries` required |
 
+Options are read as native option objects are: an option inherited from the options object's
+prototype counts as given. Keys named after built-in properties, such as `'__proto__'`,
+`'constructor'` and `'hasOwnProperty'`, are ordinary keys: they are compared like any other string,
+and they round-trip through `JSON.stringify` and `from`.
+
 - `entries` holds `[key, value]` arrays of length exactly 2 or map entries — a native `Map`,
   another map or an entry view work too. Every item is checked before anything is stored; anything
   else throws `TypeError`.

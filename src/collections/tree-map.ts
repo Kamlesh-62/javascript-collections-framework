@@ -584,6 +584,8 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * @throws NullElementError when, in natural order, `key` is `null` or `undefined`.
    * @throws ClassCastError when, in natural order, `key` cannot be compared with the stored keys.
    * @throws ConcurrentModificationError when the comparator adds or removes mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -608,6 +610,8 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * @throws ClassCastError when, in natural order, `key` cannot be compared with the stored keys.
    * @throws ConcurrentModificationError when `fn` or the comparator adds or removes mappings; their
    *   changes stay and the call makes none of its own.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -633,6 +637,8 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * @returns The result of `fn`, or `undefined`.
    * @throws TypeError when `fn` is not a function, or the comparator returns an invalid result.
    * @throws ConcurrentModificationError when `fn` or the comparator adds or removes mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts
@@ -661,6 +667,8 @@ export class TreeMap<K, V> implements SortedMap<K, V> {
    * @throws NullElementError when, in natural order, `key` is `null` or `undefined`.
    * @throws ClassCastError when, in natural order, `key` cannot be compared with the stored keys.
    * @throws ConcurrentModificationError when `fn` or the comparator adds or removes mappings.
+   * @throws Error whatever `fn` throws; the call inserts and changes nothing, and changes `fn`
+   *   made stay.
    *
    * @example
    * ```ts

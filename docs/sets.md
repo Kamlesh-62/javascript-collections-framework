@@ -75,8 +75,9 @@ const caseless = new HashSet<string>({
 ```
 
 The options are read once, when the set is created, and `copy()` and `HashSet.from(items,
-options)` keep them. `key`, `equals` and `hash` are called with `null` and `undefined` like any
-other value, and never with `-0` (it becomes `0` first). The set checks what they return:
+options)` keep them. Options are read as native option objects are: an option inherited from
+the options object's prototype counts as given. `key`, `equals` and `hash` are called with `null`
+and `undefined` like any other value, and never with `-0` (it becomes `0` first). The set checks what they return:
 `key` must return a primitive, `equals` a boolean and `hash` a finite number, or the call throws
 `TypeError` naming the method (`HashSet.add: key function returned object`).
 
