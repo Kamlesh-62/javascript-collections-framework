@@ -3,8 +3,8 @@
 A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and
 deques behind shared interfaces, with documented complexity.
 
-> **Status: pre-release.** The API is being designed and is not published to npm yet. Nothing
-> below is stable until `1.0.0`.
+> **Status: 0.x.** Published on npm. Until `1.0.0`, a minor release may contain breaking changes,
+> each listed in the [changelog](CHANGELOG.md); see [versioning](docs/versioning.md).
 
 JavaScript ships `Array`, `Map` and `Set`. Programs that need a sorted map, a deque, a priority
 queue, a linked list, or a set keyed by value rather than by reference have to assemble them by
