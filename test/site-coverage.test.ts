@@ -107,8 +107,10 @@ describe('the site workflow', () => {
     expect(config.treatWarningsAsErrors).toBe(true)
     expect(config.excludeInternal).toBe(true)
     expect(config.validation.notExported).toBe(true)
-    // The docs pages are rendered on the site, so the README's links to them lead to pages.
+    // The docs pages are rendered on the site, so the README's links to them lead to pages, and
+    // the API stays at the top level of the site instead of under a module named after the entry.
     expect(config.projectDocuments).toContain('docs/*.md')
+    expect(config.alwaysCreateEntryPointModule).toBe(false)
     expect(read('.gitignore').split('\n')).toContain('site/')
   })
 
