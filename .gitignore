@@ -7,3 +7,4 @@ site/
 .DS_Store
 .env
 .env.*
+fixtures/engines/.cache/

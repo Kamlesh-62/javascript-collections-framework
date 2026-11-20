@@ -1,0 +1,43 @@
+{
+  "engines": [
+    {
+      "name": "quickjs",
+      "version": "0.18.0",
+      "url": "https://github.com/quickjs-ng/quickjs/releases/download/v0.18.0/qjs-linux-x86_64",
+      "sha256": "85ded23b9fabe8c1644fc40a8d2bbdd71157affcbd807359c618cc717ee24d7d",
+      "binary": "qjs-linux-x86_64",
+      "args": ["--script"]
+    },
+    {
+      "name": "javascriptcore",
+      "version": "327409@main",
+      "url": "https://webkitgtk.org/jsc-built-products/x86_64/release/327409@main.zip",
+      "sha256": "c21a415deebd6e3eb867037d4ca290b9dd21bec12cc9c71f13403da7d8d042f0",
+      "binary": "jsc",
+      "args": []
+    },
+    {
+      "name": "spidermonkey",
+      "version": "160.0.1",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/160.0.1/jsshell/jsshell-linux-x86_64.zip",
+      "sha256": "b547d9ed0bc564ba4387a32cc09aa7aa490c4bdc32998a807c38d36a8078ad69",
+      "binary": "js",
+      "args": [],
+      "env": { "LD_LIBRARY_PATH": "." }
+    },
+    {
+      "name": "xs",
+      "version": "10.1.0",
+      "url": "https://github.com/Moddable-OpenSource/moddable/releases/download/10.1.0/xst-lin64.zip",
+      "sha256": "990a943827d91fb2e4ff292fe2e64e0d411cad97a7b8d6f5c99d20c1b4a7b187",
+      "binary": "xst",
+      "args": ["-s"]
+    }
+  ],
+  "hermes": {
+    "reactNative": "0.88.1",
+    "tag": "hermes-v260318099.0.5",
+    "url": "https://github.com/facebook/hermes/archive/refs/tags/hermes-v260318099.0.5.tar.gz",
+    "sha256": "3b40de638bb564005618d2fdadb8c0772358fc132fbf506060275fb3cb8891e3"
+  }
+}

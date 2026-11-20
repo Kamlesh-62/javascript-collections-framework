@@ -19,7 +19,8 @@
     "../scripts/two-copies.mjs",
     "../scripts/old-typescript.mjs",
     "../scripts/site-coverage.mjs",
-    "../bench"
+    "../bench",
+    "../fixtures/engines"
   ],
   "exclude": ["consumers"]
 }

@@ -1,0 +1,16 @@
+{
+  "name": "react-native-fixture",
+  "private": true,
+  "type": "module",
+  "description": "Bundles the smoke check of the library with Metro, as a React Native app would, and runs the bundle on Hermes. Not published.",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "@babel/runtime": "7.29.14",
+    "@react-native/babel-preset": "0.88.1",
+    "javascript-collections-framework": "link:../..",
+    "metro": "0.88.0"
+  },
+  "packageManager": "pnpm@11.28.9+sha512.35421cea2720eca3f5ad722b67e8ef18f4d3cd4745ed2fcfeb0dc288d4e9437fad3870d91ee6e83f268f0f6f7e0f62723317b19617bb45ee4333172ef51159f8"
+}

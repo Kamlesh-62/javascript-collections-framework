@@ -42,6 +42,81 @@ jobs:
         working-directory: fixtures/frameworks
         run: pnpm audit
 
+  # The smoke check on embedded and other engines, each pinned in fixtures/engines/engines.json
+  # and checked by SHA-256 before it runs. Hermes runs in the react-native job below, which builds
+  # it once. A failing engine never blocks pull requests.
+  engines:
+    name: Smoke check on ${{ matrix.engine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [quickjs, javascriptcore, spidermonkey, xs]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Download, check and run the engine
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: node fixtures/engines/run.mjs "$ENGINE"
+
+  # React Native: Metro bundles the smoke check with React Native's Babel preset, and the bundle
+  # runs on Hermes built from the source React Native pins (fixtures/react-native/).
+  react-native:
+    name: Metro bundle on Hermes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build Hermes and run the smoke check on it
+        run: node fixtures/engines/run.mjs hermes
+      - name: Install the React Native fixture
+        working-directory: fixtures/react-native
+        run: pnpm install --frozen-lockfile
+      - name: Bundle with Metro and run the bundle on Hermes
+        run: node fixtures/react-native/run.mjs
+
+  engine-fixtures-audit:
+    name: Audit the Workers and React Native fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Audit the Workers fixture's dependencies
+        working-directory: fixtures/workers
+        run: pnpm audit
+      - name: Audit the React Native fixture's dependencies
+        working-directory: fixtures/react-native
+        run: pnpm audit
+
   bundlers-audit:
     name: Audit the browser and bundler fixtures
     runs-on: ubuntu-latest
