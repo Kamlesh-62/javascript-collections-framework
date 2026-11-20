@@ -1,0 +1,23 @@
+name: Documentation problem
+description: Report an incorrect example, unclear explanation or broken documentation link.
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Page or symbol
+      description: Give the page URL or the documented API member.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong?
+      description: Include the affected example, sentence or link.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction
+      description: If you know the intended behavior or destination, describe it here.

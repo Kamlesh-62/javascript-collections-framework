@@ -57,6 +57,16 @@ describe('issue forms', () => {
     ])
   })
 
+  it('collects a location and problem for documentation reports and allows an optional fix', () => {
+    const text = read('.github/ISSUE_TEMPLATE/docs_problem.yml')
+    expect(text).toContain('documentation')
+    expect(readForm(text).fields).toEqual([
+      { id: 'location', type: 'input', required: true },
+      { id: 'problem', type: 'textarea', required: true },
+      { id: 'suggestion', type: 'textarea', required: false },
+    ])
+  })
+
   it('turn off blank issues and link the security policy, the docs and the API reference [042 S7-AC1] [042 S7-AC3]', () => {
     const config = read('.github/ISSUE_TEMPLATE/config.yml')
     expect(config.split('\n')).toContain('blank_issues_enabled: false')
