@@ -1,0 +1,41 @@
+name: Release
+
+# Started by hand from main. The job waits for the maintainer's approval in the npm-publish
+# environment, checks the release, then stages the package on npm through trusted publishing
+# (short-lived OIDC credentials, no stored token) with provenance. The staged version is public
+# only after the maintainer approves it on npm with 2FA.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Stage the package on npm
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      # No dependency cache: a release builds only from the lockfile and the registry.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - name: Check the npm version, the registry, the tip of main and the changesets
+        run: node scripts/release-check.mjs
+      # Runs prepublishOnly (pnpm check) before packing.
+      - name: Stage the package
+        run: npm stage publish --provenance

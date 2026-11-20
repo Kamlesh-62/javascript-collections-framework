@@ -13,6 +13,7 @@ import {
   publishedInternals,
 } from '../scripts/lib/normalise-dts.mjs'
 import { COMPILERS, MODES, runMatrix, tsconfigFor } from '../scripts/lib/old-typescript.mjs'
+import { PACKED_REQUIRED } from '../scripts/lib/package-size.mjs'
 import {
   BUDGET_PATH,
   formatBudgets,
@@ -287,8 +288,8 @@ describe('API report command', () => {
 })
 
 describe('size report', () => {
-  /** Stands in for npm pack, so no test starts npm. */
-  const stubPack = () => ({ unpackedSize: 1, files: ['dist/index.js'] })
+  /** Stands in for npm pack, so these tests start no npm. */
+  const stubPack = () => ({ unpackedSize: 1, files: [...PACKED_REQUIRED, 'package.json'] })
   const roots: string[] = []
   afterEach(() => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -378,7 +379,7 @@ describe('size report', () => {
       formatBudgets(new Map(['*', 'large', 'small'].map((name) => [name, 1024])), 1024),
     )
     writeFileSync(join(root, 'dist', 'index.d.ts'), '/** @example small */\nexport {}\n')
-    const pack = () => ({ unpackedSize: 512, files: ['dist/index.js'] })
+    const pack = () => ({ unpackedSize: 512, files: [...PACKED_REQUIRED, 'package.json'] })
     expect((await sizeReport(root, 'check', undefined, pack)).ok).toBe(false)
     expect((await sizeReport(root, 'update', undefined, pack)).message).toBe(
       `wrote ${SIZE_REPORT_PATH} (3 entries)`,

@@ -48,8 +48,41 @@ export function builtScripts(root) {
   return texts
 }
 
+/** The built files every package must contain. */
+export const PACKED_REQUIRED = Object.freeze([
+  'dist/index.cjs',
+  'dist/index.d.cts',
+  'dist/index.d.ts',
+  'dist/index.iife.js',
+  'dist/index.js',
+])
+
+const PACKED_FILES = new Set(['package.json', 'README.md', 'LICENSE', 'CHANGELOG.md'])
+const PACKED_BUILD = /^dist\/.+\.(js|cjs|d\.ts|d\.cts)$/
+
 /**
- * Every problem with a packed package: a source map in it, a built file that points to a source
+ * Every packed file outside the allowlist (`package.json`, `README.md`, `LICENSE`,
+ * `CHANGELOG.md`, and `.js`, `.cjs`, `.d.ts` and `.d.cts` files under `dist/`), and every
+ * required build file that is not packed. Source maps are left to their own check.
+ * @param {readonly string[]} files - The packed paths.
+ * @returns {string[]}
+ */
+export function packedFileProblems(files) {
+  /** @type {string[]} */
+  const problems = []
+  const packed = new Set(files)
+  for (const file of [...files].sort()) {
+    if (file.endsWith('.map') || PACKED_FILES.has(file) || PACKED_BUILD.test(file)) continue
+    problems.push(`the package contains ${file}, which is not in the allowlist of published files`)
+  }
+  for (const file of PACKED_REQUIRED)
+    if (!packed.has(file)) problems.push(`the package does not contain ${file}`)
+  return problems
+}
+
+/**
+ * Every problem with a packed package: a file outside the allowlist or a required file missing,
+ * a source map in it, a built file that points to a source
  * map, type declarations without their TSDoc, and an unpacked size over its budget.
  * @param {Pack} pack
  * @param {ReadonlyMap<string, string>} scripts - From {@link builtScripts}.
@@ -60,7 +93,7 @@ export function builtScripts(root) {
  */
 export function packageProblems(pack, scripts, declarations, budget, sourceExamples = 0) {
   /** @type {string[]} */
-  const problems = []
+  const problems = packedFileProblems(pack.files)
   for (const file of pack.files.filter((f) => f.endsWith('.map')).sort())
     problems.push(`the package contains the source map ${file}`)
   for (const [file, text] of [...scripts].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {

@@ -27,16 +27,16 @@ pnpm install
 pnpm check      # typecheck, lint, test, build, ES2015 syntax, package shape, smoke load
 ```
 
-| Command                     | What it does                                                      |
-| --------------------------- | ----------------------------------------------------------------- |
-| `pnpm test`                 | run the test suite once                                           |
-| `pnpm test:watch`           | run tests on change                                               |
-| `pnpm test:coverage`        | run tests with coverage thresholds                                |
-| `pnpm typecheck`            | type-check `src/` and `test/`                                     |
-| `pnpm lint` / `pnpm format` | check / fix formatting and lint rules (Biome)                     |
-| `pnpm build`                | build ESM, CommonJS, IIFE and type declarations into `dist/`      |
-| `pnpm check:package`        | verify the published package shape (publint, are-the-types-wrong) |
-| `pnpm changeset`            | record a user-visible change for the changelog                    |
+| Command                     | What it does                                                        |
+| --------------------------- | ------------------------------------------------------------------- |
+| `pnpm test`                 | run the test suite once                                             |
+| `pnpm test:watch`           | run tests on change                                                 |
+| `pnpm test:coverage`        | run tests with coverage thresholds                                  |
+| `pnpm typecheck`            | type-check `src/` and `test/`                                       |
+| `pnpm lint` / `pnpm format` | check / fix formatting and lint rules (Biome)                       |
+| `pnpm build`                | build ESM, CommonJS, IIFE and type declarations into `dist/`        |
+| `pnpm check:package`        | check the package shape (publint) and the types of a packed tarball |
+| `pnpm changeset`            | record a user-visible change for the changelog                      |
 
 ## Compatibility rules for `src/`
 
