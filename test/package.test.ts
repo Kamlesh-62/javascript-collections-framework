@@ -219,6 +219,44 @@ describe('workflow and install hardening', () => {
     expect(ghsas(fixture)).toEqual(ghsas(root))
   })
 
+  it('the engine fixtures keep the root install protections and audit exceptions, allowing only the admitted install scripts [040 S1-AC1] [040 S1-AC7]', () => {
+    const settings = [
+      'minimumReleaseAge',
+      'trustPolicy',
+      'blockExoticSubdeps',
+      'strictDepBuilds',
+      'saveExact',
+    ]
+    const pick = (text: string) =>
+      Object.fromEntries(
+        settings.map((key) => [
+          key,
+          text.match(new RegExp(`^${key}:\\s*([^#\\n]*)`, 'm'))?.[1]?.trim(),
+        ]),
+      )
+    const builds = (text: string) =>
+      Object.fromEntries(
+        [
+          ...(text.split(/^allowBuilds:\n/m)[1] ?? '').matchAll(
+            /^ {2}([@\w/.-]+): (true|false)$/gm,
+          ),
+        ].map((m) => [m[1], m[2]]),
+      )
+    const ghsas = (text: string) => text.match(/GHSA-[\w-]+/g) ?? []
+    const root = read('pnpm-workspace.yaml')
+    const expected: Record<string, Record<string, string>> = {
+      workers: { workerd: 'true', sharp: 'false' },
+      'react-native': {},
+    }
+    for (const [name, allowed] of Object.entries(expected)) {
+      const fixture = read(`fixtures/${name}/pnpm-workspace.yaml`)
+      expect(pick(fixture), name).toEqual(pick(root))
+      expect(builds(fixture), name).toEqual(allowed)
+      expect(ghsas(fixture), name).toEqual(ghsas(root))
+      expect(read('.gitignore').split('\n')).not.toContain(`fixtures/${name}/pnpm-lock.yaml`)
+    }
+  })
+
   it('the browser and bundler fixtures keep the root install protections and audit exceptions, denying the one admitted install script [039 S1-AC1]', () => {
     const settings = [
       'minimumReleaseAge',

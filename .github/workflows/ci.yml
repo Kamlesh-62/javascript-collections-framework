@@ -157,6 +157,34 @@ jobs:
         env:
           npm_config_dry_run: "true"
 
+  # The smoke check of the built package in the Cloudflare Workers runtime (workerd, through
+  # Miniflare), from fixtures/workers/, which installs on its own.
+  workers:
+    name: Cloudflare Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            fixtures/workers/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install the Workers fixture
+        working-directory: fixtures/workers
+        run: pnpm install --frozen-lockfile
+      - name: Smoke check in the Workers runtime
+        run: node fixtures/workers/run.mjs
+
   pull-request:
     name: Pull request title and changeset
     if: github.event_name == 'pull_request'
@@ -222,7 +250,7 @@ jobs:
   deploy:
     name: Deploy the site to GitHub Pages
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, windows, runtimes, bundlers, publish-dry-run, audit, site]
+    needs: [check, windows, runtimes, bundlers, workers, publish-dry-run, audit, site]
     runs-on: ubuntu-latest
     permissions:
       pages: write
