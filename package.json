@@ -89,7 +89,7 @@
     "test:stress": "vitest run --config vitest.stress.config.ts",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "check:package": "publint --strict && attw --pack .",
+    "check:package": "publint --strict && node scripts/check-types.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:syntax && pnpm check:package && pnpm test:smoke && pnpm test:worker && pnpm api:check && pnpm size:check && pnpm test:copies && pnpm test:consumers",
     "changeset": "changeset",
     "prepublishOnly": "pnpm check",

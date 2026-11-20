@@ -2,7 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { packageProblems, sourceExampleCount, tsdocProblems } from '../scripts/lib/package-size.mjs'
+import {
+  PACKED_REQUIRED,
+  packageProblems,
+  packedFileProblems,
+  sourceExampleCount,
+  tsdocProblems,
+} from '../scripts/lib/package-size.mjs'
 import {
   BUDGET_PATH,
   budgetFor,
@@ -19,6 +25,9 @@ import {
 } from '../scripts/lib/size-budget.mjs'
 import { formatReport, parseReport } from '../scripts/lib/size-compare.mjs'
 import { measureSizes, SIZE_REPORT_PATH, sizeReport } from '../scripts/lib/size-report.mjs'
+
+/** A packed file list that passes the allowlist. */
+const COMPLETE = [...PACKED_REQUIRED, 'package.json']
 
 const ROOT = join(import.meta.dirname, '..')
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8')
@@ -144,7 +153,7 @@ describe('size command with budgets and the size table', () => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
   })
 
-  const fakePack = () => ({ unpackedSize: 1000, files: ['dist/index.js', 'package.json'] })
+  const fakePack = () => ({ unpackedSize: 1000, files: COMPLETE })
   const build =
     "export const small = 1\nexport function large() { return 'x'.repeat(40) + String(small) }\n"
   const emptyPage = `# Performance\n\n${TABLE_START}\n${TABLE_END}\n`
@@ -261,7 +270,7 @@ describe('size command with budgets and the size table', () => {
 })
 
 describe('the packed package', () => {
-  const pack = (unpackedSize: number, files: string[] = ['dist/index.js', 'package.json']) => ({
+  const pack = (unpackedSize: number, files: string[] = COMPLETE) => ({
     unpackedSize,
     files,
   })
@@ -271,7 +280,7 @@ describe('the packed package', () => {
     expect(packageProblems(pack(10), new Map([['dist/index.js', 'x']]), docs, 64)).toEqual([])
     expect(
       packageProblems(
-        pack(10, ['dist/index.js', 'dist/index.js.map', 'dist/a/b.js.map']),
+        pack(10, [...COMPLETE, 'dist/index.js.map', 'dist/a/b.js.map']),
         new Map([
           ['dist/index.js', 'x\n//# sourceMappingURL=index.js.map\n'],
           ['dist/index.cjs', 'x\n//@ sourceMappingURL=index.cjs.map'],
@@ -338,6 +347,53 @@ describe('the packed package', () => {
   })
 })
 
+describe('the packed file list', () => {
+  it('holds only allowlisted files and every required build file, naming each that breaks the rule [037 S2-AC1]', () => {
+    expect(
+      packedFileProblems([
+        ...COMPLETE,
+        'README.md',
+        'LICENSE',
+        'CHANGELOG.md',
+        'dist/collections/tree-map.js',
+        'dist/internal/engines/red-black-tree.js',
+      ]),
+    ).toEqual([])
+    expect(
+      packedFileProblems([
+        'dist/index.js',
+        'src/index.ts',
+        '.env',
+        'dist/data.json',
+        'package.json',
+      ]),
+    ).toEqual([
+      'the package contains .env, which is not in the allowlist of published files',
+      'the package contains dist/data.json, which is not in the allowlist of published files',
+      'the package contains src/index.ts, which is not in the allowlist of published files',
+      'the package does not contain dist/index.cjs',
+      'the package does not contain dist/index.d.cts',
+      'the package does not contain dist/index.d.ts',
+      'the package does not contain dist/index.iife.js',
+    ])
+    // Source maps have their own message.
+    expect(packedFileProblems([...COMPLETE, 'dist/index.js.map'])).toEqual([])
+  })
+
+  it('is checked by the size command [037 S2-AC1]', () => {
+    expect(
+      packageProblems(
+        { unpackedSize: 1, files: [...COMPLETE, 'test/a.test.ts'] },
+        new Map(),
+        '/** Summary. @example x */\nexport declare const a: 1\n',
+        64,
+      ),
+    ).toEqual([
+      'the package contains test/a.test.ts, which is not in the allowlist of published files',
+    ])
+  })
+})
+
 describe('size command with the package check', () => {
   const roots: string[] = []
   afterEach(() => {
@@ -364,24 +420,24 @@ describe('size command with the package check', () => {
   }
 
   it('fails with both figures over the unpacked budget, and asks for one when it is missing [042 S4-AC2]', async () => {
-    const over = await tree(1984, ['dist/index.js'], 'export const a = 1\n')
+    const over = await tree(1984, COMPLETE, 'export const a = 1\n')
     expect(await sizeReport(over.root, 'check', undefined, over.fake)).toEqual({
       ok: false,
       message:
         'the packed package fails its checks:\n  the package is 2000 bytes unpacked, over its budget of 1984 bytes',
     })
-    const none = await tree(undefined, ['dist/index.js'], 'export const a = 1\n')
+    const none = await tree(undefined, COMPLETE, 'export const a = 1\n')
     const result = await sizeReport(none.root, 'check', undefined, none.fake)
     expect(result.ok).toBe(false)
     expect(result.message).toContain(
       `no unpacked-size budget in ${BUDGET_PATH} — add "unpacked": ${budgetFor(2000)}`,
     )
-    const fits = await tree(2048, ['dist/index.js'], 'export const a = 1\n')
+    const fits = await tree(2048, COMPLETE, 'export const a = 1\n')
     expect((await sizeReport(fits.root, 'check', undefined, fits.fake)).ok).toBe(true)
   })
 
   it('reports a failed npm pack as a result, not a crash [042 S4-AC2]', async () => {
-    const { root } = await tree(2048, ['dist/index.js'], 'export const a = 1\n')
+    const { root } = await tree(2048, COMPLETE, 'export const a = 1\n')
     const broken = () => {
       throw new Error('npm: not found')
     }
@@ -392,7 +448,7 @@ describe('size command with the package check', () => {
   })
 
   it('fails on a packed source map or a sourceMappingURL comment [042 S4-AC1]', async () => {
-    const maps = await tree(2048, ['dist/index.js', 'dist/index.js.map'], 'export const a = 1\n')
+    const maps = await tree(2048, [...COMPLETE, 'dist/index.js.map'], 'export const a = 1\n')
     writeFileSync(
       join(maps.root, 'dist', 'index.cjs'),
       'exports.a = 1\n//# sourceMappingURL=index.cjs.map\n',

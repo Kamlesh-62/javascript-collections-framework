@@ -23,4 +23,8 @@ anything in the published package that reaches the network, the file system or g
 - CI actions are pinned to full commit SHAs with least-privilege permissions.
 - The published package contains no source maps and no files beyond the built code, its type
   declarations, `package.json`, the README, the changelog and the license.
-- Releases will be published from CI with npm provenance and a manual approval step.
+- Releases after 0.1.0 are built and published from a CI workflow on `main`, through npm trusted
+  publishing (short-lived credentials, no stored token) with provenance. The workflow runs only
+  after the maintainer approves it, and stages the version on npm; the version becomes public
+  only when the maintainer approves it on npm with two-factor authentication.
+- `pnpm size:check` checks every packed file against an allowlist.

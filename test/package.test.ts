@@ -137,11 +137,14 @@ describe('source rules', () => {
     expect(violations()).toEqual([])
   })
 
-  it('package.json declares no runtime dependencies', () => {
+  it('package.json declares no runtime, peer, optional or bundled dependencies [037 S2-AC4]', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     expect(pkg.dependencies ?? {}).toEqual({})
     expect(pkg.peerDependencies ?? {}).toEqual({})
     expect(pkg.optionalDependencies ?? {}).toEqual({})
+    // npm reads both spellings, as an object or an array of names.
+    expect(pkg.bundleDependencies).toBeUndefined()
+    expect(pkg.bundledDependencies).toBeUndefined()
   })
 
   it('keeps the framework test apps out of the root install and the published files', () => {
@@ -159,14 +162,14 @@ describe('source rules', () => {
     expect(workspace).not.toMatch(/^packages:/m)
   })
 
-  it('package.json has no install-time scripts', () => {
+  it('package.json has no install-time scripts [037 S2-AC4]', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     for (const hook of ['preinstall', 'install', 'postinstall', 'prepare']) {
       expect(pkg.scripts?.[hook]).toBeUndefined()
     }
   })
 
-  it('builds no source maps and keeps the TSDoc in the type declarations [042 S4-AC1] [042 S4-AC3]', () => {
+  it('builds no source maps and keeps the TSDoc in the type declarations [042 S4-AC1] [042 S4-AC3] [037 S2-AC3]', () => {
     const config = readFileSync(join(ROOT, 'tsdown.config.ts'), 'utf8')
     expect(config).not.toMatch(/sourcemap:\s*(true|'inline'|"inline")/)
     expect(config.match(/sourcemap: false/g)).toHaveLength(3)
