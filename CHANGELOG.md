@@ -1,5 +1,13 @@
 # javascript-collections-framework
 
+## 0.1.1
+
+### Patch Changes
+
+- 53b7af1: The ES module build is published as one file per module. Bundlers that keep every class of a file they import, such as esbuild, now leave out the files of collections that are not imported, instead of bundling the whole package. The CommonJS, script-tag and type declaration files are unchanged. Only the package root is public; the files under `dist/` are internal and may change in any release.
+- b6a0e0b: Add an `@example` to the TSDoc of `TreeSetOptions` and `PriorityQueueOptions`. The documentation gains a page of behaviour notes, an API reference site and README badges for the CI result and the line coverage; every code example in `README.md` and `docs/` now runs as a test, and the examples that did not run as written were fixed.
+- 69a37d6: The package no longer ships source maps, so it installs at about 2.1 MB instead of 5.2 MB; the ES module and CommonJS builds remain readable as published. The README opens with a quick start and a comparison with native collections and other libraries, and shows the npm version, bundle size and dependency count. A new page, "Coming from native JavaScript", puts each native pattern next to its collection, and a playground runs the package in the browser without installing it.
+
 ## 0.1.0
 
 First release. Until `1.0.0`, a minor version may contain breaking changes; each is listed here
