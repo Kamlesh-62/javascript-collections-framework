@@ -99,7 +99,7 @@ element; `TreeSet.add` and `TreeMap.set` are O(log n). Nearest-match queries are
 when the array is searched by bisection.
 
 **Keep the sorted array** when it is built once and then only read: a binary search over an array
-is as fast and uses less memory.
+is O(log n) too, and the array uses less memory.
 
 ## An array as a queue and `ArrayDeque`
 
