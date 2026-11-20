@@ -13,6 +13,13 @@ allowBuilds:
   sharp: false
 saveExact: true
 
+# Miniflare's current stable release pins undici and sharp versions with known advisories; the
+# patched releases of the same major versions are used instead (miniflare 5 is still in beta).
+# Remove once a stable miniflare depends on them.
+overrides:
+  undici: 7.30.2
+  sharp: 0.35.5
+
 
 # Audit exceptions. Each entry names the advisory, why it cannot reach the published package, and
 # when to remove it. Never add one for a runtime path (there are no runtime dependencies).
