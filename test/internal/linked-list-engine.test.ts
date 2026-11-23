@@ -79,6 +79,13 @@ describe('LinkedListEngine — removed nodes are cut loose', () => {
       }
       expect(node.next).toBeUndefined()
       expect(node.previous).toBeUndefined()
+      // The handle's one own value is its internal node, which is cut loose too.
+      const inner = ownValues(node)
+      expect(inner).toHaveLength(1)
+      const internal = inner[0] as { list: unknown; next: unknown; prev: unknown }
+      expect(internal.list).toBeUndefined()
+      expect(internal.next).toBeUndefined()
+      expect(internal.prev).toBeUndefined()
       // No remaining node and no list field refers to it.
       for (const remaining of liveNodes(list)) {
         expect(remaining).not.toBe(node)

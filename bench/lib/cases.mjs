@@ -5,14 +5,21 @@
 // A pass is either over all n elements (build, iterate) or a fixed number of operations on a
 // collection that keeps its size (lookups, remove-then-add pairs), so the rate is per element or
 // per operation and a collection stays the same size for every sample.
+//
+// Every side's `run` is its own function literal with its own loop, written out in full: a shared
+// helper, or closures made by one factory, would share the engine's type feedback between cases
+// and slow whichever side runs second.
 
 import { shuffled } from './harness.mjs'
 
 /** The sizes every case runs at. */
 export const SIZES = [1_000, 100_000, 1_000_000]
 
-/** Operations per pass for lookups and steady-state updates. */
+/** Operations per pass for steady-state updates. */
 export const OPS = 1_000
+
+/** Keys per pass for lookups: `min(n, LOOKUPS)` distinct present keys. */
+export const LOOKUPS = 10_000
 
 /** Native baselines that cost O(n) per operation run only up to this size. */
 export const LINEAR_LIMIT = 100_000
@@ -55,15 +62,18 @@ export function benchCases(lib, size, seed = 41) {
   } = lib
   const n = size
   const linear = n <= LINEAR_LIMIT
-  // Keys are 0..n-1 in a seeded order; queries are OPS keys drawn from the same range.
+  // Keys are 0..n-1 in a seeded order. Lookups read min(n, LOOKUPS) distinct keys drawn from the
+  // same range; updates use the first OPS of them.
   const keys = shuffled(n, seed)
-  const queries = shuffled(n, seed + 1).slice(0, Math.min(OPS, n))
+  const lookups = lookupKeys(n, seed + 1)
+  const reads = lookups.length
+  const queries = lookups.slice(0, Math.min(OPS, n))
   const ops = queries.length
   const entries = keys.map((k) => /** @type {[number, number]} */ ([k, k + 1]))
   // Sorted keys are even numbers so that odd queries fall between them.
   const evens = keys.map((k) => k * 2)
   const sortedEvens = Array.from({ length: n }, (_, i) => i * 2)
-  const odd = queries.map((q) => q * 2 + 1)
+  const odd = lookups.map((q) => q * 2 + 1)
 
   /** @type {BenchCase[]} */
   const cases = []
@@ -88,12 +98,6 @@ export function benchCases(lib, size, seed = 41) {
       })
   }
   const none = () => undefined
-  /** @param {Iterable<number>} it */
-  const sum = (it) => {
-    let s = 0
-    for (const v of it) s += v
-    return s
-  }
 
   // ArrayList and Array.
   add(
@@ -129,13 +133,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'ArrayList',
     'get by index',
-    ops,
+    reads,
     'Array index',
     {
       setup: () => keys.slice(),
       run: (a) => {
         let s = 0
-        for (const q of queries) s += a[q]
+        for (const q of lookups) s += a[q]
         return s
       },
     },
@@ -143,7 +147,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new ArrayList(keys),
       run: (l) => {
         let s = 0
-        for (const q of queries) s += l.get(q)
+        for (const q of lookups) s += l.get(q)
         return s
       },
     },
@@ -153,8 +157,22 @@ export function benchCases(lib, size, seed = 41) {
     'iterate',
     n,
     'Array for…of',
-    { setup: () => keys.slice(), run: sum },
-    { setup: () => new ArrayList(keys), run: sum },
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (const v of a) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new ArrayList(keys),
+      run: (c) => {
+        let s = 0
+        for (const v of c) s += v
+        return s
+      },
+    },
   )
   add(
     'ArrayList',
@@ -189,103 +207,218 @@ export function benchCases(lib, size, seed = 41) {
   )
 
   // LinkedList and ArrayDeque against Array used as a queue.
-  for (const [name, Deque] of /** @type {const} */ ([
-    ['LinkedList', LinkedList],
-    ['ArrayDeque', ArrayDeque],
-  ])) {
-    add(
-      name,
-      'add at the end',
-      n,
-      'Array push',
-      {
-        setup: none,
-        run: () => {
-          const a = []
-          for (const k of keys) a.push(k)
-          return a.length
-        },
+  add(
+    'LinkedList',
+    'add at the end',
+    n,
+    'Array push',
+    {
+      setup: none,
+      run: () => {
+        const a = []
+        for (const k of keys) a.push(k)
+        return a.length
       },
-      {
-        setup: none,
-        run: () => {
-          const d = new Deque()
-          for (const k of keys) d.push(k)
-          return d.size
-        },
+    },
+    {
+      setup: none,
+      run: () => {
+        const d = new LinkedList()
+        for (const k of keys) d.push(k)
+        return d.size
       },
-    )
-    add(
-      name,
-      'take from the front, add at the end',
-      ops,
-      'Array shift and push',
-      {
-        setup: () => keys.slice(),
-        run: (a) => {
-          let s = 0
-          for (let i = 0; i < ops; i++) {
-            const v = a.shift()
-            s += v
-            a.push(v)
-          }
-          return s
-        },
+    },
+  )
+  add(
+    'LinkedList',
+    'take from the front, add at the end',
+    ops,
+    'Array shift and push',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = a.shift()
+          s += v
+          a.push(v)
+        }
+        return s
       },
-      {
-        setup: () => new Deque(keys),
-        run: (d) => {
-          let s = 0
-          for (let i = 0; i < ops; i++) {
-            const v = d.poll()
-            s += v
-            d.push(v)
-          }
-          return s
-        },
+    },
+    {
+      setup: () => new LinkedList(keys),
+      run: (d) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = d.poll()
+          s += v
+          d.push(v)
+        }
+        return s
       },
-      linear,
-    )
-    add(
-      name,
-      'add at the front, take from the end',
-      ops,
-      'Array unshift and pop',
-      {
-        setup: () => keys.slice(),
-        run: (a) => {
-          let s = 0
-          for (let i = 0; i < ops; i++) {
-            const v = a.pop()
-            s += v
-            a.unshift(v)
-          }
-          return s
-        },
+    },
+    linear,
+  )
+  add(
+    'LinkedList',
+    'add at the front, take from the end',
+    ops,
+    'Array unshift and pop',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = a.pop()
+          s += v
+          a.unshift(v)
+        }
+        return s
       },
-      {
-        setup: () => new Deque(keys),
-        run: (d) => {
-          let s = 0
-          for (let i = 0; i < ops; i++) {
-            const v = d.pop()
-            s += v
-            d.addFirst(v)
-          }
-          return s
-        },
+    },
+    {
+      setup: () => new LinkedList(keys),
+      run: (d) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = d.pop()
+          s += v
+          d.addFirst(v)
+        }
+        return s
       },
-      linear,
-    )
-    add(
-      name,
-      'iterate',
-      n,
-      'Array for…of',
-      { setup: () => keys.slice(), run: sum },
-      { setup: () => new Deque(keys), run: sum },
-    )
-  }
+    },
+    linear,
+  )
+  add(
+    'LinkedList',
+    'iterate',
+    n,
+    'Array for…of',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (const v of a) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new LinkedList(keys),
+      run: (c) => {
+        let s = 0
+        for (const v of c) s += v
+        return s
+      },
+    },
+  )
+  add(
+    'ArrayDeque',
+    'add at the end',
+    n,
+    'Array push',
+    {
+      setup: none,
+      run: () => {
+        const a = []
+        for (const k of keys) a.push(k)
+        return a.length
+      },
+    },
+    {
+      setup: none,
+      run: () => {
+        const d = new ArrayDeque()
+        for (const k of keys) d.push(k)
+        return d.size
+      },
+    },
+  )
+  add(
+    'ArrayDeque',
+    'take from the front, add at the end',
+    ops,
+    'Array shift and push',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = a.shift()
+          s += v
+          a.push(v)
+        }
+        return s
+      },
+    },
+    {
+      setup: () => new ArrayDeque(keys),
+      run: (d) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = d.poll()
+          s += v
+          d.push(v)
+        }
+        return s
+      },
+    },
+    linear,
+  )
+  add(
+    'ArrayDeque',
+    'add at the front, take from the end',
+    ops,
+    'Array unshift and pop',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = a.pop()
+          s += v
+          a.unshift(v)
+        }
+        return s
+      },
+    },
+    {
+      setup: () => new ArrayDeque(keys),
+      run: (d) => {
+        let s = 0
+        for (let i = 0; i < ops; i++) {
+          const v = d.pop()
+          s += v
+          d.addFirst(v)
+        }
+        return s
+      },
+    },
+    linear,
+  )
+  add(
+    'ArrayDeque',
+    'iterate',
+    n,
+    'Array for…of',
+    {
+      setup: () => keys.slice(),
+      run: (a) => {
+        let s = 0
+        for (const v of a) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new ArrayDeque(keys),
+      run: (c) => {
+        let s = 0
+        for (const v of c) s += v
+        return s
+      },
+    },
+  )
 
   // PriorityQueue against a sorted Array.
   add(
@@ -345,13 +478,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'HashMap',
     'get',
-    ops,
+    reads,
     'Map get',
     {
       setup: () => new Map(entries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q)
+        for (const q of lookups) s += m.get(q)
         return s
       },
     },
@@ -359,7 +492,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new HashMap(entries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q)
+        for (const q of lookups) s += m.get(q)
         return s
       },
     },
@@ -434,11 +567,11 @@ export function benchCases(lib, size, seed = 41) {
       },
     },
   )
-  const records = queries.map((id) => ({ id }))
+  const records = lookups.map((id) => ({ id }))
   add(
     'HashMap',
     'get by value with the key option',
-    ops,
+    reads,
     'Map get by id',
     {
       setup: () => new Map(entries),
@@ -463,77 +596,166 @@ export function benchCases(lib, size, seed = 41) {
   )
 
   // HashSet and LinkedHashSet against Set.
-  for (const [name, SetClass] of /** @type {const} */ ([
-    ['HashSet', HashSet],
-    ['LinkedHashSet', LinkedHashSet],
-  ])) {
-    add(
-      name,
-      'build from an array',
-      n,
-      'new Set',
-      { setup: none, run: () => new Set(keys).size },
-      { setup: none, run: () => new SetClass(keys).size },
-    )
-    add(
-      name,
-      'has',
-      ops,
-      'Set has',
-      {
-        setup: () => new Set(keys),
-        run: (s) => {
-          let c = 0
-          for (const q of queries) if (s.has(q)) c++
-          return c
-        },
+  add(
+    'HashSet',
+    'build from an array',
+    n,
+    'new Set',
+    { setup: none, run: () => new Set(keys).size },
+    { setup: none, run: () => new HashSet(keys).size },
+  )
+  add(
+    'HashSet',
+    'has',
+    reads,
+    'Set has',
+    {
+      setup: () => new Set(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of lookups) if (s.has(q)) c++
+        return c
       },
-      {
-        setup: () => new SetClass(keys),
-        run: (s) => {
-          let c = 0
-          for (const q of queries) if (s.has(q)) c++
-          return c
-        },
+    },
+    {
+      setup: () => new HashSet(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of lookups) if (s.has(q)) c++
+        return c
       },
-    )
-    add(
-      name,
-      'delete and add again',
-      ops,
-      'Set delete and add',
-      {
-        setup: () => new Set(keys),
-        run: (s) => {
-          let c = 0
-          for (const q of queries) {
-            if (s.delete(q)) c++
-            s.add(q)
-          }
-          return c
-        },
+    },
+  )
+  add(
+    'HashSet',
+    'delete and add again',
+    ops,
+    'Set delete and add',
+    {
+      setup: () => new Set(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of queries) {
+          if (s.delete(q)) c++
+          s.add(q)
+        }
+        return c
       },
-      {
-        setup: () => new SetClass(keys),
-        run: (s) => {
-          let c = 0
-          for (const q of queries) {
-            if (s.delete(q)) c++
-            s.add(q)
-          }
-          return c
-        },
+    },
+    {
+      setup: () => new HashSet(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of queries) {
+          if (s.delete(q)) c++
+          s.add(q)
+        }
+        return c
       },
-    )
-    add(
-      name,
-      'iterate',
-      n,
-      'Set for…of',
-      { setup: () => new Set(keys), run: sum },
-      { setup: () => new SetClass(keys), run: sum },
-    )
-  }
+    },
+  )
+  add(
+    'HashSet',
+    'iterate',
+    n,
+    'Set for…of',
+    {
+      setup: () => new Set(keys),
+      run: (t) => {
+        let s = 0
+        for (const v of t) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new HashSet(keys),
+      run: (t) => {
+        let s = 0
+        for (const v of t) s += v
+        return s
+      },
+    },
+  )
+  add(
+    'LinkedHashSet',
+    'build from an array',
+    n,
+    'new Set',
+    { setup: none, run: () => new Set(keys).size },
+    { setup: none, run: () => new LinkedHashSet(keys).size },
+  )
+  add(
+    'LinkedHashSet',
+    'has',
+    reads,
+    'Set has',
+    {
+      setup: () => new Set(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of lookups) if (s.has(q)) c++
+        return c
+      },
+    },
+    {
+      setup: () => new LinkedHashSet(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of lookups) if (s.has(q)) c++
+        return c
+      },
+    },
+  )
+  add(
+    'LinkedHashSet',
+    'delete and add again',
+    ops,
+    'Set delete and add',
+    {
+      setup: () => new Set(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of queries) {
+          if (s.delete(q)) c++
+          s.add(q)
+        }
+        return c
+      },
+    },
+    {
+      setup: () => new LinkedHashSet(keys),
+      run: (s) => {
+        let c = 0
+        for (const q of queries) {
+          if (s.delete(q)) c++
+          s.add(q)
+        }
+        return c
+      },
+    },
+  )
+  add(
+    'LinkedHashSet',
+    'iterate',
+    n,
+    'Set for…of',
+    {
+      setup: () => new Set(keys),
+      run: (t) => {
+        let s = 0
+        for (const v of t) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new LinkedHashSet(keys),
+      run: (t) => {
+        let s = 0
+        for (const v of t) s += v
+        return s
+      },
+    },
+  )
 
   // LinkedHashMap against Map.
   add(
@@ -547,13 +769,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'LinkedHashMap',
     'get',
-    ops,
+    reads,
     'Map get',
     {
       setup: () => new Map(entries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q)
+        for (const q of lookups) s += m.get(q)
         return s
       },
     },
@@ -561,7 +783,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new LinkedHashMap(entries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q)
+        for (const q of lookups) s += m.get(q)
         return s
       },
     },
@@ -569,13 +791,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'LinkedHashMap',
     'get in access order (LRU)',
-    ops,
+    reads,
     'Map get, delete and set',
     {
       setup: () => new Map(entries),
       run: (m) => {
         let s = 0
-        for (const q of queries) {
+        for (const q of lookups) {
           const v = m.get(q)
           if (v !== undefined) {
             m.delete(q)
@@ -590,7 +812,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new LinkedHashMap(entries, { accessOrder: true }),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q) ?? 0
+        for (const q of lookups) s += m.get(q) ?? 0
         return s
       },
     },
@@ -634,13 +856,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeMap',
     'get',
-    ops,
+    reads,
     'Map get',
     {
       setup: () => new Map(evenEntries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q * 2)
+        for (const q of lookups) s += m.get(q * 2)
         return s
       },
     },
@@ -648,7 +870,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new TreeMap(evenEntries),
       run: (m) => {
         let s = 0
-        for (const q of queries) s += m.get(q * 2)
+        for (const q of lookups) s += m.get(q * 2)
         return s
       },
     },
@@ -656,7 +878,7 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeMap',
     'floor entry',
-    ops,
+    reads,
     'sorted Array bisection',
     {
       setup: () => sortedEvens.slice(),
@@ -717,7 +939,11 @@ export function benchCases(lib, size, seed = 41) {
     'sorted Array for…of',
     {
       setup: () => sortedEvens.slice(),
-      run: sum,
+      run: (a) => {
+        let s = 0
+        for (const v of a) s += v
+        return s
+      },
     },
     {
       setup: () => new TreeMap(evenEntries),
@@ -743,13 +969,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeSet',
     'has',
-    ops,
+    reads,
     'Set has',
     {
       setup: () => new Set(evens),
       run: (s) => {
         let c = 0
-        for (const q of queries) if (s.has(q * 2)) c++
+        for (const q of lookups) if (s.has(q * 2)) c++
         return c
       },
     },
@@ -757,7 +983,7 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new TreeSet(evens),
       run: (s) => {
         let c = 0
-        for (const q of queries) if (s.has(q * 2)) c++
+        for (const q of lookups) if (s.has(q * 2)) c++
         return c
       },
     },
@@ -765,7 +991,7 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeSet',
     'ceiling',
-    ops,
+    reads,
     'sorted Array bisection',
     {
       setup: () => sortedEvens.slice(),
@@ -824,8 +1050,22 @@ export function benchCases(lib, size, seed = 41) {
     'iterate',
     n,
     'sorted Array for…of',
-    { setup: () => sortedEvens.slice(), run: sum },
-    { setup: () => new TreeSet(evens), run: sum },
+    {
+      setup: () => sortedEvens.slice(),
+      run: (a) => {
+        let s = 0
+        for (const v of a) s += v
+        return s
+      },
+    },
+    {
+      setup: () => new TreeSet(evens),
+      run: (t) => {
+        let s = 0
+        for (const v of t) s += v
+        return s
+      },
+    },
   )
 
   // Further cases: adding one by one, the other lookups and updates.
@@ -854,13 +1094,13 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'HashMap',
     'has',
-    ops,
+    reads,
     'Map has',
     {
       setup: () => new Map(entries),
       run: (m) => {
         let c = 0
-        for (const q of queries) if (m.has(q)) c++
+        for (const q of lookups) if (m.has(q)) c++
         return c
       },
     },
@@ -868,38 +1108,55 @@ export function benchCases(lib, size, seed = 41) {
       setup: () => new HashMap(entries),
       run: (m) => {
         let c = 0
-        for (const q of queries) if (m.has(q)) c++
+        for (const q of lookups) if (m.has(q)) c++
         return c
       },
     },
   )
-  for (const [name, MapClass] of /** @type {const} */ ([
-    ['HashMap', HashMap],
-    ['LinkedHashMap', LinkedHashMap],
-  ])) {
-    add(
-      name,
-      'set new keys one by one',
-      n,
-      'Map set',
-      {
-        setup: none,
-        run: () => {
-          const m = new Map()
-          for (const k of keys) m.set(k, k)
-          return m.size
-        },
+  add(
+    'HashMap',
+    'set new keys one by one',
+    n,
+    'Map set',
+    {
+      setup: none,
+      run: () => {
+        const m = new Map()
+        for (const k of keys) m.set(k, k)
+        return m.size
       },
-      {
-        setup: none,
-        run: () => {
-          const m = new MapClass()
-          for (const k of keys) m.set(k, k)
-          return m.size
-        },
+    },
+    {
+      setup: none,
+      run: () => {
+        const m = new HashMap()
+        for (const k of keys) m.set(k, k)
+        return m.size
       },
-    )
-  }
+    },
+  )
+  add(
+    'LinkedHashMap',
+    'set new keys one by one',
+    n,
+    'Map set',
+    {
+      setup: none,
+      run: () => {
+        const m = new Map()
+        for (const k of keys) m.set(k, k)
+        return m.size
+      },
+    },
+    {
+      setup: none,
+      run: () => {
+        const m = new LinkedHashMap()
+        for (const k of keys) m.set(k, k)
+        return m.size
+      },
+    },
+  )
   add(
     'LinkedHashMap',
     'set an existing key',
@@ -948,46 +1205,64 @@ export function benchCases(lib, size, seed = 41) {
       },
     },
   )
-  for (const [name, SetClass] of /** @type {const} */ ([
-    ['HashSet', HashSet],
-    ['LinkedHashSet', LinkedHashSet],
-  ])) {
-    add(
-      name,
-      'add one by one',
-      n,
-      'Set add',
-      {
-        setup: none,
-        run: () => {
-          const t = new Set()
-          for (const k of keys) t.add(k)
-          return t.size
-        },
+  add(
+    'HashSet',
+    'add one by one',
+    n,
+    'Set add',
+    {
+      setup: none,
+      run: () => {
+        const t = new Set()
+        for (const k of keys) t.add(k)
+        return t.size
       },
-      {
-        setup: none,
-        run: () => {
-          const t = new SetClass()
-          for (const k of keys) t.add(k)
-          return t.size
-        },
+    },
+    {
+      setup: none,
+      run: () => {
+        const t = new HashSet()
+        for (const k of keys) t.add(k)
+        return t.size
       },
-    )
-  }
-  /** Inserts every key of `evens` into a sorted array by bisection. */
-  const sortedInsert = () => {
-    /** @type {number[]} */
-    const a = []
-    for (const k of evens) a.splice(lowerBound(a, k), 0, k)
-    return a.length
-  }
+    },
+  )
+  add(
+    'LinkedHashSet',
+    'add one by one',
+    n,
+    'Set add',
+    {
+      setup: none,
+      run: () => {
+        const t = new Set()
+        for (const k of keys) t.add(k)
+        return t.size
+      },
+    },
+    {
+      setup: none,
+      run: () => {
+        const t = new LinkedHashSet()
+        for (const k of keys) t.add(k)
+        return t.size
+      },
+    },
+  )
   add(
     'TreeMap',
     'set new keys in seeded order',
     n,
     'sorted Array insert',
-    { setup: none, run: sortedInsert },
+    {
+      setup: none,
+      run: () => {
+        /** @type {number[]} */
+        const a = []
+        for (const k of evens) a.splice(lowerBound(a, k), 0, k)
+        return a.length
+      },
+    },
     {
       setup: none,
       run: () => {
@@ -1001,7 +1276,7 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeMap',
     'ceiling entry',
-    ops,
+    reads,
     'sorted Array bisection',
     {
       setup: () => sortedEvens.slice(),
@@ -1025,7 +1300,15 @@ export function benchCases(lib, size, seed = 41) {
     'add one by one',
     n,
     'sorted Array insert',
-    { setup: none, run: sortedInsert },
+    {
+      setup: none,
+      run: () => {
+        /** @type {number[]} */
+        const a = []
+        for (const k of evens) a.splice(lowerBound(a, k), 0, k)
+        return a.length
+      },
+    },
     {
       setup: none,
       run: () => {
@@ -1039,7 +1322,7 @@ export function benchCases(lib, size, seed = 41) {
   add(
     'TreeSet',
     'floor',
-    ops,
+    reads,
     'sorted Array bisection',
     {
       setup: () => sortedEvens.slice(),
@@ -1060,6 +1343,16 @@ export function benchCases(lib, size, seed = 41) {
   )
 
   return cases
+}
+
+/**
+ * The keys a lookup case reads: `min(n, LOOKUPS)` distinct keys of 0..n-1 in a seeded order.
+ * @param {number} n
+ * @param {number} seed
+ * @returns {number[]}
+ */
+export function lookupKeys(n, seed) {
+  return shuffled(n, seed).slice(0, Math.min(LOOKUPS, n))
 }
 
 /**

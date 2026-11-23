@@ -3,7 +3,7 @@
 
 import { IllegalStateError } from '../../errors/errors'
 import type { Deque } from '../../interfaces/queue'
-import { labelOf, type Where } from '../checks'
+import { labelOf, requireElement, type Where } from '../checks'
 import { AbstractDeque, type DequeWalker } from '../skeletons/abstract-deque'
 import { ReversedDeque } from '../views/reversed-deque'
 
@@ -111,11 +111,46 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     let capacity = this.buffer.length
     if (needed <= capacity) return
     while (capacity < needed) capacity *= 2
-    // Build the new buffer completely before switching to it.
-    const next = newBuffer<E>(capacity)
-    for (let i = 0; i < this.length; i++) next[i] = this.getAt(i)
-    this.buffer = next
-    this.head = 0
+    // Grow in place: extend the array to the new capacity in one step and write `undefined` to
+    // every new slot, so no slot is left empty; then, when the ring wraps past the old end, move
+    // its part at the start to just after the old end, so the elements run in order from `head`.
+    // No user code runs here, so only running out of memory could stop it halfway.
+    const buffer = this.buffer
+    const old = buffer.length
+    buffer.length = capacity
+    for (let i = old; i < capacity; i++) buffer[i] = undefined
+    const wrapped = this.head + this.length - old
+    for (let i = 0; i < wrapped; i++) {
+      buffer[old + i] = buffer[i]
+      buffer[i] = undefined
+    }
+  }
+
+  override add(element: E): this {
+    this.append(element, 'add')
+    return this
+  }
+
+  override addLast(element: E): this {
+    this.append(element, 'addLast')
+    return this
+  }
+
+  override push(element: E): this {
+    this.append(element, 'push')
+    return this
+  }
+
+  /** Checks `element`, then adds it at the back; the room check runs only when the buffer is full. */
+  private append(element: E, method: string): void {
+    if (element === null || element === undefined) requireElement(element, this, method)
+    const length = this.length
+    // A buffer with a free slot is below the limit, since every capacity is at most the limit.
+    if (length === this.buffer.length) this.ensureRoom(1, this, method)
+    const buffer = this.buffer
+    buffer[(this.head + length) & (buffer.length - 1)] = element
+    this.length = length + 1
+    this.changes.structural()
   }
 
   insertBack(element: E, where: Where, method = ''): void {

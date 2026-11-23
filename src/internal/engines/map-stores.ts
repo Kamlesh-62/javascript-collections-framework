@@ -59,6 +59,11 @@ export interface MapStore<K, V> {
    * directly on its hot paths.
    */
   nativeMap(): Map<K, V> | undefined
+  /**
+   * The key function and the native `Map` from derived key to record, for the keyed store;
+   * `undefined` for the others. The engine reads through it on its keyed hot paths.
+   */
+  keyedMap(): KeyedMap<K, V> | undefined
 }
 
 class NativeMapStore<K, V> implements MapStore<K, V> {
@@ -133,18 +138,36 @@ class NativeMapStore<K, V> implements MapStore<K, V> {
   nativeMap(): Map<K, V> {
     return this.map
   }
+
+  keyedMap(): undefined {
+    return undefined
+  }
 }
 
-/** A mapping stored under its derived key. */
-interface KeyedRecord<K, V> {
+/**
+ * A mapping stored under its derived key.
+ *
+ * @internal
+ */
+export interface KeyedRecord<K, V> {
   readonly derived: unknown
   readonly key: K
   value: V
 }
 
-class KeyedMapStore<K, V> implements MapStore<K, V> {
-  private readonly key: KeyOf<K>
-  private readonly map: Map<unknown, KeyedRecord<K, V>>
+/**
+ * The keyed store's key function and its native `Map` from derived key to record.
+ *
+ * @internal
+ */
+export interface KeyedMap<K, V> {
+  readonly key: KeyOf<K>
+  readonly map: Map<unknown, KeyedRecord<K, V>>
+}
+
+class KeyedMapStore<K, V> implements MapStore<K, V>, KeyedMap<K, V> {
+  readonly key: KeyOf<K>
+  readonly map: Map<unknown, KeyedRecord<K, V>>
 
   constructor(key: KeyOf<K>, map: Map<unknown, KeyedRecord<K, V>>) {
     this.key = key
@@ -214,6 +237,10 @@ class KeyedMapStore<K, V> implements MapStore<K, V> {
 
   nativeMap(): undefined {
     return undefined
+  }
+
+  keyedMap(): KeyedMap<K, V> {
+    return this
   }
 
   copy(): MapStore<K, V> {
@@ -338,6 +365,10 @@ class BucketMapStore<K, V> implements MapStore<K, V> {
   }
 
   nativeMap(): undefined {
+    return undefined
+  }
+
+  keyedMap(): undefined {
     return undefined
   }
 

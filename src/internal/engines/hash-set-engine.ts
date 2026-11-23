@@ -411,6 +411,16 @@ export class HashSetEngine<E> extends AbstractSet<E> {
 
   /** Adds each element of `elements` in order, naming `where` in errors (construction). */
   addInitial(elements: Iterable<E>, where: string): void {
+    const native = this.native
+    if (native !== undefined) {
+      // One native call per element: the size tells a new member from a present one.
+      for (const element of elements) {
+        const before = native.size
+        native.add(normalise(element))
+        if (native.size !== before) this.changes.structural()
+      }
+      return
+    }
     for (const element of elements) this.addElement(element, new Operation(this.changes, where))
   }
 

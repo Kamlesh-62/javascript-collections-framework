@@ -22,7 +22,21 @@ export const NO_RUN = 'No recorded run yet: run `pnpm bench`, then `pnpm bench:d
  * @property {number} cores
  * @property {number} memoryGb - Total memory, rounded to a whole number of gigabytes.
  * @property {string} version - The package version that was measured.
+ * @property {RunOrder} [order] - Which side of each case was timed first; runs saved before the
+ *   option existed have none and were timed native first.
  */
+
+/** @typedef {'native-first' | 'library-first'} RunOrder */
+
+/**
+ * Which side of each case the runner times first: the native side, unless the arguments hold
+ * `--library-first`.
+ * @param {readonly string[]} args - The runner's command-line arguments.
+ * @returns {RunOrder}
+ */
+export function runOrder(args) {
+  return args.includes('--library-first') ? 'library-first' : 'native-first'
+}
 
 /**
  * @typedef {object} CaseResult
@@ -39,9 +53,10 @@ export const NO_RUN = 'No recorded run yet: run `pnpm bench`, then `pnpm bench:d
  * The machine and runtime of this run. No user name, host name or path is recorded.
  * @param {string} version - The package version.
  * @param {Date} [now]
+ * @param {RunOrder} [order]
  * @returns {RunInfo}
  */
-export function runInfo(version, now = new Date()) {
+export function runInfo(version, now = new Date(), order = 'native-first') {
   const processors = cpus()
   return {
     date: now.toISOString().slice(0, 10),
@@ -51,6 +66,7 @@ export function runInfo(version, now = new Date()) {
     cores: processors.length,
     memoryGb: Math.round(totalmem() / 2 ** 30),
     version,
+    order,
   }
 }
 

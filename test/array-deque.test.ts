@@ -442,3 +442,77 @@ describe('clear on an empty deque', () => {
     }
   })
 })
+
+describe('ArrayDeque — growth', () => {
+  /** A deque whose front sits `offset` places into its storage, holding `size` elements. */
+  function shifted(offset: number, size: number): { deque: ArrayDeque<number>; model: number[] } {
+    const deque = new ArrayDeque<number>()
+    for (let i = 0; i < offset; i++) deque.add(-1)
+    for (let i = 0; i < offset; i++) deque.poll()
+    const model: number[] = []
+    for (let i = 0; i < size; i++) {
+      deque.add(i)
+      model.push(i)
+    }
+    return { deque, model }
+  }
+
+  it('keeps the order when adds at the back grow a wrapped or unwrapped deque [044 S5-AC4]', () => {
+    for (const offset of [0, 3, 7]) {
+      const { deque, model } = shifted(offset, 8)
+      for (let i = 8; i < 70; i++) {
+        deque.add(i)
+        model.push(i)
+        expect(deque.size).toBe(model.length)
+      }
+      expect([...deque]).toEqual(model)
+      expect([...deque.reversed()]).toEqual(model.slice().reverse())
+    }
+  })
+
+  it('keeps the order when adds at the front grow a wrapped or unwrapped deque [044 S5-AC4]', () => {
+    for (const offset of [0, 3, 7]) {
+      const { deque, model } = shifted(offset, 8)
+      for (let i = 0; i < 70; i++) {
+        deque.addFirst(-i - 1)
+        model.unshift(-i - 1)
+      }
+      expect(deque.size).toBe(model.length)
+      expect([...deque]).toEqual(model)
+      expect(deque.peek()).toBe(-70)
+      expect(deque.peekLast()).toBe(7)
+    }
+  })
+
+  it('keeps the order when addAll and from double the deque several times [044 S5-AC4]', () => {
+    const source = Array.from({ length: 1000 }, (_, i) => i * 3)
+    expect([...ArrayDeque.from(source)]).toEqual(source)
+    expect([...new ArrayDeque(source)]).toEqual(source)
+    const { deque, model } = shifted(5, 6)
+    expect(deque.addAll(source)).toBe(true)
+    expect([...deque]).toEqual(model.concat(source))
+    deque.addFirst(-1)
+    expect(deque.peek()).toBe(-1)
+    expect(deque.size).toBe(1007)
+  })
+
+  it('grows again after clear, keeping the order [044 S5-AC4]', () => {
+    const deque = new ArrayDeque<number>()
+    for (let i = 0; i < 100; i++) deque.add(i)
+    deque.clear()
+    for (let i = 0; i < 4; i++) deque.add(i)
+    for (let i = 0; i < 3; i++) deque.poll()
+    const model = [3]
+    for (let i = 0; i < 40; i++) {
+      if (i % 2 === 0) {
+        deque.add(i + 100)
+        model.push(i + 100)
+      } else {
+        deque.addFirst(-i)
+        model.unshift(-i)
+      }
+    }
+    expect([...deque]).toEqual(model)
+    expect(deque.size).toBe(41)
+  })
+})
