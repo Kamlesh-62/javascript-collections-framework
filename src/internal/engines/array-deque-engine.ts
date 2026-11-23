@@ -3,6 +3,7 @@
 
 import { IllegalStateError } from '../../errors/errors'
 import type { Deque } from '../../interfaces/queue'
+import { labelOf, type Where } from '../checks'
 import { AbstractDeque, type DequeWalker } from '../skeletons/abstract-deque'
 import { ReversedDeque } from '../views/reversed-deque'
 
@@ -100,11 +101,11 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     return new IndexWalker(this, fromBack)
   }
 
-  ensureRoom(count: number, where: string): void {
+  ensureRoom(count: number, where: Where, method = ''): void {
     const needed = this.length + count
     if (needed > this.maxCapacity) {
       throw new IllegalStateError(
-        `${where}: the deque cannot hold more than ${this.maxCapacity} elements`,
+        `${labelOf(where, method)}: the deque cannot hold more than ${this.maxCapacity} elements`,
       )
     }
     let capacity = this.buffer.length
@@ -117,15 +118,15 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     this.head = 0
   }
 
-  insertBack(element: E, where: string): void {
-    this.ensureRoom(1, where)
+  insertBack(element: E, where: Where, method = ''): void {
+    this.ensureRoom(1, where, method)
     this.buffer[(this.head + this.length) & (this.buffer.length - 1)] = element
     this.length++
     this.changes.structural()
   }
 
-  insertFront(element: E, where: string): void {
-    this.ensureRoom(1, where)
+  insertFront(element: E, where: Where, method = ''): void {
+    this.ensureRoom(1, where, method)
     this.head = (this.head - 1) & (this.buffer.length - 1)
     this.buffer[this.head] = element
     this.length++

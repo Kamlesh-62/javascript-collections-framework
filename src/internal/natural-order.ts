@@ -115,6 +115,19 @@ function compareOrdered(a: string | bigint, b: string | bigint): -1 | 0 | 1 {
 }
 
 /**
+ * Whether `a` and `b` are both numbers or both strings: values whose natural comparison runs no
+ * user code (a primitive never consults `[compareSymbol]`) and cannot throw.
+ *
+ * Time: O(1).
+ *
+ * @internal
+ */
+export function isPlainKind(a: unknown, b: unknown): boolean {
+  const kind = typeof a
+  return (kind === 'number' || kind === 'string') && typeof b === kind
+}
+
+/**
  * Compares two values in natural order.
  *
  * `null` and `undefined` are rejected first; then both values must be of the same kind. Numbers
@@ -138,6 +151,9 @@ function compareOrdered(a: string | bigint, b: string | bigint): -1 | 0 | 1 {
  * @internal
  */
 export function compareNatural(a: unknown, b: unknown, where: string): -1 | 0 | 1 {
+  // Two numbers or two strings: the common case, compared without classifying either value.
+  if (typeof a === 'number' && typeof b === 'number') return compareNumbers(a, b)
+  if (typeof a === 'string' && typeof b === 'string') return compareOrdered(a, b)
   if (a === null || a === undefined || b === null || b === undefined) {
     const missing = a === null || a === undefined ? a : b
     throw new NullElementError(`${where}: ${describeValue(missing)} cannot be compared`)
@@ -184,6 +200,8 @@ export function compareNaturalOrAbsent(
   b: unknown,
   where: string,
 ): -1 | 0 | 1 | undefined {
+  if (typeof a === 'number' && typeof b === 'number') return compareNumbers(a, b)
+  if (typeof a === 'string' && typeof b === 'string') return compareOrdered(a, b)
   if (a === null || a === undefined || b === null || b === undefined) return undefined
   const kind = kindOf(a)
   const other = kind === undefined ? undefined : kindOf(b)

@@ -53,6 +53,11 @@ export interface Store<E> {
   lookup(items: readonly E[], op: Operation): (handle: unknown) => boolean
   memberHashes(hash: HashFunction): number
   copy(): Store<E>
+  /**
+   * The native `Set` that holds the members, when they are compared with SameValueZero and no
+   * user code runs on a lookup; `undefined` for the keyed and bucket stores.
+   */
+  nativeSet(): Set<E> | undefined
 }
 
 class NativeStore<E> implements Store<E> {
@@ -71,9 +76,9 @@ class NativeStore<E> implements Store<E> {
   }
 
   add(value: E): boolean {
-    if (this.set.has(value)) return false
+    const before = this.set.size
     this.set.add(value)
-    return true
+    return this.set.size !== before
   }
 
   delete(value: E): boolean {
@@ -117,6 +122,10 @@ class NativeStore<E> implements Store<E> {
 
   copy(): Store<E> {
     return new NativeStore(new Set(this.set))
+  }
+
+  nativeSet(): Set<E> {
+    return this.set
   }
 }
 
@@ -189,6 +198,10 @@ class KeyedStore<E> implements Store<E> {
     let sum = 0
     for (const key of this.map.keys()) sum = (sum + hash(key)) | 0
     return sum
+  }
+
+  nativeSet(): undefined {
+    return undefined
   }
 
   copy(): Store<E> {
@@ -303,6 +316,10 @@ class BucketStore<E> implements Store<E> {
     return sum
   }
 
+  nativeSet(): undefined {
+    return undefined
+  }
+
   copy(): Store<E> {
     return new BucketStore(this.equivalence, this.builtIn, this.table.copy())
   }
@@ -344,7 +361,14 @@ export class HashSetEngine<E> extends AbstractSet<E> {
     this.facade = facade
     this.equality = equality
     this.store = store
+    this.native = store.nativeSet()
   }
+
+  /**
+   * The store's native `Set` when no user code runs on a lookup (the default SameValueZero set):
+   * `has`, `add` and `delete` then call it once, with no `Operation` and no label.
+   */
+  private readonly native: Set<E> | undefined
 
   get owner(): SetCollection<E> {
     return this.facade
@@ -368,10 +392,19 @@ export class HashSetEngine<E> extends AbstractSet<E> {
   }
 
   protected hasMember(element: E, method: string): boolean {
+    const native = this.native
+    if (native !== undefined) return native.has(normalise(element))
     return this.store.has(normalise(element), this.operation(method))
   }
 
   add(element: E): this {
+    const native = this.native
+    if (native !== undefined) {
+      const before = native.size
+      native.add(normalise(element))
+      if (native.size !== before) this.changes.structural()
+      return this
+    }
     this.addElement(element, this.operation('add'))
     return this
   }
@@ -392,7 +425,11 @@ export class HashSetEngine<E> extends AbstractSet<E> {
   }
 
   private deleteElement(element: E, method: string): boolean {
-    const removed = this.store.delete(normalise(element), this.operation(method))
+    const native = this.native
+    const removed =
+      native !== undefined
+        ? native.delete(normalise(element))
+        : this.store.delete(normalise(element), this.operation(method))
     if (removed) this.changes.structural()
     return removed
   }

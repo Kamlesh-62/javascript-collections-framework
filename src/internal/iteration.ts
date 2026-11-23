@@ -98,6 +98,29 @@ export class NativeLiveIterator<E> extends IteratorBase implements IterableItera
 }
 
 /**
+ * The same wrapper as `NativeLiveIterator`, kept as its own class for native `Map` iterators, so
+ * that each class's `next` sees one kind of native iterator and stays fast.
+ *
+ * @internal
+ */
+export class NativeMapIterator<E> extends IteratorBase implements IterableIterator<E> {
+  private readonly inner: Iterator<E>
+
+  constructor(inner: Iterator<E>) {
+    super()
+    this.inner = inner
+  }
+
+  next(): IteratorResult<E> {
+    return this.inner.next()
+  }
+
+  [Symbol.iterator](): this {
+    return this
+  }
+}
+
+/**
  * A live iterator over a native `Set`/`Map` iterator whose items are mapped before they are
  * returned (stored entries to members, members to `[member, member]` pairs). The live semantics
  * are the native iterator's.

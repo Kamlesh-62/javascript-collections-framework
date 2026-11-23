@@ -12,7 +12,7 @@ import type { Comparator } from '../../functions/comparators'
 import type { Cursor } from '../../interfaces/collection'
 import { guardedCompare } from '../compare'
 import { done, FailFastCursor, FailFastIterator } from '../iteration'
-import { compareNatural, compareNaturalOrAbsent } from '../natural-order'
+import { compareNatural, compareNaturalOrAbsent, isPlainKind } from '../natural-order'
 import type { ChangeCounter } from '../revision'
 
 /** What a lenient comparison returns when, in natural order, the values cannot be compared. */
@@ -165,10 +165,13 @@ export class OrderedTree<E> {
    * members: `expected` is the structure count when the outer operation started.
    */
   compare(a: E, b: E, where: string, expected: number): -1 | 0 | 1 {
-    const result =
-      this.order === undefined
-        ? compareNatural(a, b, where)
-        : guardedCompare(this.order, a, b, where)
+    if (this.order === undefined) {
+      const result = compareNatural(a, b, where)
+      // Two numbers or two strings run no user code, so nothing can have changed the tree.
+      if (!isPlainKind(a, b)) this.checkStructure(where, expected)
+      return result
+    }
+    const result = guardedCompare(this.order, a, b, where)
     this.checkStructure(where, expected)
     return result
   }
@@ -181,7 +184,7 @@ export class OrderedTree<E> {
   compareLenient(a: E, b: E, where: string, expected: number): Comparison {
     if (this.order !== undefined) return this.compare(a, b, where, expected)
     const result = compareNaturalOrAbsent(a, b, where)
-    this.checkStructure(where, expected)
+    if (!isPlainKind(a, b)) this.checkStructure(where, expected)
     return result === undefined ? ABSENT : result
   }
 

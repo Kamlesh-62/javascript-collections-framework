@@ -71,7 +71,7 @@ code written against an interface such as `List`, `Queue` or `Deque` works with 
 | LRU map                                            | Yes: `LinkedHashMap`                                | No                         | Yes: `LRUMap`, `LRUCache`    | No                                                     | No                                      |
 | Runtime dependencies                               | 0                                                   | —                          | 1                            | 0                                                      | 0 or 1 (priority-queue depends on heap) |
 | TypeScript types                                   | Bundled                                             | Built in                   | Bundled                      | Bundled                                                | Bundled                                 |
-| Sorted map, else priority queue, min + gzip        | 12.1 kB (`TreeMap`), 5.4 kB (`PriorityQueue`)       | 0                          | 2.7 kB, Heap (no sorted map) | 3.4 kB, OrderedMap                                     | 1.7 kB, PriorityQueue                   |
+| Sorted map, else priority queue, min + gzip        | 12.2 kB (`TreeMap`), 5.6 kB (`PriorityQueue`)       | 0                          | 2.7 kB, Heap (no sorted map) | 3.4 kB, OrderedMap                                     | 1.7 kB, PriorityQueue                   |
 
 Checked on 2026-11-19 against [mnemonist](https://www.npmjs.com/package/mnemonist) 0.40.8,
 [js-sdsl](https://www.npmjs.com/package/js-sdsl) 4.4.2,
@@ -80,7 +80,7 @@ Checked on 2026-11-19 against [mnemonist](https://www.npmjs.com/package/mnemonis
 and [@datastructures-js/linked-list](https://www.npmjs.com/package/@datastructures-js/linked-list)
 6.1.4. Sizes are one export bundled alone, minified and gzipped, the way the
 [size table](docs/performance.md#bundle-size) measures this library. Importing every export
-at once: 33.7 kB (whole package).
+at once: 34.6 kB (whole package).
 
 When another choice is better:
 

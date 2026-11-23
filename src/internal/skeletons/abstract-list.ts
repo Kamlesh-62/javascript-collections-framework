@@ -77,7 +77,7 @@ export abstract class AbstractList<E>
   // ── Reading ──
 
   get(index: number): E {
-    return this.getAt(checkIndex(index, this.size, `${this.className}.get`))
+    return this.getAt(checkIndex(index, this.size, this, 'get'))
   }
 
   getFirst(): E {
@@ -131,7 +131,7 @@ export abstract class AbstractList<E>
   }
 
   insert(index: number, element: E): this {
-    this.insertAt(checkPosition(index, this.size, `${this.className}.insert`), element)
+    this.insertAt(checkPosition(index, this.size, this, 'insert'), element)
     return this
   }
 
@@ -160,14 +160,14 @@ export abstract class AbstractList<E>
   }
 
   set(index: number, element: E): E {
-    const i = checkIndex(index, this.size, `${this.className}.set`)
+    const i = checkIndex(index, this.size, this, 'set')
     const old = this.getAt(i)
     this.setAt(i, element)
     return old
   }
 
   removeAt(index: number): E {
-    return this.removeAtIndex(checkIndex(index, this.size, `${this.className}.removeAt`))
+    return this.removeAtIndex(checkIndex(index, this.size, this, 'removeAt'))
   }
 
   removeFirst(): E {

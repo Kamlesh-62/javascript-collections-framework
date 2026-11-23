@@ -133,6 +133,8 @@ export abstract class AbstractLinkedMap<K, V>
 
   /** The record of a key already normalised, or `undefined`. No access move. */
   private lookup(key: K, where: string): Entry<K, V> | undefined {
+    const table = this.table
+    if (table.plain) return table.findPlain(key)
     const op = this.operation(where)
     return this.table.find(key, this.table.probe(key, op), op)
   }
@@ -232,6 +234,14 @@ export abstract class AbstractLinkedMap<K, V>
   // ── Reading ──
 
   override get(key: K): V | undefined {
+    const table = this.table
+    if (table.plain && this.state.queue === undefined) {
+      // No user code runs and no eviction can follow: read the record directly.
+      const record = table.findPlain(normalise(key))
+      if (record === undefined) return undefined
+      this.touch(record)
+      return record.value
+    }
     return this.call(() => {
       const record = this.lookup(normalise(key), this.at('get'))
       if (record === undefined) return undefined
@@ -250,6 +260,9 @@ export abstract class AbstractLinkedMap<K, V>
   }
 
   override has(key: K): boolean {
+    const table = this.table
+    if (table.plain && this.state.queue === undefined)
+      return table.findPlain(normalise(key)) !== undefined
     return this.call(() => this.lookup(normalise(key), this.at('has')) !== undefined)
   }
 

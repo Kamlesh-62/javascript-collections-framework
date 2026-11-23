@@ -1,0 +1,2188 @@
+{
+  "info": {
+    "date": "2026-11-21",
+    "node": "v24.11.1",
+    "platform": "darwin",
+    "cpu": "Intel(R) Core(TM) i5-8600 CPU @ 3.10GHz",
+    "cores": 6,
+    "memoryGb": 64,
+    "version": "0.1.1"
+  },
+  "sizes": [
+    1000,
+    100000,
+    1000000
+  ],
+  "cases": [
+    {
+      "collection": "ArrayDeque",
+      "operation": "add at the end",
+      "size": 1000,
+      "native": {
+        "name": "Array push",
+        "hz": 260967701.65511283,
+        "rme": 4.261000818908275
+      },
+      "library": {
+        "hz": 48179983.196643226,
+        "rme": 1.38501709362214
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "add at the end",
+      "size": 100000,
+      "native": {
+        "name": "Array push",
+        "hz": 63458191.42331032,
+        "rme": 5.095107126143265
+      },
+      "library": {
+        "hz": 18076311.169889692,
+        "rme": 4.673588405049921
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "add at the end",
+      "size": 1000000,
+      "native": {
+        "name": "Array push",
+        "hz": 48100263.84558767,
+        "rme": 0.5844784178074462
+      },
+      "library": {
+        "hz": 18304600.784531254,
+        "rme": 2.1445270907605067
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "add at the front, take from the end",
+      "size": 1000,
+      "native": {
+        "name": "Array unshift and pop",
+        "hz": 9437399.997775484,
+        "rme": 0.9197798229846494
+      },
+      "library": {
+        "hz": 56215326.21934921,
+        "rme": 1.4221781322891258
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "add at the front, take from the end",
+      "size": 100000,
+      "native": {
+        "name": "Array unshift and pop",
+        "hz": 49400.54812255072,
+        "rme": 4.244999116596721
+      },
+      "library": {
+        "hz": 55919094.51750652,
+        "rme": 3.528115671384645
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 85976447.45959374,
+        "rme": 2.0238422277283084
+      },
+      "library": {
+        "hz": 83703758.90979575,
+        "rme": 1.691773407231052
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 70443287.22388822,
+        "rme": 2.9534589268847657
+      },
+      "library": {
+        "hz": 64084762.99347379,
+        "rme": 2.28930041253486
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 67653362.20169924,
+        "rme": 3.8223887057192494
+      },
+      "library": {
+        "hz": 61235182.52101909,
+        "rme": 4.039330434470886
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "take from the front, add at the end",
+      "size": 1000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 13584835.513445351,
+        "rme": 1.3127390934195127
+      },
+      "library": {
+        "hz": 69521209.33229832,
+        "rme": 3.256237777673099
+      }
+    },
+    {
+      "collection": "ArrayDeque",
+      "operation": "take from the front, add at the end",
+      "size": 100000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 49937.30745579188,
+        "rme": 3.131242489657595
+      },
+      "library": {
+        "hz": 62034005.221228644,
+        "rme": 8.14841067247557
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "add at the end",
+      "size": 1000,
+      "native": {
+        "name": "Array push",
+        "hz": 244187050.79825395,
+        "rme": 2.022958265200908
+      },
+      "library": {
+        "hz": 200131410.7501216,
+        "rme": 1.7021901329599485
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "add at the end",
+      "size": 100000,
+      "native": {
+        "name": "Array push",
+        "hz": 62774642.12445622,
+        "rme": 5.276879101440204
+      },
+      "library": {
+        "hz": 59609312.74057301,
+        "rme": 1.7726798511998865
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "add at the end",
+      "size": 1000000,
+      "native": {
+        "name": "Array push",
+        "hz": 47291727.77768038,
+        "rme": 2.245152113496508
+      },
+      "library": {
+        "hz": 45249963.94002035,
+        "rme": 0.8948761737530616
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "build from an array",
+      "size": 1000,
+      "native": {
+        "name": "Array.from",
+        "hz": 1811919088.3129606,
+        "rme": 4.710641613974404
+      },
+      "library": {
+        "hz": 242647207.57701463,
+        "rme": 2.7490668475506466
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "build from an array",
+      "size": 100000,
+      "native": {
+        "name": "Array.from",
+        "hz": 228822377.25532737,
+        "rme": 4.909484244594439
+      },
+      "library": {
+        "hz": 61147684.32668441,
+        "rme": 6.676874395984803
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "build from an array",
+      "size": 1000000,
+      "native": {
+        "name": "Array.from",
+        "hz": 208822569.53811216,
+        "rme": 1.81226156714765
+      },
+      "library": {
+        "hz": 46685993.57867116,
+        "rme": 1.4961199043481592
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "get by index",
+      "size": 1000,
+      "native": {
+        "name": "Array index",
+        "hz": 687737650.0820053,
+        "rme": 5.557566415676164
+      },
+      "library": {
+        "hz": 245648511.80879548,
+        "rme": 2.7346882159234602
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "get by index",
+      "size": 100000,
+      "native": {
+        "name": "Array index",
+        "hz": 616437043.1782924,
+        "rme": 2.0348784550620347
+      },
+      "library": {
+        "hz": 216014630.40302017,
+        "rme": 1.8065788025761667
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "get by index",
+      "size": 1000000,
+      "native": {
+        "name": "Array index",
+        "hz": 576557666.3941044,
+        "rme": 1.6122051803204127
+      },
+      "library": {
+        "hz": 201500230.95844936,
+        "rme": 1.5135213131421146
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 924344661.6588748,
+        "rme": 2.8817080064867597
+      },
+      "library": {
+        "hz": 135371254.59160513,
+        "rme": 6.176435015060397
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 60667068.35216994,
+        "rme": 1.9637036859802688
+      },
+      "library": {
+        "hz": 63255746.17422596,
+        "rme": 1.3124516553996888
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 66110237.18427474,
+        "rme": 1.8686569684519139
+      },
+      "library": {
+        "hz": 66652964.48348974,
+        "rme": 2.653305318868879
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "remove first, add last",
+      "size": 1000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 13389080.373368004,
+        "rme": 1.9320771863939143
+      },
+      "library": {
+        "hz": 1955751.2352574447,
+        "rme": 2.893988423120482
+      }
+    },
+    {
+      "collection": "ArrayList",
+      "operation": "remove first, add last",
+      "size": 100000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 49205.85592740419,
+        "rme": 1.8984320725234833
+      },
+      "library": {
+        "hz": 20967.359754624416,
+        "rme": 2.8992652959188683
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "build from entries",
+      "size": 1000,
+      "native": {
+        "name": "new Map",
+        "hz": 27061255.179371882,
+        "rme": 2.9527420713021066
+      },
+      "library": {
+        "hz": 19568273.064549595,
+        "rme": 6.6700585526485
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "build from entries",
+      "size": 100000,
+      "native": {
+        "name": "new Map",
+        "hz": 10095250.072530149,
+        "rme": 7.387004539531096
+      },
+      "library": {
+        "hz": 6596273.000214459,
+        "rme": 7.677660272890945
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "build from entries",
+      "size": 1000000,
+      "native": {
+        "name": "new Map",
+        "hz": 6211398.140440862,
+        "rme": 18.575593046444954
+      },
+      "library": {
+        "hz": 3020803.1079954677,
+        "rme": 9.404375907103837
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "delete and set again",
+      "size": 1000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 20852474.192390356,
+        "rme": 0.7879298555242525
+      },
+      "library": {
+        "hz": 18145448.83215073,
+        "rme": 1.5400019637042057
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "delete and set again",
+      "size": 100000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 1120552.3875052012,
+        "rme": 37.13853710784131
+      },
+      "library": {
+        "hz": 1050406.315626949,
+        "rme": 29.76888587687473
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "delete and set again",
+      "size": 1000000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 71510.68964359413,
+        "rme": 69.47340602484586
+      },
+      "library": {
+        "hz": 73176.22441399973,
+        "rme": 57.041491475493174
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get",
+      "size": 1000,
+      "native": {
+        "name": "Map get",
+        "hz": 93135051.40103905,
+        "rme": 4.922977073096531
+      },
+      "library": {
+        "hz": 73681883.54064083,
+        "rme": 0.9231031146188885
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get",
+      "size": 100000,
+      "native": {
+        "name": "Map get",
+        "hz": 56688209.87026715,
+        "rme": 2.8468787219941554
+      },
+      "library": {
+        "hz": 39646204.47264902,
+        "rme": 3.2839416183668826
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get",
+      "size": 1000000,
+      "native": {
+        "name": "Map get",
+        "hz": 34424665.5485452,
+        "rme": 2.2642693154844244
+      },
+      "library": {
+        "hz": 23984679.78578393,
+        "rme": 3.4227785504847015
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get by value with the key option",
+      "size": 1000,
+      "native": {
+        "name": "Map get by id",
+        "hz": 127580645.40870668,
+        "rme": 1.1282152807475818
+      },
+      "library": {
+        "hz": 25256296.37587973,
+        "rme": 2.380668626941208
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get by value with the key option",
+      "size": 100000,
+      "native": {
+        "name": "Map get by id",
+        "hz": 67045817.09150446,
+        "rme": 2.5475767036460057
+      },
+      "library": {
+        "hz": 14309567.824219083,
+        "rme": 5.29197929823628
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "get by value with the key option",
+      "size": 1000000,
+      "native": {
+        "name": "Map get by id",
+        "hz": 41720490.48771677,
+        "rme": 4.976300695108282
+      },
+      "library": {
+        "hz": 8761842.477201337,
+        "rme": 2.0233690130763335
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "has",
+      "size": 1000,
+      "native": {
+        "name": "Map has",
+        "hz": 83538591.5380225,
+        "rme": 2.704825552769516
+      },
+      "library": {
+        "hz": 62140740.7827111,
+        "rme": 6.51064798827982
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "has",
+      "size": 100000,
+      "native": {
+        "name": "Map has",
+        "hz": 56162957.699319474,
+        "rme": 1.418628398965336
+      },
+      "library": {
+        "hz": 42158849.05724743,
+        "rme": 1.8378147789383872
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "has",
+      "size": 1000000,
+      "native": {
+        "name": "Map has",
+        "hz": 37019203.937984385,
+        "rme": 0.9482777512033351
+      },
+      "library": {
+        "hz": 27663630.59446622,
+        "rme": 5.1240564672987015
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 131110319.87540951,
+        "rme": 3.9410123644428237
+      },
+      "library": {
+        "hz": 134861944.30359384,
+        "rme": 1.5486513963624413
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 124636545.7137246,
+        "rme": 2.5435904441895403
+      },
+      "library": {
+        "hz": 117059332.21300542,
+        "rme": 9.871618382555896
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 113768105.97186656,
+        "rme": 1.9383738675392896
+      },
+      "library": {
+        "hz": 114643257.94641255,
+        "rme": 2.275026706366516
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set an existing key",
+      "size": 1000,
+      "native": {
+        "name": "Map set",
+        "hz": 68013824.14185463,
+        "rme": 1.2663869994078019
+      },
+      "library": {
+        "hz": 52269842.14124885,
+        "rme": 6.614612266334789
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set an existing key",
+      "size": 100000,
+      "native": {
+        "name": "Map set",
+        "hz": 44500708.67596226,
+        "rme": 3.3691648268063155
+      },
+      "library": {
+        "hz": 31241148.833754495,
+        "rme": 2.8155534132434763
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set an existing key",
+      "size": 1000000,
+      "native": {
+        "name": "Map set",
+        "hz": 21372606.053538483,
+        "rme": 1.2176212272016367
+      },
+      "library": {
+        "hz": 18753662.19509585,
+        "rme": 1.355142394849118
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set new keys one by one",
+      "size": 1000,
+      "native": {
+        "name": "Map set",
+        "hz": 35054730.267413214,
+        "rme": 4.598472135206371
+      },
+      "library": {
+        "hz": 27308609.58320789,
+        "rme": 2.5246358616388633
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set new keys one by one",
+      "size": 100000,
+      "native": {
+        "name": "Map set",
+        "hz": 11100398.07068075,
+        "rme": 4.483434256315514
+      },
+      "library": {
+        "hz": 10178461.575025221,
+        "rme": 4.837868194163851
+      }
+    },
+    {
+      "collection": "HashMap",
+      "operation": "set new keys one by one",
+      "size": 1000000,
+      "native": {
+        "name": "Map set",
+        "hz": 6874758.030002238,
+        "rme": 1.4211536830223732
+      },
+      "library": {
+        "hz": 6375030.525240841,
+        "rme": 2.83297142235812
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "add one by one",
+      "size": 1000,
+      "native": {
+        "name": "Set add",
+        "hz": 36054405.81670222,
+        "rme": 1.6594415636913415
+      },
+      "library": {
+        "hz": 30467617.60494858,
+        "rme": 1.0198574400803289
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "add one by one",
+      "size": 100000,
+      "native": {
+        "name": "Set add",
+        "hz": 13222152.877540784,
+        "rme": 1.681492540996168
+      },
+      "library": {
+        "hz": 10609944.910910666,
+        "rme": 8.352333650886177
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "add one by one",
+      "size": 1000000,
+      "native": {
+        "name": "Set add",
+        "hz": 7976777.558472758,
+        "rme": 4.470945383672591
+      },
+      "library": {
+        "hz": 5589353.475515391,
+        "rme": 2.5657805654746406
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "build from an array",
+      "size": 1000,
+      "native": {
+        "name": "new Set",
+        "hz": 35146566.97626814,
+        "rme": 2.1387526875116736
+      },
+      "library": {
+        "hz": 29592184.08575297,
+        "rme": 5.015019027084314
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "build from an array",
+      "size": 100000,
+      "native": {
+        "name": "new Set",
+        "hz": 13666069.32277777,
+        "rme": 5.619127379745007
+      },
+      "library": {
+        "hz": 12149145.58400194,
+        "rme": 2.383863134403077
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "build from an array",
+      "size": 1000000,
+      "native": {
+        "name": "new Set",
+        "hz": 7815907.308152728,
+        "rme": 4.34793889890581
+      },
+      "library": {
+        "hz": 6685944.5626353305,
+        "rme": 5.462431396751661
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "delete and add again",
+      "size": 1000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 21989669.300605714,
+        "rme": 2.257535071286342
+      },
+      "library": {
+        "hz": 18252022.681489974,
+        "rme": 3.5171510165061233
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "delete and add again",
+      "size": 100000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 1411891.669721809,
+        "rme": 21.955934060319233
+      },
+      "library": {
+        "hz": 1446389.968273135,
+        "rme": 17.497814247124303
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "delete and add again",
+      "size": 1000000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 92060.0256770252,
+        "rme": 74.87507353726998
+      },
+      "library": {
+        "hz": 92452.39466212738,
+        "rme": 64.07014801823998
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "has",
+      "size": 1000,
+      "native": {
+        "name": "Set has",
+        "hz": 103152929.998407,
+        "rme": 1.7854657787491761
+      },
+      "library": {
+        "hz": 66464717.34434566,
+        "rme": 1.8334514783495546
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "has",
+      "size": 100000,
+      "native": {
+        "name": "Set has",
+        "hz": 62239361.27827745,
+        "rme": 2.681630184609989
+      },
+      "library": {
+        "hz": 45860157.6114834,
+        "rme": 3.083188532861549
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "has",
+      "size": 1000000,
+      "native": {
+        "name": "Set has",
+        "hz": 40641700.70276807,
+        "rme": 4.576899633532407
+      },
+      "library": {
+        "hz": 30043700.89545071,
+        "rme": 1.7459756203184789
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 106341724.84901938,
+        "rme": 3.1444792708191796
+      },
+      "library": {
+        "hz": 89280719.93914975,
+        "rme": 2.9721245025767526
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 85301053.14012575,
+        "rme": 2.906501368523912
+      },
+      "library": {
+        "hz": 84517183.01349954,
+        "rme": 2.0249434925419174
+      }
+    },
+    {
+      "collection": "HashSet",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 82230285.15292987,
+        "rme": 2.144618934216682
+      },
+      "library": {
+        "hz": 70230826.07583924,
+        "rme": 18.195377859008175
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "build from entries",
+      "size": 1000,
+      "native": {
+        "name": "new Map",
+        "hz": 26585789.268637095,
+        "rme": 5.459876262008157
+      },
+      "library": {
+        "hz": 14812561.213921562,
+        "rme": 9.883386310184676
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "build from entries",
+      "size": 100000,
+      "native": {
+        "name": "new Map",
+        "hz": 9317885.529275008,
+        "rme": 7.016160891242366
+      },
+      "library": {
+        "hz": 5044651.916685431,
+        "rme": 15.548654424633312
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "build from entries",
+      "size": 1000000,
+      "native": {
+        "name": "new Map",
+        "hz": 6008283.452163687,
+        "rme": 2.7631453182826693
+      },
+      "library": {
+        "hz": 1901212.1389026335,
+        "rme": 9.194119807953898
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "delete and set again",
+      "size": 1000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 20661393.605955288,
+        "rme": 2.2085946806406924
+      },
+      "library": {
+        "hz": 8234193.456489198,
+        "rme": 2.1502603342410165
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "delete and set again",
+      "size": 100000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 1014684.6429887963,
+        "rme": 183.71058614326415
+      },
+      "library": {
+        "hz": 491742.4797188867,
+        "rme": 165.6408021612397
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "delete and set again",
+      "size": 1000000,
+      "native": {
+        "name": "Map delete and set",
+        "hz": 68872.77274256977,
+        "rme": 56.53089531597841
+      },
+      "library": {
+        "hz": 112754.92642393956,
+        "rme": 82.22253452691692
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get",
+      "size": 1000,
+      "native": {
+        "name": "Map get",
+        "hz": 93703503.73265468,
+        "rme": 2.59924464054546
+      },
+      "library": {
+        "hz": 50955542.37780397,
+        "rme": 2.2120864921806165
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get",
+      "size": 100000,
+      "native": {
+        "name": "Map get",
+        "hz": 51101988.62153778,
+        "rme": 1.6547321356778566
+      },
+      "library": {
+        "hz": 25006782.5402965,
+        "rme": 1.8925100664967016
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get",
+      "size": 1000000,
+      "native": {
+        "name": "Map get",
+        "hz": 33860664.40757102,
+        "rme": 2.106602849638526
+      },
+      "library": {
+        "hz": 16010497.507843977,
+        "rme": 4.56487896891866
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get in access order (LRU)",
+      "size": 1000,
+      "native": {
+        "name": "Map get, delete and set",
+        "hz": 17694764.449246455,
+        "rme": 7.926771859137892
+      },
+      "library": {
+        "hz": 18320933.007828414,
+        "rme": 5.491586786653894
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get in access order (LRU)",
+      "size": 100000,
+      "native": {
+        "name": "Map get, delete and set",
+        "hz": 1032888.4179921903,
+        "rme": 31.396382719367182
+      },
+      "library": {
+        "hz": 11217559.125738768,
+        "rme": 1.2870479410863087
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "get in access order (LRU)",
+      "size": 1000000,
+      "native": {
+        "name": "Map get, delete and set",
+        "hz": 73748.63708701698,
+        "rme": 65.19991897925202
+      },
+      "library": {
+        "hz": 8646878.521611799,
+        "rme": 7.918624580825111
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 125125430.91291776,
+        "rme": 3.8347687219180036
+      },
+      "library": {
+        "hz": 56213661.70529619,
+        "rme": 1.8980020012394054
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 121230089.89930515,
+        "rme": 1.6446349678497922
+      },
+      "library": {
+        "hz": 30333551.715940915,
+        "rme": 2.692055344656205
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Map for…of",
+        "hz": 104721941.12379453,
+        "rme": 4.891107085606446
+      },
+      "library": {
+        "hz": 32292951.059927426,
+        "rme": 0.8803870238416248
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set an existing key",
+      "size": 1000,
+      "native": {
+        "name": "Map set",
+        "hz": 65196071.8539014,
+        "rme": 4.081709285847235
+      },
+      "library": {
+        "hz": 32033956.74494561,
+        "rme": 3.929783736490664
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set an existing key",
+      "size": 100000,
+      "native": {
+        "name": "Map set",
+        "hz": 40616227.902494155,
+        "rme": 6.591539892599325
+      },
+      "library": {
+        "hz": 16119865.55717568,
+        "rme": 2.1783353572573256
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set an existing key",
+      "size": 1000000,
+      "native": {
+        "name": "Map set",
+        "hz": 21201042.143023007,
+        "rme": 1.9699482898074574
+      },
+      "library": {
+        "hz": 10856798.211355338,
+        "rme": 1.3442813239903257
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set new keys one by one",
+      "size": 1000,
+      "native": {
+        "name": "Map set",
+        "hz": 34400401.712033816,
+        "rme": 1.900810386238827
+      },
+      "library": {
+        "hz": 17240624.713700984,
+        "rme": 3.9281902344271895
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set new keys one by one",
+      "size": 100000,
+      "native": {
+        "name": "Map set",
+        "hz": 11050749.996100686,
+        "rme": 1.5963366726136767
+      },
+      "library": {
+        "hz": 6128068.387036531,
+        "rme": 12.574853410244257
+      }
+    },
+    {
+      "collection": "LinkedHashMap",
+      "operation": "set new keys one by one",
+      "size": 1000000,
+      "native": {
+        "name": "Map set",
+        "hz": 6790137.347229761,
+        "rme": 3.9377384899357195
+      },
+      "library": {
+        "hz": 2863563.1539110877,
+        "rme": 10.762874814935326
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "add one by one",
+      "size": 1000,
+      "native": {
+        "name": "Set add",
+        "hz": 36743296.98339013,
+        "rme": 5.523770949248854
+      },
+      "library": {
+        "hz": 18316949.591090955,
+        "rme": 6.4650509806118555
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "add one by one",
+      "size": 100000,
+      "native": {
+        "name": "Set add",
+        "hz": 13031030.793626934,
+        "rme": 3.3348408049640033
+      },
+      "library": {
+        "hz": 7428814.982270414,
+        "rme": 11.070953528581482
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "add one by one",
+      "size": 1000000,
+      "native": {
+        "name": "Set add",
+        "hz": 7969647.882945115,
+        "rme": 28.048553117489895
+      },
+      "library": {
+        "hz": 3518062.6518691485,
+        "rme": 19.50580728934701
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "build from an array",
+      "size": 1000,
+      "native": {
+        "name": "new Set",
+        "hz": 34406872.84677112,
+        "rme": 4.402779587914695
+      },
+      "library": {
+        "hz": 20938408.235726297,
+        "rme": 3.1772651859932046
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "build from an array",
+      "size": 100000,
+      "native": {
+        "name": "new Set",
+        "hz": 12495878.507822732,
+        "rme": 8.422863832810789
+      },
+      "library": {
+        "hz": 7673012.132604849,
+        "rme": 4.157000317435992
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "build from an array",
+      "size": 1000000,
+      "native": {
+        "name": "new Set",
+        "hz": 7887542.5107998615,
+        "rme": 2.8034126369592567
+      },
+      "library": {
+        "hz": 3392606.5691770655,
+        "rme": 22.016330750739847
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "delete and add again",
+      "size": 1000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 21490581.485081375,
+        "rme": 2.96970567723483
+      },
+      "library": {
+        "hz": 10138874.25980007,
+        "rme": 1.727401987362285
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "delete and add again",
+      "size": 100000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 1425624.157468374,
+        "rme": 25.69057204588614
+      },
+      "library": {
+        "hz": 606942.5752378094,
+        "rme": 25.627698149733774
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "delete and add again",
+      "size": 1000000,
+      "native": {
+        "name": "Set delete and add",
+        "hz": 93219.05091350747,
+        "rme": 70.44132706185769
+      },
+      "library": {
+        "hz": 117121.13090640475,
+        "rme": 74.36921022325832
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "has",
+      "size": 1000,
+      "native": {
+        "name": "Set has",
+        "hz": 100083859.93881947,
+        "rme": 3.197524043430984
+      },
+      "library": {
+        "hz": 57021167.30556841,
+        "rme": 2.1959550491173685
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "has",
+      "size": 100000,
+      "native": {
+        "name": "Set has",
+        "hz": 58240772.072437905,
+        "rme": 2.4384257720419136
+      },
+      "library": {
+        "hz": 38808738.117107294,
+        "rme": 2.904937728134259
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "has",
+      "size": 1000000,
+      "native": {
+        "name": "Set has",
+        "hz": 41618523.65705169,
+        "rme": 1.284069132522478
+      },
+      "library": {
+        "hz": 26313484.54173056,
+        "rme": 3.095414473096081
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 87281466.5775273,
+        "rme": 4.126918625153424
+      },
+      "library": {
+        "hz": 68129995.057829,
+        "rme": 3.671680044369493
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 83419765.66044891,
+        "rme": 2.8049682466564745
+      },
+      "library": {
+        "hz": 56523688.583290175,
+        "rme": 1.382248485284234
+      }
+    },
+    {
+      "collection": "LinkedHashSet",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Set for…of",
+        "hz": 82136086.9292197,
+        "rme": 0.9839402470843617
+      },
+      "library": {
+        "hz": 56554111.47224292,
+        "rme": 4.40849700331007
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "add at the end",
+      "size": 1000,
+      "native": {
+        "name": "Array push",
+        "hz": 252058926.743272,
+        "rme": 3.6098179798025076
+      },
+      "library": {
+        "hz": 1337490.2740032116,
+        "rme": 1.1754928284757749
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "add at the end",
+      "size": 100000,
+      "native": {
+        "name": "Array push",
+        "hz": 61585627.54270342,
+        "rme": 2.41631058860241
+      },
+      "library": {
+        "hz": 1318960.219341999,
+        "rme": 4.607592807856512
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "add at the end",
+      "size": 1000000,
+      "native": {
+        "name": "Array push",
+        "hz": 47015869.2781105,
+        "rme": 1.5452410887596957
+      },
+      "library": {
+        "hz": 1105313.9812205473,
+        "rme": 2.9767871686376535
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "add at the front, take from the end",
+      "size": 1000,
+      "native": {
+        "name": "Array unshift and pop",
+        "hz": 9207498.964808177,
+        "rme": 4.047650021966122
+      },
+      "library": {
+        "hz": 1305184.5739766126,
+        "rme": 0.6558209102812793
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "add at the front, take from the end",
+      "size": 100000,
+      "native": {
+        "name": "Array unshift and pop",
+        "hz": 48827.46756961966,
+        "rme": 2.393350882155413
+      },
+      "library": {
+        "hz": 1266672.577805281,
+        "rme": 1.754969176457069
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 84727049.07576837,
+        "rme": 2.7831509883111183
+      },
+      "library": {
+        "hz": 100518079.77853195,
+        "rme": 2.3225015149735793
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 63861479.97962409,
+        "rme": 6.944620427261507
+      },
+      "library": {
+        "hz": 53746074.972426586,
+        "rme": 5.8551975074749905
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "Array for…of",
+        "hz": 67346139.26346046,
+        "rme": 3.4970157445975882
+      },
+      "library": {
+        "hz": 53670291.52460841,
+        "rme": 3.716042866397943
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "take from the front, add at the end",
+      "size": 1000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 13386605.486742157,
+        "rme": 1.5367313252805266
+      },
+      "library": {
+        "hz": 1310660.7858136338,
+        "rme": 4.740081502323014
+      }
+    },
+    {
+      "collection": "LinkedList",
+      "operation": "take from the front, add at the end",
+      "size": 100000,
+      "native": {
+        "name": "Array shift and push",
+        "hz": 49464.744779133965,
+        "rme": 5.537149444383984
+      },
+      "library": {
+        "hz": 1255246.7475306944,
+        "rme": 3.935921399671803
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "add one by one",
+      "size": 1000,
+      "native": {
+        "name": "Array push, then sort",
+        "hz": 5665802.443671254,
+        "rme": 1.4673300094434778
+      },
+      "library": {
+        "hz": 26484200.69683342,
+        "rme": 3.4796964067940652
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "add one by one",
+      "size": 100000,
+      "native": {
+        "name": "Array push, then sort",
+        "hz": 3219672.041630004,
+        "rme": 1.436926298899282
+      },
+      "library": {
+        "hz": 17987620.660889048,
+        "rme": 2.7284857994412723
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "add one by one",
+      "size": 1000000,
+      "native": {
+        "name": "Array push, then sort",
+        "hz": 2656336.930286342,
+        "rme": 10.961701972717899
+      },
+      "library": {
+        "hz": 16642273.670092912,
+        "rme": 3.6850938394661163
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "build from an array",
+      "size": 1000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 5937546.40520122,
+        "rme": 2.28265656387588
+      },
+      "library": {
+        "hz": 48906837.26301209,
+        "rme": 4.651325700620496
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "build from an array",
+      "size": 100000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 3615364.1225271868,
+        "rme": 2.533378831586468
+      },
+      "library": {
+        "hz": 28620471.282209355,
+        "rme": 1.9592689176298157
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "build from an array",
+      "size": 1000000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 2875315.2272778302,
+        "rme": 1.9483711036115725
+      },
+      "library": {
+        "hz": 23260304.81513074,
+        "rme": 2.6803200617071967
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "take the least, add one",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array shift and insert",
+        "hz": 7736280.648750977,
+        "rme": 1.4386419179178493
+      },
+      "library": {
+        "hz": 4653495.499047425,
+        "rme": 7.574687940290416
+      }
+    },
+    {
+      "collection": "PriorityQueue",
+      "operation": "take the least, add one",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array shift and insert",
+        "hz": 49416.32097789024,
+        "rme": 4.519841365482194
+      },
+      "library": {
+        "hz": 2662081.148697795,
+        "rme": 5.454622597553247
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "build from entries",
+      "size": 1000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 5101292.946609491,
+        "rme": 3.4608862179419386
+      },
+      "library": {
+        "hz": 8089602.587054735,
+        "rme": 0.6033012749648822
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "build from entries",
+      "size": 100000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 2180011.685407555,
+        "rme": 2.3085769172924033
+      },
+      "library": {
+        "hz": 2123892.1851373566,
+        "rme": 7.945430864137215
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "build from entries",
+      "size": 1000000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 1527927.19738592,
+        "rme": 22.132471841027034
+      },
+      "library": {
+        "hz": 1041027.4075209984,
+        "rme": 8.646952408911982
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "ceiling entry",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 38361056.09560557,
+        "rme": 1.2583264619865502
+      },
+      "library": {
+        "hz": 8391169.785200136,
+        "rme": 1.2014620481662428
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "ceiling entry",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 10022177.051848382,
+        "rme": 3.7848026118441687
+      },
+      "library": {
+        "hz": 3420353.7690613605,
+        "rme": 1.7843393945084223
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "ceiling entry",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 7022762.27446865,
+        "rme": 3.9210860192356805
+      },
+      "library": {
+        "hz": 2215503.9564873236,
+        "rme": 14.201715565371675
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "delete and set again",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array splice",
+        "hz": 1344851.6303208163,
+        "rme": 21.102381258333885
+      },
+      "library": {
+        "hz": 3774296.675479425,
+        "rme": 2.939761617631092
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "delete and set again",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array splice",
+        "hz": 47752.00255334503,
+        "rme": 15.840301590869721
+      },
+      "library": {
+        "hz": 1900872.583679287,
+        "rme": 1.821215944565428
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "floor entry",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 42669467.294932075,
+        "rme": 3.470859625029256
+      },
+      "library": {
+        "hz": 10107805.919446211,
+        "rme": 2.2451168636447894
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "floor entry",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 10428836.82559091,
+        "rme": 0.9462041178550377
+      },
+      "library": {
+        "hz": 3544632.597896345,
+        "rme": 1.7318403871712538
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "floor entry",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 6819078.66868724,
+        "rme": 2.311281799310545
+      },
+      "library": {
+        "hz": 2357292.981977047,
+        "rme": 1.9207167710584627
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "get",
+      "size": 1000,
+      "native": {
+        "name": "Map get",
+        "hz": 141981514.2564323,
+        "rme": 3.176616589545664
+      },
+      "library": {
+        "hz": 9923249.864331005,
+        "rme": 3.1769348867080245
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "get",
+      "size": 100000,
+      "native": {
+        "name": "Map get",
+        "hz": 64953388.37176732,
+        "rme": 6.082261283611409
+      },
+      "library": {
+        "hz": 3697907.586660756,
+        "rme": 2.2202511369990097
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "get",
+      "size": 1000000,
+      "native": {
+        "name": "Map get",
+        "hz": 42866193.167574495,
+        "rme": 4.023982777582037
+      },
+      "library": {
+        "hz": 2686981.421769641,
+        "rme": 3.1903632408498526
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 70939029.77437271,
+        "rme": 2.2314425974658785
+      },
+      "library": {
+        "hz": 27115218.581265006,
+        "rme": 3.3890360569160074
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 66600568.377580635,
+        "rme": 1.9503039385520462
+      },
+      "library": {
+        "hz": 21091034.884552345,
+        "rme": 2.6961420180234694
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 67181587.78407459,
+        "rme": 2.21768433999245
+      },
+      "library": {
+        "hz": 16559668.85034247,
+        "rme": 0.4712197422698111
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "set new keys in seeded order",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array insert",
+        "hz": 9689796.586471336,
+        "rme": 2.3655276816773347
+      },
+      "library": {
+        "hz": 7532307.272236904,
+        "rme": 1.7519904323895694
+      }
+    },
+    {
+      "collection": "TreeMap",
+      "operation": "set new keys in seeded order",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array insert",
+        "hz": 222811.0926297453,
+        "rme": 1.7146116782063408
+      },
+      "library": {
+        "hz": 2288768.9683302897,
+        "rme": 10.872910935951467
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "add one by one",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array insert",
+        "hz": 9680824.630037226,
+        "rme": 1.970652254435472
+      },
+      "library": {
+        "hz": 7675775.943740689,
+        "rme": 4.228888559297181
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "add one by one",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array insert",
+        "hz": 220605.6903949486,
+        "rme": 0.6535849428993402
+      },
+      "library": {
+        "hz": 2722478.844212456,
+        "rme": 4.430810998032875
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "build from an array",
+      "size": 1000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 5614546.553210112,
+        "rme": 3.140534640709612
+      },
+      "library": {
+        "hz": 8561330.095601764,
+        "rme": 3.8863794006400436
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "build from an array",
+      "size": 100000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 3319070.7607549164,
+        "rme": 1.747768515772722
+      },
+      "library": {
+        "hz": 2666246.7861226476,
+        "rme": 11.430748494488027
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "build from an array",
+      "size": 1000000,
+      "native": {
+        "name": "Array copy and sort",
+        "hz": 2828104.062396866,
+        "rme": 2.4486368584133364
+      },
+      "library": {
+        "hz": 1229346.9059033678,
+        "rme": 2.4123092641176274
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "ceiling",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 35393853.57389586,
+        "rme": 3.4281753999364453
+      },
+      "library": {
+        "hz": 8896478.851861728,
+        "rme": 5.031183635674238
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "ceiling",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 10063047.943523021,
+        "rme": 2.762930216784903
+      },
+      "library": {
+        "hz": 3931604.487560932,
+        "rme": 1.6278572509814115
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "ceiling",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 6562096.581654354,
+        "rme": 4.85456186933873
+      },
+      "library": {
+        "hz": 2472106.956480147,
+        "rme": 6.026415060378429
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "delete and add again",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array splice",
+        "hz": 1331670.1120423242,
+        "rme": 13.202098374638199
+      },
+      "library": {
+        "hz": 3562249.1949578966,
+        "rme": 0.39287246777766477
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "delete and add again",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array splice",
+        "hz": 51455.43333325154,
+        "rme": 10.690344720662619
+      },
+      "library": {
+        "hz": 2002666.5818453871,
+        "rme": 1.9951377716894894
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "floor",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 41024519.6723324,
+        "rme": 3.2919713731340963
+      },
+      "library": {
+        "hz": 8545779.549098143,
+        "rme": 4.244034426281831
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "floor",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 9883490.394204801,
+        "rme": 2.4289279645930617
+      },
+      "library": {
+        "hz": 3667204.56631111,
+        "rme": 3.5738462627500125
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "floor",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array bisection",
+        "hz": 6865507.3131222455,
+        "rme": 4.239844275332767
+      },
+      "library": {
+        "hz": 2437918.8256454407,
+        "rme": 12.78204706580896
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "has",
+      "size": 1000,
+      "native": {
+        "name": "Set has",
+        "hz": 85070408.17232473,
+        "rme": 2.007685930941588
+      },
+      "library": {
+        "hz": 9907253.881342962,
+        "rme": 1.4664747403745584
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "has",
+      "size": 100000,
+      "native": {
+        "name": "Set has",
+        "hz": 54332088.34898923,
+        "rme": 4.162244572727209
+      },
+      "library": {
+        "hz": 3753299.164626441,
+        "rme": 2.2333836818314783
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "has",
+      "size": 1000000,
+      "native": {
+        "name": "Set has",
+        "hz": 37442311.32556761,
+        "rme": 2.4677105924108957
+      },
+      "library": {
+        "hz": 2546678.072335572,
+        "rme": 4.1684357619133054
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "iterate",
+      "size": 1000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 71544066.36334005,
+        "rme": 2.038545958733579
+      },
+      "library": {
+        "hz": 47406286.99492921,
+        "rme": 2.3572238514562645
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "iterate",
+      "size": 100000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 65962321.003000155,
+        "rme": 5.183068902023144
+      },
+      "library": {
+        "hz": 32162935.501466826,
+        "rme": 3.1255070423846663
+      }
+    },
+    {
+      "collection": "TreeSet",
+      "operation": "iterate",
+      "size": 1000000,
+      "native": {
+        "name": "sorted Array for…of",
+        "hz": 66624819.06260679,
+        "rme": 2.0323649158615185
+      },
+      "library": {
+        "hz": 23672382.091095593,
+        "rme": 1.9933525384044009
+      }
+    }
+  ]
+}
