@@ -533,7 +533,7 @@ describe('PriorityQueue — cost', () => {
     }
   }
 
-  it('add makes at most floor(log2 n) + 1 comparisons and poll at most 2 floor(log2 n) [010 S3-AC1]', () => {
+  it('add makes at most floor(log2 n) + 1 comparisons and poll at most 2 floor(log2 n) [010 S3-AC1] [043 S2-AC4]', () => {
     for (const n of [1, 2, 3, 7, 8, 1023, 1024, 10000]) {
       for (const [kind, values] of sequences(n, n)) {
         const { comparator, calls } = counting(ascending)
