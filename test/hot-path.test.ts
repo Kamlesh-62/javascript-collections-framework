@@ -1,14 +1,23 @@
+import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import {
   compareSymbol,
+  equalsSymbol,
   HashMap,
   HashSet,
+  hashCode,
+  isMapCollection,
+  isSequencedCollection,
+  isSetCollection,
   LinkedHashMap,
   LinkedHashSet,
+  type MapEntry,
   PriorityQueue,
+  sameValueZeroEquivalence,
   TreeMap,
   TreeSet,
 } from '../src/index'
+import type { SequencedCollection } from '../src/interfaces/list'
 
 // Counts the calls a collection makes to the native `Map` and `Set` that hold its contents,
 // through spies on their prototypes. Nothing is timed.
@@ -424,7 +433,13 @@ describe('natural order of numbers and strings', () => {
   })
 })
 
-describe('writes to a default LinkedHashMap', () => {
+/** Moves a map to linked records, with a call that needs them, and returns it. */
+function linkedMap<K, V>(map: LinkedHashMap<K, V>): LinkedHashMap<K, V> {
+  map.lastEntry()
+  return map
+}
+
+describe('writes to a default LinkedHashMap in linked records', () => {
   const pairs = (): Array<[number, number]> => [
     [1, 10],
     [2, 20],
@@ -433,7 +448,7 @@ describe('writes to a default LinkedHashMap', () => {
 
   it('make one native call for a present key and two for a new one, in insertion order [044 S3-AC1]', () => {
     for (const reversed of [false, true]) {
-      const map = new LinkedHashMap(pairs())
+      const map = linkedMap(new LinkedHashMap(pairs()))
       const target = reversed ? map.reversed() : map
       expect(nativeCalls(() => target.set(2, 5))).toBe(1)
       expect(nativeCalls(() => target.put(1, 6))).toBe(1)
@@ -467,7 +482,7 @@ describe('writes to a default LinkedHashMap', () => {
         maxSize: 2,
         onEvict: withCallback ? (_value, key) => evicted.push(key) : undefined,
       })
-      map.set(1, 10).set(2, 20)
+      linkedMap(map.set(1, 10).set(2, 20))
       expect(nativeCalls(() => map.set(3, 30))).toBe(3)
       expect(nativeCalls(() => map.put(4, 40))).toBe(3)
       expect(nativeCalls(() => map.set(4, 41))).toBe(1)
@@ -476,8 +491,7 @@ describe('writes to a default LinkedHashMap', () => {
     }
   })
 
-  it('make the same calls per element when built or given putAll [044 S3-AC2]', () => {
-    // Four new keys and one repeated: 4 × 2 + 1.
+  it('make the same calls per element when given putAll [044 S3-AC2]', () => {
     const input: Array<[number, number]> = [
       [1, 10],
       [2, 20],
@@ -485,9 +499,7 @@ describe('writes to a default LinkedHashMap', () => {
       [3, 30],
       [4, 40],
     ]
-    expect(nativeCalls(() => new LinkedHashMap(input))).toBe(9)
-    expect(nativeCalls(() => LinkedHashMap.from(input))).toBe(9)
-    const map = new LinkedHashMap<number, number>([[1, 0]])
+    const map = linkedMap(new LinkedHashMap<number, number>([[1, 0]]))
     // One present key, three new keys and one repeated new key: 1 + 3 × 2 + 1.
     expect(nativeCalls(() => map.putAll(input))).toBe(8)
     expect([...map]).toEqual([
@@ -499,10 +511,432 @@ describe('writes to a default LinkedHashMap', () => {
   })
 })
 
-describe('writes to a default LinkedHashSet', () => {
+describe('a default LinkedHashMap in the native layout', () => {
+  /**
+   * Whether the map is in the native layout, seen through its native calls: `put` of a present key
+   * makes two there (`get`, `set`) and one in linked records; `set` of a new key in an empty map
+   * makes one there and two in linked records.
+   */
+  function native<K, V>(map: LinkedHashMap<K, V>): boolean {
+    const first = map.keys().next()
+    if (first.done === true) {
+      const probe = 'probe' as K
+      const calls = nativeCalls(() => map.set(probe, 0 as V))
+      map.delete(probe)
+      return calls === 1
+    }
+    const value = map.get(first.value)
+    return nativeCalls(() => map.put(first.value, value as V)) === 2
+  }
+
+  it('makes one native call for get, has, delete and set, and two for put and remove, present or absent [045 S2-AC2]', () => {
+    const map = new LinkedHashMap<number, number>([
+      [1, 10],
+      [2, 20],
+      [-0, 5],
+    ])
+    for (const key of [1, 9, -0]) {
+      expect(
+        nativeCalls(() => map.get(key)),
+        `get ${key}`,
+      ).toBe(1)
+      expect(
+        nativeCalls(() => map.has(key)),
+        `has ${key}`,
+      ).toBe(1)
+    }
+    expect(nativeCalls(() => map.set(1, 11))).toBe(1)
+    expect(nativeCalls(() => map.set(3, 30))).toBe(1)
+    expect(nativeCalls(() => map.set(-0, 6))).toBe(1)
+    expect(nativeCalls(() => map.put(2, 21))).toBe(2)
+    expect(nativeCalls(() => map.put(4, 40))).toBe(2)
+    expect(nativeCalls(() => map.delete(3))).toBe(1)
+    expect(nativeCalls(() => map.delete(3))).toBe(1)
+    expect(nativeCalls(() => map.remove(4))).toBe(2)
+    expect(nativeCalls(() => map.remove(4))).toBe(2)
+    expect(map.toJSON()).toEqual([
+      [1, 11],
+      [2, 21],
+      [0, 6],
+    ])
+    expect(map.put(2, 22)).toBe(21)
+    expect(map.remove(0)).toBe(6)
+    expect(map.get(-0)).toBe(undefined)
+    expect(native(map)).toBe(true)
+  })
+
+  it('adds one delete per mapping maxSize evicts, with and without onEvict [045 S2-AC2]', () => {
+    for (const withCallback of [false, true]) {
+      const evicted: Array<[number, number]> = []
+      const map = new LinkedHashMap<number, number>({
+        maxSize: 2,
+        onEvict: withCallback ? (value, key) => void evicted.push([key, value]) : undefined,
+      })
+      map.set(1, 10).set(2, 20)
+      expect(nativeCalls(() => map.set(3, 30))).toBe(2)
+      expect(nativeCalls(() => map.put(4, 40))).toBe(3)
+      expect(nativeCalls(() => map.set(4, 41))).toBe(1)
+      // A value written after the front was read is the one evicted.
+      map.firstEntry()
+      map.set(3, 31)
+      expect(nativeCalls(() => map.set(5, 50))).toBe(2)
+      expect(map.toJSON()).toEqual([
+        [4, 41],
+        [5, 50],
+      ])
+      expect(evicted).toEqual(
+        withCallback
+          ? [
+              [1, 10],
+              [2, 20],
+              [3, 31],
+            ]
+          : [],
+      )
+      expect(native(map)).toBe(true)
+    }
+  })
+
+  it('makes at most one native call per entry when built or given putAll, plus one delete per eviction [045 S2-AC3]', () => {
+    const input: Array<[number, number]> = [
+      [1, 10],
+      [2, 20],
+      [1, 11],
+      [3, 30],
+      [4, 40],
+    ]
+    expect(nativeCalls(() => new LinkedHashMap(input))).toBeLessThanOrEqual(5)
+    expect(nativeCalls(() => LinkedHashMap.from(input))).toBeLessThanOrEqual(5)
+    expect(LinkedHashMap.from(input).toJSON()).toEqual([
+      [1, 11],
+      [2, 20],
+      [3, 30],
+      [4, 40],
+    ])
+    const map = new LinkedHashMap<number, number>([[1, 0]])
+    expect(nativeCalls(() => map.putAll(input))).toBe(5)
+    expect(map.revision).toBe(6)
+    // Bounded: 5 sets and one delete per mapping evicted (4 keys into 2 places: 2).
+    expect(nativeCalls(() => new LinkedHashMap(input, { maxSize: 2 }))).toBe(7)
+    const bounded = new LinkedHashMap<number, number>({ maxSize: 2 })
+    expect(nativeCalls(() => bounded.putAll(input))).toBe(7)
+    expect(bounded.toJSON()).toEqual([
+      [3, 30],
+      [4, 40],
+    ])
+    expect(native(bounded)).toBe(true)
+    // Revisions count one change per pair, as setting them one by one does.
+    const built = new LinkedHashMap(input)
+    const one = new LinkedHashMap<number, number>()
+    for (const [k, v] of input) one.set(k, v)
+    expect(built.revision).toBe(one.revision)
+  })
+
+  it('stays native through every call that a native Map can answer, on the map and on its views [045 S2-AC1]', () => {
+    const evicted: number[] = []
+    const map = new LinkedHashMap<unknown, unknown>([
+      [1, 10],
+      [2, 20],
+    ])
+    const bounded = LinkedHashMap.from<unknown, unknown>([[0, 0]], {
+      maxSize: 3,
+      onEvict: (_v, k) => void evicted.push(k as number),
+    })
+    for (const m of [map, bounded]) {
+      void m.size
+      void m.revision
+      m.isEmpty()
+      m.get(1)
+      m.getOrDefault(9, 0)
+      m.has(2)
+      m.containsValue(20)
+      m.set(3, 30)
+      m.put(4, 40)
+      m.putAll([[5, 50]])
+      m.putLast(6, 60)
+      m.delete(6)
+      m.remove(5)
+      m.replace(4, 41)
+      m.replaceAll((v) => v)
+      m.getOrInsert(7, 70)
+      m.getOrInsertComputed(8, () => 80)
+      m.compute(8, () => 81)
+      m.computeIfPresent(8, () => 82)
+      m.merge(8, 1, (a, b) => (a as number) + (b as number))
+      m.firstEntry()?.value
+      m.pollFirstEntry()
+      ;[...m.keys()]
+      ;[...m.values()]
+      ;[...m.entries()]
+      m.forEach(() => {})
+      for (const _ of m) break
+      m.copy()
+      m.equals(new Map())
+      m.equals(LinkedHashMap.from(m))
+      m[equalsSymbol](m)
+      hashCode(m)
+      m.toString()
+      m.toJSON()
+      inspect(m)
+      m.reversed()
+      const keys = m.keySet()
+      const entries = m.entrySet()
+      const values = m.valueCollection()
+      for (const view of [keys, entries, values] as Array<SequencedCollection<unknown>>) {
+        void view.size
+        void view.revision
+        view.isEmpty()
+        void Object.prototype.toString.call(view)
+      }
+      keys.has(2)
+      entries.has(
+        LinkedHashMap.from<unknown, unknown>([[2, 20]]).firstEntry() as MapEntry<unknown, unknown>,
+      )
+      values.has(20)
+      void Object.prototype.toString.call(m)
+      void Object.prototype.toString.call(m.reversed())
+      expect(m instanceof LinkedHashMap).toBe(true)
+      expect(isMapCollection(m)).toBe(true)
+      expect(isSequencedCollection(keys)).toBe(true)
+      expect(isSetCollection(entries)).toBe(true)
+      expect(isMapCollection(m.reversed())).toBe(true)
+      expect(native(m), m === map ? 'map' : 'bounded').toBe(true)
+      m.clear()
+      expect(native(m)).toBe(true)
+    }
+    expect(evicted.length).toBeGreaterThan(0)
+    const sameValueZero = new LinkedHashMap<number, number>([[1, 1]], {
+      equivalence: sameValueZeroEquivalence,
+    })
+    expect(native(sameValueZero)).toBe(true)
+  })
+
+  it('moves to linked records on the first call that needs them, for good: later calls make the counts of linked records [045 S4-AC1]', () => {
+    const switches: Array<[string, (m: LinkedHashMap<number, number>) => unknown]> = [
+      ['putFirst', (m) => m.putFirst(2, 21)],
+      ['putLast of a present key', (m) => m.putLast(1, 11)],
+      ['lastEntry', (m) => m.lastEntry()],
+      ['pollLastEntry', (m) => m.pollLastEntry()],
+      ['a reversed read', (m) => m.reversed().size],
+      ['a reversed write', (m) => m.reversed().set(9, 90)],
+      ['a key view end', (m) => m.keySet().getFirst()],
+      ['a key view iterator', (m) => m.keySet()[Symbol.iterator]()],
+      ['an entry view array', (m) => m.entrySet().toArray()],
+      ['a value view delete', (m) => m.valueCollection().delete(99)],
+      ['a key view clear', (m) => m.keySet().clear()],
+    ]
+    for (const [name, call] of switches) {
+      const map = new LinkedHashMap<number, number>([
+        [1, 10],
+        [2, 20],
+        [3, 30],
+      ])
+      call(map)
+      expect(
+        nativeCalls(() => map.set(5, 50)),
+        name,
+      ).toBe(2)
+      expect(
+        nativeCalls(() => map.set(5, 51)),
+        name,
+      ).toBe(1)
+      expect(
+        nativeCalls(() => map.get(5)),
+        name,
+      ).toBe(1)
+      // A second call of the same kind, and clear, keep linked records.
+      call(map)
+      map.clear()
+      expect(
+        nativeCalls(() => map.set(6, 60)),
+        name,
+      ).toBe(2)
+      expect(
+        nativeCalls(() => map.set(6, 61)),
+        name,
+      ).toBe(1)
+    }
+    const copy = linkedMap(new LinkedHashMap([[1, 10]])).copy()
+    expect(nativeCalls(() => copy.set(2, 20))).toBe(1)
+  })
+})
+
+/**
+ * Counts, during `work`, the native iterators made by the iterator methods of `Map` and `Set` and
+ * the calls of their iterators' `next`.
+ */
+function iteratorCalls(work: () => void): { made: number; steps: number } {
+  const counts = { made: 0, steps: 0 }
+  const saved: Array<[object, string, unknown]> = []
+  const wrap = (proto: object, name: string, field: 'made' | 'steps') => {
+    const original = Reflect.get(proto, name) as (...args: unknown[]) => unknown
+    saved.push([proto, name, original])
+    Reflect.set(proto, name, function (this: unknown, ...args: unknown[]) {
+      counts[field]++
+      return Reflect.apply(original, this, args)
+    })
+  }
+  const mapIterator = Object.getPrototypeOf(new Map().keys()) as object
+  const setIterator = Object.getPrototypeOf(new Set().values()) as object
+  for (const proto of [Map.prototype, Set.prototype]) {
+    for (const name of ['keys', 'values', 'entries']) wrap(proto, name, 'made')
+  }
+  wrap(mapIterator, 'next', 'steps')
+  wrap(setIterator, 'next', 'steps')
+  try {
+    work()
+  } finally {
+    for (const [proto, name, original] of saved.reverse()) Reflect.set(proto, name, original)
+  }
+  return counts
+}
+
+describe('iterating a default LinkedHashMap in the native layout', () => {
+  const five = (): LinkedHashMap<number, number> =>
+    new LinkedHashMap([1, 2, 3, 4, 5].map((k): [number, number] => [k, k * 10]))
+
+  it('makes one native iterator per iteration and calls its next once per step [045 S2-AC4]', () => {
+    const walks: Array<[string, (m: LinkedHashMap<number, number>) => void]> = [
+      ['keys', (m) => void [...m.keys()]],
+      ['values', (m) => void [...m.values()]],
+      ['entries', (m) => void [...m.entries()]],
+      ['for…of', (m) => void [...m]],
+      ['forEach', (m) => m.forEach(() => {})],
+    ]
+    for (const [name, walk] of walks) {
+      const map = five()
+      // Five steps with a value and the one that finds the end.
+      expect(
+        iteratorCalls(() => walk(map)),
+        name,
+      ).toEqual({ made: 1, steps: 6 })
+      expect(
+        nativeCalls(() => walk(map)),
+        name,
+      ).toBe(0)
+    }
+    const map = five()
+    const keys = map.keys()
+    expect(iteratorCalls(() => keys.next())).toEqual({ made: 0, steps: 1 })
+  })
+})
+
+describe('front reads of a default LinkedHashMap in the native layout', () => {
+  it('make at most one native iterator over the layout, and no more steps than keys inserted plus reads [045 S2-AC5]', () => {
+    const map = new LinkedHashMap<number, number>()
+    const order: number[] = []
+    let inserted = 0
+    let reads = 0
+    let next = 0
+    const counts = iteratorCalls(() => {
+      for (let i = 0; i < 50; i++) {
+        map.set(next, i)
+        order.push(next++)
+        inserted++
+      }
+      for (let i = 0; i < 300; i++) {
+        expect(map.pollFirstEntry()?.key).toBe(order.shift())
+        expect(map.firstEntry()?.key).toBe(order[0])
+        reads += 2
+        map.set(next, i)
+        order.push(next++)
+        inserted++
+        if (i % 7 === 0) {
+          // Delete the first key behind the reader's back, re-insert it at the back.
+          const first = order.shift() as number
+          map.delete(first)
+          map.set(first, 0)
+          order.push(first)
+          inserted++
+        }
+      }
+      map.clear()
+      order.length = 0
+      for (let i = 0; i < 20; i++) {
+        map.set(next, i)
+        order.push(next++)
+        inserted++
+      }
+      for (let i = 0; i < 10; i++) {
+        expect(map.pollFirstEntry()?.key).toBe(order.shift())
+        reads++
+      }
+    })
+    expect(counts.made).toBeLessThanOrEqual(1)
+    expect(counts.steps).toBeLessThanOrEqual(inserted + reads)
+    expect([...map.keys()]).toEqual(order)
+  })
+
+  it('keep the first key right across clear, re-inserts and an emptied map [045 S2-AC5]', () => {
+    const map = new LinkedHashMap<number, number>([
+      [1, 10],
+      [2, 20],
+    ])
+    expect(map.firstEntry()?.key).toBe(1)
+    map.delete(1)
+    map.set(1, 11)
+    expect(map.firstEntry()?.key).toBe(2)
+    map.clear()
+    expect(map.firstEntry()).toBe(undefined)
+    expect(map.pollFirstEntry()).toBe(undefined)
+    map.set(3, 30).set(4, 40)
+    expect(map.firstEntry()?.key).toBe(3)
+    expect(map.pollFirstEntry()?.value).toBe(30)
+    expect(map.pollFirstEntry()?.value).toBe(40)
+    expect(map.pollFirstEntry()).toBe(undefined)
+    map.set(5, 50)
+    expect(map.firstEntry()?.value).toBe(50)
+    expect(iteratorCalls(() => map.firstEntry())).toEqual({ made: 0, steps: 0 })
+  })
+
+  it('evict with at most one native iterator and one step per eviction, with and without onEvict [045 S2-AC5]', () => {
+    for (const withCallback of [false, true]) {
+      const evicted: number[] = []
+      const map = new LinkedHashMap<number, number>({
+        maxSize: 10,
+        onEvict: withCallback ? (_v, k) => void evicted.push(k) : undefined,
+      })
+      const counts = iteratorCalls(() => {
+        for (let k = 0; k < 200; k++) map.set(k, k)
+      })
+      expect(counts.made).toBeLessThanOrEqual(1)
+      expect(counts.steps).toBeLessThanOrEqual(200)
+      expect([...map.keys()]).toEqual(Array.from({ length: 10 }, (_, i) => 190 + i))
+      expect(evicted).toEqual(withCallback ? Array.from({ length: 190 }, (_, i) => i) : [])
+    }
+  })
+})
+
+describe('copying a default LinkedHashMap', () => {
+  it('gives a map in the native layout from either layout, with the same order and values [045 S2-AC6]', () => {
+    for (const switched of [false, true]) {
+      const map = new LinkedHashMap<number, number>([
+        [1, 10],
+        [2, 20],
+      ])
+      if (switched) map.putFirst(3, 30)
+      const copy = map.copy()
+      expect(copy.toJSON()).toEqual(map.toJSON())
+      expect(nativeCalls(() => copy.set(4, 40))).toBe(1)
+      expect(nativeCalls(() => copy.put(1, 11))).toBe(2)
+      expect(map.has(4)).toBe(false)
+    }
+    const ordered = new LinkedHashMap<number, number>([[1, 10]], { accessOrder: true }).copy()
+    expect(nativeCalls(() => ordered.set(2, 20))).toBe(2)
+  })
+})
+
+/** Moves a set to linked records, with a call that needs them, and returns it. */
+function linkedSet<E>(set: LinkedHashSet<E>): LinkedHashSet<E> {
+  if (set.size > 0) set.getLast()
+  else set.reversed().clear()
+  return set
+}
+
+describe('writes to a default LinkedHashSet in linked records', () => {
   it('make two native calls for an added element and one for a member [044 S3-AC4]', () => {
     for (const reversed of [false, true]) {
-      const set = new LinkedHashSet([1, 2, 3])
+      const set = linkedSet(new LinkedHashSet([1, 2, 3]))
       const target = reversed ? set.reversed() : set
       expect(nativeCalls(() => target.add(4))).toBe(2)
       expect(nativeCalls(() => target.add(2))).toBe(1)
@@ -511,7 +945,7 @@ describe('writes to a default LinkedHashSet', () => {
   })
 
   it('make two native calls for addFirst and addLast that move a member, one when it is already there [044 S3-AC4]', () => {
-    const set = new LinkedHashSet([1, 2, 3])
+    const set = linkedSet(new LinkedHashSet([1, 2, 3]))
     expect(nativeCalls(() => set.addFirst(2))).toBe(2)
     expect(nativeCalls(() => set.addFirst(2))).toBe(1)
     expect(nativeCalls(() => set.addLast(2))).toBe(2)
@@ -522,22 +956,222 @@ describe('writes to a default LinkedHashSet', () => {
   })
 
   it('make two native calls for a delete of a member and one for a non-member [044 S3-AC4]', () => {
-    const set = new LinkedHashSet([1, 2, 3])
+    const set = linkedSet(new LinkedHashSet([1, 2, 3]))
     expect(nativeCalls(() => set.delete(2))).toBe(2)
     expect(nativeCalls(() => set.delete(2))).toBe(1)
     expect(nativeCalls(() => set.delete(7))).toBe(1)
     expect([...set]).toEqual([1, 3])
   })
 
-  it('make the same calls per element when built or given addAll [044 S3-AC2]', () => {
-    // Four new elements and one repeated: 4 × 2 + 1.
+  it('make the same calls per element when given addAll [044 S3-AC2]', () => {
     const input = [1, 2, 1, 3, 4]
-    expect(nativeCalls(() => new LinkedHashSet(input))).toBe(9)
-    expect(nativeCalls(() => LinkedHashSet.from(input))).toBe(9)
-    const set = new LinkedHashSet([1])
+    const set = linkedSet(new LinkedHashSet([1]))
     // One member, three new elements and one repeated: 1 + 3 × 2 + 1.
     expect(nativeCalls(() => set.addAll(input))).toBe(8)
     expect([...set]).toEqual([1, 2, 3, 4])
+  })
+})
+
+describe('a default LinkedHashSet in the native layout', () => {
+  /** Whether an add of a new element makes one native call, as only the native layout does. */
+  function native<E>(set: LinkedHashSet<E>): boolean {
+    const probe = Symbol('probe') as E
+    const calls = nativeCalls(() => set.add(probe))
+    set.delete(probe)
+    return calls === 1
+  }
+
+  it('makes one native call for add, has and delete, member or not [045 S3-AC2]', () => {
+    const set = new LinkedHashSet([1, 2, -0])
+    for (const e of [1, 9, -0]) {
+      expect(
+        nativeCalls(() => set.has(e)),
+        `has ${e}`,
+      ).toBe(1)
+    }
+    expect(nativeCalls(() => set.add(1))).toBe(1)
+    expect(nativeCalls(() => set.add(3))).toBe(1)
+    expect(nativeCalls(() => set.add(-0))).toBe(1)
+    expect(nativeCalls(() => set.delete(3))).toBe(1)
+    expect(nativeCalls(() => set.delete(3))).toBe(1)
+    expect(nativeCalls(() => set.delete(-0))).toBe(1)
+    expect([...set]).toEqual([1, 2])
+    expect(native(set)).toBe(true)
+  })
+
+  it('makes at most one native call per element when built or given addAll [045 S3-AC3]', () => {
+    const input = [1, 2, 1, 3, 4]
+    expect(nativeCalls(() => new LinkedHashSet(input))).toBeLessThanOrEqual(5)
+    expect(nativeCalls(() => LinkedHashSet.from(input))).toBeLessThanOrEqual(5)
+    expect([...LinkedHashSet.from(input)]).toEqual([1, 2, 3, 4])
+    const set = new LinkedHashSet([1])
+    expect(nativeCalls(() => set.addAll(input))).toBe(5)
+    expect([...set]).toEqual([1, 2, 3, 4])
+    const built = new LinkedHashSet(input)
+    const one = new LinkedHashSet<number>()
+    for (const e of input) one.add(e)
+    expect(built.revision).toBe(one.revision)
+    expect(native(set)).toBe(true)
+  })
+
+  it('makes one native iterator per iteration and calls its next once per step [045 S3-AC4]', () => {
+    const walks: Array<[string, (s: LinkedHashSet<number>) => void]> = [
+      ['keys', (s) => void [...s.keys()]],
+      ['values', (s) => void [...s.values()]],
+      ['entries', (s) => void [...s.entries()]],
+      ['for…of', (s) => void [...s]],
+      ['forEach', (s) => s.forEach(() => {})],
+      [
+        'cursor',
+        (s) => {
+          const cursor = s.cursor()
+          while (cursor.hasNext()) cursor.next()
+        },
+      ],
+    ]
+    for (const [name, walk] of walks) {
+      const set = new LinkedHashSet([1, 2, 3, 4, 5])
+      expect(
+        iteratorCalls(() => walk(set)),
+        name,
+      ).toEqual({ made: 1, steps: 6 })
+      expect(
+        nativeCalls(() => walk(set)),
+        name,
+      ).toBe(0)
+    }
+  })
+
+  it('reads and removes the first member with at most one native iterator, and no more steps than adds plus reads [045 S3-AC5]', () => {
+    const set = new LinkedHashSet<number>()
+    const order: number[] = []
+    let added = 0
+    let reads = 0
+    let next = 0
+    const counts = iteratorCalls(() => {
+      for (let i = 0; i < 50; i++) {
+        set.add(next)
+        order.push(next++)
+        added++
+      }
+      for (let i = 0; i < 300; i++) {
+        expect(set.removeFirst()).toBe(order.shift())
+        expect(set.getFirst()).toBe(order[0])
+        reads += 2
+        set.add(next)
+        order.push(next++)
+        added++
+        if (i % 7 === 0) {
+          const first = order.shift() as number
+          set.delete(first)
+          set.add(first)
+          order.push(first)
+          added++
+        }
+      }
+      set.clear()
+      expect(() => set.getFirst()).toThrow('LinkedHashSet.getFirst: the set is empty')
+      expect(() => set.removeFirst()).toThrow('LinkedHashSet.removeFirst: the set is empty')
+      set.add(-1)
+      expect(set.getFirst()).toBe(-1)
+      reads += 3
+      added++
+    })
+    expect(counts.made).toBeLessThanOrEqual(1)
+    expect(counts.steps).toBeLessThanOrEqual(added + reads)
+    expect(native(set)).toBe(true)
+  })
+
+  it('stays native through every call that a native Set can answer [045 S3-AC1]', () => {
+    const set = new LinkedHashSet<unknown>([1, 2, 3])
+    void set.size
+    void set.revision
+    set.isEmpty()
+    set.add(4)
+    set.addLast(5)
+    set.has(2)
+    set.delete(5)
+    set.addAll([6, 7])
+    set.removeAll([7])
+    set.retainAll([1, 2, 3, 4, 6])
+    set.removeIf((e) => e === 6)
+    set.getFirst()
+    set.removeFirst()
+    ;[...set.keys()]
+    ;[...set.values()]
+    ;[...set.entries()]
+    ;[...set]
+    set.forEach(() => {})
+    const cursor = set.cursor()
+    cursor.next()
+    cursor.remove()
+    set.toArray()
+    set.copy()
+    set.equals(new Set([3, 4]))
+    set.equals(LinkedHashSet.from([3, 4]))
+    set[equalsSymbol](set)
+    hashCode(set)
+    set.toString()
+    set.toJSON()
+    inspect(set)
+    const reversed = set.reversed()
+    void Object.prototype.toString.call(set)
+    void Object.prototype.toString.call(reversed)
+    expect(set instanceof LinkedHashSet).toBe(true)
+    expect(isSetCollection(set)).toBe(true)
+    expect(isSequencedCollection(reversed)).toBe(true)
+    expect(native(set)).toBe(true)
+    set.clear()
+    expect(native(set)).toBe(true)
+    const sameValueZero = new LinkedHashSet([1], { equivalence: sameValueZeroEquivalence })
+    expect(native(sameValueZero)).toBe(true)
+  })
+
+  it('moves to linked records on the first call that needs them, for good [045 S4-AC1]', () => {
+    const switches: Array<[string, (s: LinkedHashSet<number>) => unknown]> = [
+      ['addFirst', (s) => s.addFirst(2)],
+      ['addLast of a member', (s) => s.addLast(1)],
+      ['getLast', (s) => s.getLast()],
+      ['removeLast', (s) => s.removeLast()],
+      ['a reversed read', (s) => s.reversed().size],
+      ['a reversed iterator', (s) => s.reversed()[Symbol.iterator]()],
+      ['a reversed add', (s) => s.reversed().add(9)],
+    ]
+    for (const [name, call] of switches) {
+      const set = new LinkedHashSet([1, 2, 3])
+      call(set)
+      expect(
+        nativeCalls(() => set.add(5)),
+        name,
+      ).toBe(2)
+      expect(
+        nativeCalls(() => set.add(5)),
+        name,
+      ).toBe(1)
+      expect(
+        nativeCalls(() => set.delete(5)),
+        name,
+      ).toBe(2)
+      call(set)
+      set.clear()
+      expect(
+        nativeCalls(() => set.add(6)),
+        name,
+      ).toBe(2)
+    }
+  })
+
+  it('copies into the native layout from either layout [045 S3-AC6]', () => {
+    for (const switched of [false, true]) {
+      const set = new LinkedHashSet([1, 2, 3])
+      if (switched) set.addFirst(3)
+      const copy = set.copy()
+      expect([...copy]).toEqual([...set])
+      expect(nativeCalls(() => copy.add(4))).toBe(1)
+      expect(set.has(4)).toBe(false)
+    }
+    const keyed = new LinkedHashSet([1], { key: (n: number) => n }).copy()
+    expect(nativeCalls(() => keyed.add(2))).toBe(2)
   })
 })
 

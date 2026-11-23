@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { tableFromMap, tableFromSet } from '../../src/internal/engines/flat-layout'
 import { type HashEquality, Operation, readEquality } from '../../src/internal/engines/hash-support'
 import { setBucketSeedSourceForTesting } from '../../src/internal/engines/hash-table'
 import {
   LinkedHashTable,
   type LinkedRecord,
-  type LinkedRecordIterator,
+  LinkedRecordIterator,
 } from '../../src/internal/engines/linked-hash-table'
 import { ChangeCounter } from '../../src/internal/revision'
 
@@ -359,5 +360,99 @@ describe('linked hash table — access order', () => {
     expect(drain(it)).toEqual([2, 1])
     expect(accessOrdered([1]).copy(equality).accessOrder).toBe(true)
     expect(plain.copy(equality).accessOrder).toBe(false)
+  })
+})
+
+describe('linked hash table — made from native contents', () => {
+  const native = readEquality<number>(undefined, 'T')
+
+  it('ranks the members of a Map 1…n in its order and stores the records in the same Map [045 S4-AC1]', () => {
+    const map = new Map<number, string>([
+      [3, 'c'],
+      [1, 'a'],
+      [2, 'b'],
+    ])
+    const open = map.keys()
+    expect(open.next().value).toBe(3)
+    const table = tableFromMap(map, native)
+    expect(table.promoted).toBe(3)
+    expect(table.high).toBe(3)
+    expect(table.low).toBe(0)
+    expect(table.records(false).map((r) => [r.key, r.value, r.seq, r.origin])).toEqual([
+      [3, 'c', 1, 1],
+      [1, 'a', 2, 2],
+      [2, 'b', 3, 3],
+    ])
+    // The Map now holds the records, in the same order, and its open iterator carries on.
+    expect(map.get(1)).toBe(find(table, 1))
+    expect(open.next().value).toBe(1)
+    expect([...map.keys()]).toEqual([3, 1, 2])
+    const empty = tableFromMap(new Map<number, string>(), native)
+    expect(empty.promoted).toBe(0)
+  })
+
+  it('ranks the members of a Set 1…n in a new store and leaves the Set as it was [045 S4-AC1]', () => {
+    const set = new Set([5, 4, 6])
+    const table = tableFromSet(set, native)
+    expect(table.promoted).toBe(3)
+    expect(table.records(false).map((r) => [r.key, r.seq, r.origin])).toEqual([
+      [5, 1, 1],
+      [4, 2, 2],
+      [6, 3, 3],
+    ])
+    put(table as unknown as LinkedHashTable<number, string>, 7)
+    expect([...set]).toEqual([5, 4, 6])
+  })
+
+  it('keeps origins across moves without access order, and gives a new one with it [045 S1-AC1]', () => {
+    const table = tableFromMap(
+      new Map<number, string>([
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+      ]),
+      native,
+    )
+    table.move(find(table, 1) as LinkedRecord<number, string>, false)
+    table.move(find(table, 3) as LinkedRecord<number, string>, true)
+    expect(table.records(false).map((r) => [r.key, r.seq, r.origin])).toEqual([
+      [3, -1, 3],
+      [2, 2, 2],
+      [1, 4, 1],
+    ])
+    const ordered = new LinkedHashTable<number, string>(native, undefined, true)
+    put(ordered, 1)
+    put(ordered, 2)
+    ordered.move(find(ordered, 1) as LinkedRecord<number, string>, false)
+    expect(ordered.records(false).map((r) => [r.key, r.origin])).toEqual([
+      [2, 2],
+      [1, 3],
+    ])
+  })
+
+  it('resumes a forward walk after a boundary, skipping records at or before it, and starts over after a later clear [045 S1-AC1]', () => {
+    const table = tableFromMap(
+      new Map<number, string>([
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+        [4, 'd'],
+      ]),
+      native,
+    )
+    put(table, 0, true)
+    put(table, 5)
+    table.move(find(table, 1) as LinkedRecord<number, string>, false)
+    // Resumed after rank 2: rank 3 and 4, then the records past the promoted ones.
+    expect(drain(new LinkedRecordIterator(table, false, 2))).toEqual([3, 4, 5, 1])
+    expect(drain(new LinkedRecordIterator(table, false, 4))).toEqual([5, 1])
+    const resumed = new LinkedRecordIterator(table, false, 3)
+    expect(step(resumed)).toBe(4)
+    table.clear()
+    put(table, 8, true)
+    put(table, 9)
+    expect(drain(resumed)).toEqual([9])
+    const later = new LinkedRecordIterator(table, false, 0)
+    expect(drain(later)).toEqual([9])
   })
 })

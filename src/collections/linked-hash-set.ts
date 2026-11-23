@@ -56,8 +56,13 @@ export interface LinkedHashSetOptions<E> {
  * member, `-0` is stored as `0`), `add` returning the set and keeping a present member where it is,
  * live iteration — and can also be read and changed at both ends: `getFirst`, `getLast`,
  * `removeFirst` and `removeLast`, `addFirst` and `addLast`, which insert an absent member at that
- * end or move the present one there, and a live `reversed()` view. Each takes O(1) (average for
- * those that look up or remove).
+ * end or move the present one there, and a live `reversed()` view. Each takes O(1) amortised
+ * (average for those that look up or remove).
+ *
+ * A set without the `key` or `equivalence` option keeps its members in a native `Set` until the
+ * first call that needs linked order: `addFirst`, `addLast` of a member, `getLast`, `removeLast`,
+ * or any call through `reversed()`. That call costs O(n), once; this is why the ends, `addFirst`
+ * and `addLast` are amortised.
  *
  * The `key` and `equivalence` options work as they do for `HashSet`; the original values are
  * stored and returned, never the keys. `null` and `undefined` are allowed.
@@ -279,7 +284,8 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
    * member is kept, not replaced by `element`), and returns the set. Nothing changes when that
    * member is already first.
    *
-   * Time: O(1) average, plus one `key` or `hash` call and the `equals` calls.
+   * Time: O(1) amortised average, plus one `key` or `hash` call and the `equals` calls (the first
+   * call that needs linked order costs O(n), once).
    *
    * @param element - The element to insert or move (`-0` is stored as `0`).
    * @returns The set.
@@ -302,7 +308,8 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
    * kept, not replaced by `element`), and returns the set. Nothing changes when that member is
    * already last.
    *
-   * Time: O(1) average, plus one `key` or `hash` call and the `equals` calls.
+   * Time: O(1) amortised average, plus one `key` or `hash` call and the `equals` calls (the first
+   * call that needs linked order costs O(n), once).
    *
    * @param element - The element to insert or move (`-0` is stored as `0`).
    * @returns The set.
@@ -363,7 +370,7 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
   /**
    * Returns the first member.
    *
-   * Time: O(1). Calls no `key`, `equals` or `hash` function.
+   * Time: O(1) amortised. Calls no `key`, `equals` or `hash` function.
    *
    * @returns The first member.
    * @throws NoSuchElementError when the set is empty.
@@ -380,7 +387,8 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
   /**
    * Returns the last member.
    *
-   * Time: O(1). Calls no `key`, `equals` or `hash` function.
+   * Time: O(1) amortised (the first call that needs linked order costs O(n), once). Calls no
+   * `key`, `equals` or `hash` function.
    *
    * @returns The last member.
    * @throws NoSuchElementError when the set is empty.
@@ -397,7 +405,7 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
   /**
    * Removes and returns the first member.
    *
-   * Time: O(1) average. Calls no `key`, `equals` or `hash` function.
+   * Time: O(1) amortised average. Calls no `key`, `equals` or `hash` function.
    *
    * @returns The removed member.
    * @throws NoSuchElementError when the set is empty; nothing changes.
@@ -414,7 +422,8 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
   /**
    * Removes and returns the last member.
    *
-   * Time: O(1) average. Calls no `key`, `equals` or `hash` function.
+   * Time: O(1) amortised average (the first call that needs linked order costs O(n), once). Calls
+   * no `key`, `equals` or `hash` function.
    *
    * @returns The removed member.
    * @throws NoSuchElementError when the set is empty; nothing changes.
@@ -434,7 +443,8 @@ export class LinkedHashSet<E> implements SequencedSet<E> {
    * its `add` inserts an absent member at the view's end, which is this set's front. Reversing the
    * view returns this set.
    *
-   * Time: O(1).
+   * Time: O(1). Every call through the view needs linked order: the first such call on the set
+   * costs O(n), once, and the view's operations cost what the set's cost, amortised.
    *
    * @returns The reversed view, printed as `ReversedLinkedHashSet`.
    *

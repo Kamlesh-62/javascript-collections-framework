@@ -2,6 +2,10 @@
 // in the order of the map they came from, with that map's ends. Each view works on the map's table
 // and shares its change counter, so changes show everywhere and iteration is live; every call that
 // can run user code counts as a call on the map. None can add.
+//
+// A view keeps the map it came from as `source` and reaches it through `map`, which first moves a
+// map in the native layout to linked records. `size`, `isEmpty`, `has` and `revision` use `source`
+// directly, so they keep the native layout.
 
 import type { Cursor } from '../../interfaces/collection'
 import type { SequencedCollection } from '../../interfaces/list'
@@ -11,7 +15,7 @@ import { SEQUENCED_COLLECTION_BRAND } from '../brand'
 import { normalise } from '../engines/hash-support'
 import type { LinkedRecord } from '../engines/linked-hash-table'
 import { MISSING } from '../engines/map-stores'
-import type { HashFunction } from '../equality'
+import { type HashFunction, sameValueZero } from '../equality'
 import { MappedLiveIterator } from '../iteration'
 import { AbstractCollection } from '../skeletons/abstract-collection'
 import type { AbstractLinkedMap } from '../skeletons/abstract-linked-map'
@@ -32,11 +36,16 @@ function valueOfRecord<K, V>(record: LinkedRecord<K, V>): V {
  * @internal
  */
 export class LinkedHashMapKeySet<K, V> extends AbstractSet<K> implements SequencedSet<K> {
-  private readonly map: AbstractLinkedMap<K, V>
+  private readonly source: AbstractLinkedMap<K, V>
 
   constructor(map: AbstractLinkedMap<K, V>) {
     super(map.changes)
-    this.map = map
+    this.source = map
+  }
+
+  /** The map, in linked records. */
+  private get map(): AbstractLinkedMap<K, V> {
+    return this.source.promote()
   }
 
   get owner(): SequencedSet<K> {
@@ -53,7 +62,7 @@ export class LinkedHashMapKeySet<K, V> extends AbstractSet<K> implements Sequenc
   }
 
   get size(): number {
-    return this.map.size
+    return this.source.size
   }
 
   [Symbol.iterator](): IterableIterator<K> {
@@ -66,7 +75,7 @@ export class LinkedHashMapKeySet<K, V> extends AbstractSet<K> implements Sequenc
   }
 
   protected hasMember(key: K, method: string): boolean {
-    return this.map.hasKey(key, `${this.className}.${method}`)
+    return this.source.hasKey(key, `${this.className}.${method}`)
   }
 
   add(_key: K): this {
@@ -175,11 +184,16 @@ export class LinkedHashMapEntrySet<K, V>
   extends AbstractSet<MapEntry<K, V>>
   implements SequencedSet<MapEntry<K, V>>
 {
-  private readonly map: AbstractLinkedMap<K, V>
+  private readonly source: AbstractLinkedMap<K, V>
 
   constructor(map: AbstractLinkedMap<K, V>) {
     super(map.changes)
-    this.map = map
+    this.source = map
+  }
+
+  /** The map, in linked records. */
+  private get map(): AbstractLinkedMap<K, V> {
+    return this.source.promote()
   }
 
   get owner(): SequencedSet<MapEntry<K, V>> {
@@ -196,7 +210,7 @@ export class LinkedHashMapEntrySet<K, V>
   }
 
   get size(): number {
-    return this.map.size
+    return this.source.size
   }
 
   [Symbol.iterator](): IterableIterator<MapEntry<K, V>> {
@@ -210,7 +224,7 @@ export class LinkedHashMapEntrySet<K, V>
   }
 
   protected hasMember(entry: MapEntry<K, V>, method: string): boolean {
-    return this.map.locate(entry, `${this.className}.${method}`) !== undefined
+    return this.source.holdsEntry(entry, `${this.className}.${method}`)
   }
 
   add(_entry: MapEntry<K, V>): this {
@@ -335,11 +349,16 @@ export class LinkedHashMapValues<K, V>
   implements SequencedCollection<V>
 {
   protected readonly iterationMode = 'live' as const
-  private readonly map: AbstractLinkedMap<K, V>
+  private readonly source: AbstractLinkedMap<K, V>
 
   constructor(map: AbstractLinkedMap<K, V>) {
     super(map.changes)
-    this.map = map
+    this.source = map
+  }
+
+  /** The map, in linked records. */
+  private get map(): AbstractLinkedMap<K, V> {
+    return this.source.promote()
   }
 
   get [Symbol.toStringTag](): string {
@@ -352,7 +371,7 @@ export class LinkedHashMapValues<K, V>
   }
 
   get size(): number {
-    return this.map.size
+    return this.source.size
   }
 
   [Symbol.iterator](): IterableIterator<V> {
@@ -362,6 +381,12 @@ export class LinkedHashMapValues<K, V>
   /** The value view of the reversed map. */
   reversed(): SequencedCollection<V> {
     return new LinkedHashMapValues(this.map.opposite())
+  }
+
+  /** Whether a value is SameValueZero to `value`, scanning in order; keeps the native layout. */
+  override has(value: V): boolean {
+    for (const candidate of this.source.values()) if (sameValueZero(candidate, value)) return true
+    return false
   }
 
   add(_value: V): this {

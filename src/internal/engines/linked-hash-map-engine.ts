@@ -8,6 +8,7 @@ import { ReversedLinkedHashMap } from '../views/reversed-linked-hash-map'
 import { EvictionQueue } from './eviction-queue'
 import type { HashEquality } from './hash-support'
 import { LinkedHashTable } from './linked-hash-table'
+import { MISSING } from './map-stores'
 
 /**
  * The options of a linked hash map, read and checked once at construction.
@@ -24,6 +25,7 @@ export interface LinkedMapSettings<K, V> {
 /**
  * A map in insertion or access order, changeable at both ends and optionally bounded in size, whose
  * keys are compared with SameValueZero, by derived key, or by an equivalence; iteration is live.
+ * With SameValueZero keys and no access order it starts in the native layout.
  *
  * @internal
  */
@@ -34,23 +36,30 @@ export class LinkedHashMapEngine<K, V> extends AbstractLinkedMap<K, V> {
   /**
    * @param facade - The public map, for identity, callbacks and `onEvict`.
    * @param settings - The options.
-   * @param table - The table to use; a new empty one by default.
+   * @param contents - The table to use, or the native `Map` of a map in the native layout; a new
+   *   empty one by default.
    */
   constructor(
     facade: SequencedMap<K, V>,
     settings: LinkedMapSettings<K, V>,
-    table: LinkedHashTable<K, V> = new LinkedHashTable<K, V>(
-      settings.equality,
-      undefined,
-      settings.accessOrder,
-    ),
+    contents?: LinkedHashTable<K, V> | Map<K, V>,
   ) {
-    const { maxSize, onEvict } = settings
+    const { equality, accessOrder, maxSize, onEvict } = settings
+    let flat: Map<K, V> | undefined
+    let table: LinkedHashTable<K, V> | undefined
+    if (contents instanceof LinkedHashTable) table = contents
+    else if (contents !== undefined) flat = contents
+    else if (equality.kind === 'native' && !accessOrder) flat = new Map<K, V>()
+    else table = new LinkedHashTable<K, V>(equality, undefined, accessOrder)
     const state: LinkedMapState<K, V> = {
+      flat,
       table,
+      front: undefined,
+      frontKey: MISSING,
+      frontValue: undefined,
       changes: new ChangeCounter(),
-      equality: settings.equality,
-      accessOrder: settings.accessOrder,
+      equality,
+      accessOrder,
       maxSize,
       onEvict,
       queue:
@@ -79,8 +88,15 @@ export class LinkedHashMapEngine<K, V> extends AbstractLinkedMap<K, V> {
     return this.opposite().owner
   }
 
-  /** A new engine for `facade` with the same options, order and stored keys and hashes. */
+  /**
+   * A new engine for `facade` with the same options, order and stored keys and hashes; in the
+   * native layout whenever the options allow it, whatever this map's layout.
+   */
   copy(facade: SequencedMap<K, V>): LinkedHashMapEngine<K, V> {
-    return new LinkedHashMapEngine(facade, this.settings, this.table.copy(this.settings.equality))
+    const settings = this.settings
+    if (settings.equality.kind === 'native' && !settings.accessOrder) {
+      return new LinkedHashMapEngine(facade, settings, new Map(this.entries()))
+    }
+    return new LinkedHashMapEngine(facade, settings, this.table.copy(settings.equality))
   }
 }

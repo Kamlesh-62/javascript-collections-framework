@@ -1,6 +1,6 @@
 {
   "budgets": {
-    "*": 37120,
+    "*": 38144,
     "ArrayDeque": 5568,
     "ArrayList": 7424,
     "ClassCastError": 448,
@@ -10,8 +10,8 @@
     "IllegalArgumentError": 512,
     "IllegalStateError": 448,
     "IndexOutOfBoundsError": 512,
-    "LinkedHashMap": 11904,
-    "LinkedHashSet": 8384,
+    "LinkedHashMap": 12736,
+    "LinkedHashSet": 9408,
     "LinkedList": 5824,
     "NoSuchElementError": 448,
     "NullElementError": 448,

@@ -101,3 +101,37 @@ describe('eviction queue', () => {
     expect(count).toBe(100_000)
   }, 60000)
 })
+
+describe('eviction queue — enter and leave', () => {
+  it('delivers when the outermost leave runs, and nests with run [045 S2-AC2]', () => {
+    const { calls, map, queue } = recorder()
+    queue.enter()
+    queue.push('a', 1)
+    queue.run(() => queue.push('b', 2))
+    queue.enter()
+    queue.push('c', 3)
+    queue.leave(false)
+    expect(calls).toEqual([])
+    queue.leave(false)
+    expect(calls).toEqual([
+      [1, 'a', map, undefined],
+      [2, 'b', map, undefined],
+      [3, 'c', map, undefined],
+    ])
+  })
+
+  it('lets a failed call’s error win over one from onEvict, and propagates onEvict’s otherwise [045 S2-AC2]', () => {
+    const { queue } = recorder(() => {
+      throw new Error('from onEvict')
+    })
+    queue.enter()
+    queue.push('a', 1)
+    expect(() => queue.leave(true)).not.toThrow()
+    queue.enter()
+    queue.push('b', 2)
+    expect(() => queue.leave(false)).toThrow('from onEvict')
+    // The queue is empty and usable again.
+    queue.enter()
+    expect(() => queue.leave(false)).not.toThrow()
+  })
+})

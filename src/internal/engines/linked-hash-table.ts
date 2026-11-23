@@ -13,10 +13,18 @@
 // key, value and store handle, is linked at the target end and written into the store. The store
 // handle of a key therefore survives moves and is what finds a record's current place.
 //
-// Every record also carries an origin: its own sequence number when it is inserted or moved
-// explicitly, the replaced record's origin when it is moved by an access (an access-ordered table
-// moves a mapping to the back whenever it is used). A forward iteration of an access-ordered table
-// remembers the origins it returned, so a mapping moved by an access is never returned twice.
+// Every record also carries an origin: its own sequence number when it is inserted, the replaced
+// record's origin when it is moved by an access (an access-ordered table moves a mapping to the back
+// whenever it is used), and when it is moved in a table without access order. In an access-ordered
+// table an explicit move gives the record a new origin. A forward iteration of an access-ordered
+// table remembers the origins it returned, so a mapping moved by an access is never returned twice.
+//
+// A table can also be made from a native `Map` or `Set` that held the contents so far (see
+// flat-layout.ts): its records get the sequence numbers and origins 1…n, their rank in the native order,
+// and `promoted` is n. Since moves keep origins, a record whose origin lies in 1…n is a member that
+// was there at that moment and has not been removed since, and its origin is its rank: an iteration
+// of the native contents still open then continues here past the rank of the first such member
+// ahead of it (see `LinkedRecordIterator`'s `boundary`).
 
 import type { HashFunction } from '../equality'
 import { done, IteratorBase } from '../iteration'
@@ -74,6 +82,8 @@ export class LinkedHashTable<K, V> {
   /** `low` and `high` at the last `clear`. */
   clearedLow = 0
   clearedHigh = 0
+  /** How many records the table was made with from a native `Map` or `Set` (ranks 1…promoted). */
+  promoted = 0
   /** Whether mappings are moved by access, so forward iterations must remember what they returned. */
   readonly accessOrder: boolean
   private readonly store: MapStore<K, LinkedRecord<K, V>>
@@ -144,13 +154,23 @@ export class LinkedHashTable<K, V> {
 
   /**
    * Moves `record` to the front or the back: unlinks it and links a new record with the same key,
-   * value and handle there. Returns `false`, changing nothing, when it is already at that end.
+   * value and handle there, with the same origin unless the table is in access order. Returns
+   * `false`, changing nothing, when it is already at that end.
    */
   move(record: LinkedRecord<K, V>, front: boolean): boolean {
     const head = this.head
     if ((front ? head.next : head.prev) === record) return false
     this.unlink(record)
-    this.store.write(record.handle, this.link(record.key, record.value, record.handle, front))
+    this.store.write(
+      record.handle,
+      this.link(
+        record.key,
+        record.value,
+        record.handle,
+        front,
+        this.accessOrder ? undefined : record.origin,
+      ),
+    )
     return true
   }
 
@@ -270,13 +290,8 @@ export class LinkedHashTable<K, V> {
     return table
   }
 
-  private link(
-    key: K,
-    value: V,
-    handle: unknown,
-    front: boolean,
-    origin?: number,
-  ): LinkedRecord<K, V> {
+  /** Links a new record at the front or the back; `origin` defaults to its sequence number. */
+  link(key: K, value: V, handle: unknown, front: boolean, origin?: number): LinkedRecord<K, V> {
     const head = this.head
     const prev = front ? head : head.prev
     const next = front ? head.next : head
@@ -317,6 +332,9 @@ export class LinkedHashTable<K, V> {
  * - Walking forward over an access-ordered table, it keeps the origins of the records it returned
  *   and skips any record with one of them: a mapping an access moved behind it is not returned
  *   again. A backward walk needs none: accesses move records to its starting end.
+ * - Given a `boundary`, it resumes a forward walk of the native contents the table was made from:
+ *   it starts before the first record with a greater sequence number, as of the table's first
+ *   epoch, so a `clear` since the table was made starts it over as usual.
  *
  * Time: O(1) amortised per step.
  *
@@ -335,13 +353,23 @@ export class LinkedRecordIterator<K, V>
   /** The origins returned so far, on a forward walk of an access-ordered table; made on demand. */
   private visited: Set<number> | undefined
 
-  constructor(table: LinkedHashTable<K, V>, fromBack: boolean) {
+  /**
+   * @param table - The table to walk.
+   * @param fromBack - Whether to walk from the back.
+   * @param boundary - For a resumed forward walk: the sequence number to start after.
+   */
+  constructor(table: LinkedHashTable<K, V>, fromBack: boolean, boundary?: number) {
     super()
     this.table = table
     this.fromBack = fromBack
     this.last = table.head
-    this.boundary = fromBack ? table.high + 1 : table.low - 1
-    this.epoch = table.epoch
+    if (boundary === undefined) {
+      this.boundary = fromBack ? table.high + 1 : table.low - 1
+      this.epoch = table.epoch
+    } else {
+      this.boundary = boundary
+      this.epoch = 0
+    }
   }
 
   // Returns a fresh result object every step: `LinkedKeyIterator`, `LinkedValueIterator` and
