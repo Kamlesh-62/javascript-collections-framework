@@ -2,6 +2,7 @@
 // one engine and delegates to it, so nothing here reaches the published types.
 
 import type { List } from '../../interfaces/list'
+import { checkIndex } from '../checks'
 import { AbstractList } from '../skeletons/abstract-list'
 import { reversedOf, subListOf } from '../views/list-views'
 
@@ -12,8 +13,8 @@ import { reversedOf, subListOf } from '../views/list-views'
  * @internal
  */
 export class ArrayListEngine<E> extends AbstractList<E> {
-  /** The elements, in order. Never handed out. */
-  readonly items: E[] = []
+  /** The elements, in order. Never handed out; replaced only while the list is being built. */
+  items: E[] = []
   private readonly facade: List<E>
 
   constructor(facade: List<E>) {
@@ -31,6 +32,17 @@ export class ArrayListEngine<E> extends AbstractList<E> {
 
   get size(): number {
     return this.items.length
+  }
+
+  override get(index: number): E {
+    const items = this.items
+    // A valid index is a whole number in 0..length - 1, and an array's length is below 2^32, so
+    // `index >>> 0 === index` holds for every valid index; anything else goes to the full check,
+    // which throws.
+    if (typeof index === 'number' && index >>> 0 === index && index < items.length) {
+      return items[index] as E
+    }
+    return items[checkIndex(index, items.length, this, 'get')] as E
   }
 
   getAt(index: number): E {

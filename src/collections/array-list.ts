@@ -10,7 +10,7 @@ import { brandedHasInstance, LIST_BRAND, SEQUENCED_COLLECTION_BRAND } from '../i
 import { describeValue, isIterable, requireFunction } from '../internal/checks'
 import { ArrayListEngine } from '../internal/engines/array-list-engine'
 import { equalsSymbol, type HashFunction, hashCodeSymbol } from '../internal/equality'
-import { apply } from '../internal/intrinsics'
+import { arrayFrom } from '../internal/intrinsics'
 import { COLLECTION_BRAND, INSPECT } from '../internal/output'
 
 const ARRAY_LIST_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
@@ -67,8 +67,7 @@ export class ArrayList<E> implements List<E> {
     this.engine = new ArrayListEngine<E>(this)
     if (elements === undefined || elements === null) return
     if (!isIterable(elements)) throw notIterable('ArrayList', elements)
-    const items = this.engine.items
-    for (const element of elements) items.push(element)
+    this.engine.items = arrayFrom(elements)
   }
 
   /**
@@ -121,12 +120,8 @@ export class ArrayList<E> implements List<E> {
     if (mapFn !== undefined) requireFunction(mapFn, 'ArrayList.from', 'mapFn')
     if (!isIterable(elements)) throw notIterable('ArrayList.from', elements)
     const list = new ArrayList<T | U>()
-    const items = list.engine.items
-    let index = 0
-    for (const element of elements) {
-      items.push(mapFn === undefined ? element : (apply(mapFn, thisArg, [element, index]) as U))
-      index++
-    }
+    list.engine.items =
+      mapFn === undefined ? arrayFrom(elements) : arrayFrom(elements, mapFn, thisArg)
     return list
   }
 

@@ -504,6 +504,112 @@ describe('LinkedList — node handles', () => {
   })
 })
 
+describe('LinkedList — handles made on demand', () => {
+  type Removal = (list: LinkedList<number>, node: LinkedListNode<number>) => unknown
+  const removals: ReadonlyArray<[string, Removal]> = [
+    ['removeNode', (l, n) => l.removeNode(n)],
+    ['poll', (l) => l.poll()],
+    ['clear', (l) => l.clear()],
+    [
+      'iterator remove',
+      (l) => {
+        const c = l.cursor()
+        c.next()
+        c.remove()
+      },
+    ],
+    ['removeIf', (l) => l.removeIf((e) => e === 1)],
+  ]
+
+  for (const [name, remove] of removals) {
+    it(`a handle removed by ${name} keeps its value and loses its links [044 S2-AC1]`, () => {
+      const list = new LinkedList([1, 2, 3])
+      const node = list.firstNode() as LinkedListNode<number>
+      expect(node.next).toBe(list.lastNode()?.previous)
+      remove(list, node)
+      expect(node.value).toBe(1)
+      expect(node.next).toBeUndefined()
+      expect(node.previous).toBeUndefined()
+      expect(() => {
+        node.value = 9
+      }).toThrow(
+        new IllegalStateError('LinkedListNode.value: the node has been removed from its list'),
+      )
+      expect(node.value).toBe(1)
+    })
+  }
+
+  it('rejects handles it does not hold with the same error [044 S2-AC2]', () => {
+    const list = new LinkedList([1, 2])
+    const other = new LinkedList([1])
+    const removed = list.addLastNode(3)
+    list.removeNode(removed)
+    const made = Object.create(Object.getPrototypeOf(list.firstNode())) as LinkedListNode<number>
+    expect(made.value).toBeUndefined()
+    expect(made.next).toBeUndefined()
+    expect(made.previous).toBeUndefined()
+    const symbolled: Record<symbol, unknown> = {}
+    const first = list.firstNode() as object
+    for (const key of Object.getOwnPropertySymbols(first)) {
+      symbolled[key] = (first as Record<symbol, unknown>)[key]
+    }
+    const values: unknown[] = [other.firstNode(), removed, made, symbolled, {}, null, 1]
+    for (const value of values) {
+      for (const method of ['insertBefore', 'insertAfter', 'removeNode'] as const) {
+        expect(() =>
+          method === 'removeNode'
+            ? list.removeNode(value as LinkedListNode<number>)
+            : list[method](value as LinkedListNode<number>, 0),
+        ).toThrow(IllegalArgumentError)
+        expect(() =>
+          method === 'removeNode'
+            ? list.removeNode(value as LinkedListNode<number>)
+            : list[method](value as LinkedListNode<number>, 0),
+        ).toThrow(`LinkedList.${method}: node is not a node of this list`)
+      }
+    }
+    expect([...list]).toEqual([1, 2])
+  })
+
+  it('returns the same handle for an element from every method [044 S2-AC3]', () => {
+    const list = new LinkedList<number>()
+    const b = list.addLastNode(2)
+    const a = list.addFirstNode(1)
+    const c = list.insertAfter(b, 3)
+    const ab = list.insertBefore(b, 15)
+    expect(list.firstNode()).toBe(a)
+    expect(list.lastNode()).toBe(c)
+    expect(a.next).toBe(ab)
+    expect(ab.next).toBe(b)
+    expect(b.previous).toBe(ab)
+    expect(c.previous).toBe(b)
+    expect(b.next).toBe(c)
+    // Neighbours change; handles of the remaining elements stay the same objects.
+    list.removeNode(ab)
+    list.push(4)
+    list.addFirst(0)
+    expect(a.next).toBe(b)
+    expect(list.firstNode()?.next).toBe(a)
+    expect(list.lastNode()?.previous).toBe(c)
+    expect(list.firstNode()).toBe(list.firstNode())
+    expect(list.lastNode()).toBe(list.lastNode())
+  })
+
+  it('shows nothing of a handle state [044 S2-AC4]', () => {
+    const list = new LinkedList([1, 2])
+    const node = list.firstNode() as LinkedListNode<number>
+    expect(Object.keys(node)).toEqual([])
+    expect(Object.getOwnPropertyNames(node)).toEqual([])
+    expect(JSON.stringify(node)).toBe('{}')
+    expect({ ...node }).toEqual({})
+    expect(Object.prototype.toString.call(node)).toBe('[object LinkedListNode]')
+    expect(inspect(node)).toBe('LinkedListNode { value: 1 }')
+    list.removeNode(node)
+    expect(inspect(node)).toBe('LinkedListNode { value: 1 }')
+    expect(Object.keys(node)).toEqual([])
+  })
+})
+
 describe('LinkedList — large lists', () => {
   it('walks, prints, copies, filters and clears 200,000 elements without throwing [007 S4-AC2]', () => {
     const n = 200_000

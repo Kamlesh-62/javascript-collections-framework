@@ -19,7 +19,13 @@ import { isBranded, MAP_COLLECTION_BRAND, MAP_ENTRY_BRAND, SEQUENCED_MAP_BRAND }
 import { requireFunction } from '../checks'
 import type { EvictionQueue } from '../engines/eviction-queue'
 import { type HashEquality, normalise, Operation } from '../engines/hash-support'
-import type { LinkedHashTable, LinkedRecord } from '../engines/linked-hash-table'
+import {
+  LinkedEntryIterator,
+  type LinkedHashTable,
+  LinkedKeyIterator,
+  type LinkedRecord,
+  LinkedValueIterator,
+} from '../engines/linked-hash-table'
 import { MISSING } from '../engines/map-stores'
 import { equals, equalsSymbol, type HashFunction } from '../equality'
 import { apply } from '../intrinsics'
@@ -219,8 +225,29 @@ export abstract class AbstractLinkedMap<K, V>
     }
   }
 
+  /**
+   * Whether writes may take the plain path: lookups run no user code and no eviction queue has to
+   * wrap the write.
+   */
+  private get plainWrites(): boolean {
+    return this.table.plain && this.state.queue === undefined
+  }
+
+  /**
+   * `writeKey` on a plain table without an eviction queue: one native read, then at most one
+   * native write (plus one removal per evicted mapping). Runs no user code.
+   */
+  private writePlain(key: K, value: V): unknown {
+    const normalised = normalise(key)
+    const found = this.table.findPlain(normalised)
+    if (found !== undefined) return this.write(found, value)
+    this.insert(normalised, normalised, value, this.fromBack)
+    return MISSING
+  }
+
   /** Maps `key` to `value`; returns the previous value, or `MISSING` when the key was absent. */
   writeKey(key: K, value: V, where: string): unknown {
+    if (this.plainWrites) return this.writePlain(key, value)
     const op = this.operation(where)
     const normalised = normalise(key)
     const table = this.table
@@ -266,11 +293,33 @@ export abstract class AbstractLinkedMap<K, V>
     return this.call(() => this.lookup(normalise(key), this.at('has')) !== undefined)
   }
 
+  // ── Iterating ──
+
+  override keys(): IterableIterator<K> {
+    return new LinkedKeyIterator(this.table.iterator(this.fromBack))
+  }
+
+  override values(): IterableIterator<V> {
+    return new LinkedValueIterator(this.table.iterator(this.fromBack))
+  }
+
+  override entries(): IterableIterator<[K, V]> {
+    return new LinkedEntryIterator(this.table.iterator(this.fromBack))
+  }
+
   override forEach(
     action: (value: V, key: K, map: MapCollection<K, V>) => void,
     thisArg?: unknown,
   ): void {
-    this.call(() => super.forEach(action, thisArg))
+    this.call(() => {
+      requireFunction(action, this.at('forEach'), 'action')
+      const owner = this.owner
+      const records = this.table.iterator(this.fromBack)
+      for (let step = records.next(); step.done !== true; step = records.next()) {
+        const record = step.value
+        apply(action, thisArg, [record.value, record.key, owner])
+      }
+    })
   }
 
   override equals(other: unknown): boolean {
@@ -284,12 +333,15 @@ export abstract class AbstractLinkedMap<K, V>
   // ── Writing ──
 
   set(key: K, value: V): this {
-    this.call(() => this.writeKey(key, value, this.at('set')))
+    if (this.plainWrites) this.writePlain(key, value)
+    else this.call(() => this.writeKey(key, value, this.at('set')))
     return this
   }
 
   put(key: K, value: V): V | undefined {
-    const old = this.call(() => this.writeKey(key, value, this.at('put')))
+    const old = this.plainWrites
+      ? this.writePlain(key, value)
+      : this.call(() => this.writeKey(key, value, this.at('put')))
     return old === MISSING ? undefined : (old as V)
   }
 

@@ -94,23 +94,48 @@ export abstract class AbstractLinkedSet<E> extends AbstractSet<E> implements Seq
     return false
   }
 
+  /**
+   * `place` on a plain table: one native read, then at most one native write. Runs no user code,
+   * so no operation is needed.
+   */
+  private placePlain(element: E, ownFront: boolean, move: boolean): boolean {
+    const value = normalise(element)
+    const table = this.table
+    const found = table.findPlain(value)
+    const front = ownFront !== this.fromBack
+    if (found === undefined) {
+      table.insert(value, value, undefined, front)
+      this.changes.structural()
+      return true
+    }
+    if (move && table.move(found, front)) this.changes.structural()
+    return false
+  }
+
   add(element: E): this {
-    this.place(element, this.operation('add'), false, false)
+    if (this.table.plain) this.placePlain(element, false, false)
+    else this.place(element, this.operation('add'), false, false)
     return this
   }
 
   addFirst(element: E): this {
-    this.place(element, this.operation('addFirst'), true, true)
+    if (this.table.plain) this.placePlain(element, true, true)
+    else this.place(element, this.operation('addFirst'), true, true)
     return this
   }
 
   addLast(element: E): this {
-    this.place(element, this.operation('addLast'), false, true)
+    if (this.table.plain) this.placePlain(element, false, true)
+    else this.place(element, this.operation('addLast'), false, true)
     return this
   }
 
   /** Adds each element of `elements` at the back, in order, naming `where` in errors. */
   addInitial(elements: Iterable<E>, where: string): void {
+    if (this.table.plain) {
+      for (const element of elements) this.placePlain(element, false, false)
+      return
+    }
     for (const element of elements) {
       this.place(element, new Operation(this.changes, where), false, false)
     }
@@ -118,9 +143,16 @@ export abstract class AbstractLinkedSet<E> extends AbstractSet<E> implements Seq
 
   override addAll(elements: Iterable<E>): boolean {
     const items = this.readAll(elements, 'addAll')
+    const plain = this.table.plain
     let added = false
     for (const item of items) {
-      if (this.place(item, this.operation('addAll'), false, false)) added = true
+      if (
+        plain
+          ? this.placePlain(item, false, false)
+          : this.place(item, this.operation('addAll'), false, false)
+      ) {
+        added = true
+      }
     }
     return added
   }
@@ -161,7 +193,10 @@ export abstract class AbstractLinkedSet<E> extends AbstractSet<E> implements Seq
   }
 
   private deleteElement(element: E, method: string): boolean {
-    const record = this.findRecord(normalise(element), this.operation(method))
+    const table = this.table
+    const record = table.plain
+      ? table.findPlain(normalise(element))
+      : this.findRecord(normalise(element), this.operation(method))
     if (record === undefined) return false
     this.removeRecord(record)
     return true

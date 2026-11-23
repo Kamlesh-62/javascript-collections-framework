@@ -423,3 +423,191 @@ describe('natural order of numbers and strings', () => {
     expect(Object.getOwnPropertySymbols(Number.prototype)).not.toContain(compareSymbol)
   })
 })
+
+describe('writes to a default LinkedHashMap', () => {
+  const pairs = (): Array<[number, number]> => [
+    [1, 10],
+    [2, 20],
+    [3, 30],
+  ]
+
+  it('make one native call for a present key and two for a new one, in insertion order [044 S3-AC1]', () => {
+    for (const reversed of [false, true]) {
+      const map = new LinkedHashMap(pairs())
+      const target = reversed ? map.reversed() : map
+      expect(nativeCalls(() => target.set(2, 5))).toBe(1)
+      expect(nativeCalls(() => target.put(1, 6))).toBe(1)
+      expect(nativeCalls(() => target.set(4, 40))).toBe(2)
+      expect(nativeCalls(() => target.put(5, 50))).toBe(2)
+      expect(map.get(2)).toBe(5)
+      expect(map.get(1)).toBe(6)
+      expect([...map.keys()]).toEqual(reversed ? [5, 4, 1, 2, 3] : [1, 2, 3, 4, 5])
+    }
+  })
+
+  it('make two native calls for a present key that is not last in access order, one when last [044 S3-AC1]', () => {
+    const map = new LinkedHashMap(pairs(), { accessOrder: true })
+    expect(nativeCalls(() => map.set(1, 11))).toBe(2)
+    expect(nativeCalls(() => map.set(1, 12))).toBe(1)
+    expect(nativeCalls(() => map.put(2, 21))).toBe(2)
+    expect(nativeCalls(() => map.put(2, 22))).toBe(1)
+    expect(nativeCalls(() => map.set(4, 40))).toBe(2)
+    expect([...map]).toEqual([
+      [3, 30],
+      [1, 12],
+      [2, 22],
+      [4, 40],
+    ])
+  })
+
+  it('add one delete per mapping maxSize evicts, with and without onEvict [044 S3-AC1]', () => {
+    for (const withCallback of [false, true]) {
+      const evicted: number[] = []
+      const map = new LinkedHashMap<number, number>({
+        maxSize: 2,
+        onEvict: withCallback ? (_value, key) => evicted.push(key) : undefined,
+      })
+      map.set(1, 10).set(2, 20)
+      expect(nativeCalls(() => map.set(3, 30))).toBe(3)
+      expect(nativeCalls(() => map.put(4, 40))).toBe(3)
+      expect(nativeCalls(() => map.set(4, 41))).toBe(1)
+      expect([...map.keys()]).toEqual([3, 4])
+      expect(evicted).toEqual(withCallback ? [1, 2] : [])
+    }
+  })
+
+  it('make the same calls per element when built or given putAll [044 S3-AC2]', () => {
+    // Four new keys and one repeated: 4 × 2 + 1.
+    const input: Array<[number, number]> = [
+      [1, 10],
+      [2, 20],
+      [1, 11],
+      [3, 30],
+      [4, 40],
+    ]
+    expect(nativeCalls(() => new LinkedHashMap(input))).toBe(9)
+    expect(nativeCalls(() => LinkedHashMap.from(input))).toBe(9)
+    const map = new LinkedHashMap<number, number>([[1, 0]])
+    // One present key, three new keys and one repeated new key: 1 + 3 × 2 + 1.
+    expect(nativeCalls(() => map.putAll(input))).toBe(8)
+    expect([...map]).toEqual([
+      [1, 11],
+      [2, 20],
+      [3, 30],
+      [4, 40],
+    ])
+  })
+})
+
+describe('writes to a default LinkedHashSet', () => {
+  it('make two native calls for an added element and one for a member [044 S3-AC4]', () => {
+    for (const reversed of [false, true]) {
+      const set = new LinkedHashSet([1, 2, 3])
+      const target = reversed ? set.reversed() : set
+      expect(nativeCalls(() => target.add(4))).toBe(2)
+      expect(nativeCalls(() => target.add(2))).toBe(1)
+      expect([...set]).toEqual(reversed ? [4, 1, 2, 3] : [1, 2, 3, 4])
+    }
+  })
+
+  it('make two native calls for addFirst and addLast that move a member, one when it is already there [044 S3-AC4]', () => {
+    const set = new LinkedHashSet([1, 2, 3])
+    expect(nativeCalls(() => set.addFirst(2))).toBe(2)
+    expect(nativeCalls(() => set.addFirst(2))).toBe(1)
+    expect(nativeCalls(() => set.addLast(2))).toBe(2)
+    expect(nativeCalls(() => set.addLast(2))).toBe(1)
+    expect(nativeCalls(() => set.addFirst(0))).toBe(2)
+    expect(nativeCalls(() => set.addLast(9))).toBe(2)
+    expect([...set]).toEqual([0, 1, 3, 2, 9])
+  })
+
+  it('make two native calls for a delete of a member and one for a non-member [044 S3-AC4]', () => {
+    const set = new LinkedHashSet([1, 2, 3])
+    expect(nativeCalls(() => set.delete(2))).toBe(2)
+    expect(nativeCalls(() => set.delete(2))).toBe(1)
+    expect(nativeCalls(() => set.delete(7))).toBe(1)
+    expect([...set]).toEqual([1, 3])
+  })
+
+  it('make the same calls per element when built or given addAll [044 S3-AC2]', () => {
+    // Four new elements and one repeated: 4 × 2 + 1.
+    const input = [1, 2, 1, 3, 4]
+    expect(nativeCalls(() => new LinkedHashSet(input))).toBe(9)
+    expect(nativeCalls(() => LinkedHashSet.from(input))).toBe(9)
+    const set = new LinkedHashSet([1])
+    // One member, three new elements and one repeated: 1 + 3 × 2 + 1.
+    expect(nativeCalls(() => set.addAll(input))).toBe(8)
+    expect([...set]).toEqual([1, 2, 3, 4])
+  })
+})
+
+describe('building a default HashMap or HashSet', () => {
+  /** Calls per native method name during `work`. */
+  function callsByName(work: () => void): Record<string, number> {
+    const counts: Record<string, number> = {}
+    const saved: Array<[object, string, unknown]> = []
+    const wrap = (proto: object, prefix: string, names: readonly string[]) => {
+      for (const name of names) {
+        const original = Reflect.get(proto, name) as (...args: unknown[]) => unknown
+        saved.push([proto, name, original])
+        Reflect.set(proto, name, function (this: unknown, ...args: unknown[]) {
+          const label = `${prefix}.${name}`
+          counts[label] = (counts[label] || 0) + 1
+          return Reflect.apply(original, this, args)
+        })
+      }
+    }
+    wrap(Map.prototype, 'Map', MAP_METHODS)
+    wrap(Set.prototype, 'Set', SET_METHODS)
+    try {
+      work()
+    } finally {
+      for (const [proto, name, original] of saved) Reflect.set(proto, name, original)
+    }
+    return counts
+  }
+
+  const pairs: Array<[number, number | undefined]> = [
+    [1, 10],
+    [-0, undefined],
+    [1, 11],
+    [Number.NaN, 30],
+  ]
+
+  it('sets each pair with one native set and no get or has, for the constructor, from and putAll [044 S5-AC1]', () => {
+    expect(callsByName(() => new HashMap(pairs))).toEqual({ 'Map.set': 4 })
+    expect(callsByName(() => HashMap.from(pairs))).toEqual({ 'Map.set': 4 })
+    const map = new HashMap<number, number | undefined>([[2, 20]])
+    expect(callsByName(() => map.putAll(pairs))).toEqual({ 'Map.set': 4 })
+    // A repeated key keeps the first key and the last value; undefined values are stored.
+    const built = new HashMap(pairs)
+    expect([...built]).toEqual([
+      [1, 11],
+      [0, undefined],
+      [Number.NaN, 30],
+    ])
+    expect(built.has(0)).toBe(true)
+    expect(built.revision).toBe(new HashMap(pairs).revision)
+  })
+
+  it('counts revisions as one change per pair, new or repeated [044 S5-AC1]', () => {
+    const map = new HashMap<number, number | undefined>()
+    const start = map.revision
+    map.putAll(pairs)
+    const viaSet = new HashMap<number, number | undefined>()
+    for (const [key, value] of pairs) viaSet.set(key, value)
+    expect(map.revision - start).toBe(viaSet.revision - start)
+    expect([...map]).toEqual([...viaSet])
+  })
+
+  it('adds each element with one native add and no has [044 S5-AC2]', () => {
+    const elements = [1, -0, 1, Number.NaN, 0, 'a']
+    expect(callsByName(() => new HashSet(elements))).toEqual({ 'Set.add': 6 })
+    expect(callsByName(() => HashSet.from(elements))).toEqual({ 'Set.add': 6 })
+    const set = new HashSet(elements)
+    expect([...set]).toEqual([1, 0, Number.NaN, 'a'])
+    const viaAdd = new HashSet<unknown>()
+    for (const element of elements) viaAdd.add(element)
+    expect(set.revision).toBe(viaAdd.revision)
+  })
+})

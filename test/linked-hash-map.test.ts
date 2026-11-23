@@ -1828,3 +1828,256 @@ describe('LinkedHashMap — reference model against an array of mappings', () =>
     }
   }
 })
+
+describe('LinkedHashMap — iteration while the map changes', () => {
+  const start = (accessOrder: boolean) =>
+    new LinkedHashMap<string, number>(
+      [
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+        ['d', 4],
+        ['e', 5],
+      ],
+      { accessOrder },
+    )
+  const CHANGES: Record<string, (map: LinkedHashMap<string, number>) => void> = {
+    'set present': (m) => m.set('d', 40),
+    'set new': (m) => m.set('f', 6),
+    'get visited': (m) => m.get('a'),
+    'get unvisited': (m) => m.get('d'),
+    'delete ahead': (m) => m.delete('d'),
+    'delete behind': (m) => m.delete('a'),
+    putFirst: (m) => m.putFirst('d', 40),
+    putLast: (m) => m.putLast('b', 20),
+    're-add': (m) => {
+      m.delete('c')
+      m.set('c', 30)
+    },
+  }
+  // The change runs once, after the second step. Each sequence is `key=value` per step.
+  const EXPECTED: Array<[string, 'insertion' | 'access', 'forwards' | 'reversed', string]> = [
+    ['set present', 'insertion', 'forwards', 'a=1 b=2 c=3 d=40 e=5'],
+    ['set present', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['set present', 'access', 'forwards', 'a=1 b=2 c=3 e=5 d=40'],
+    ['set present', 'access', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['set new', 'insertion', 'forwards', 'a=1 b=2 c=3 d=4 e=5 f=6'],
+    ['set new', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['set new', 'access', 'forwards', 'a=1 b=2 c=3 d=4 e=5 f=6'],
+    ['set new', 'access', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['get visited', 'insertion', 'forwards', 'a=1 b=2 c=3 d=4 e=5'],
+    ['get visited', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['get visited', 'access', 'forwards', 'a=1 b=2 c=3 d=4 e=5'],
+    ['get visited', 'access', 'reversed', 'e=5 d=4 c=3 b=2'],
+    ['get unvisited', 'insertion', 'forwards', 'a=1 b=2 c=3 d=4 e=5'],
+    ['get unvisited', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['get unvisited', 'access', 'forwards', 'a=1 b=2 c=3 e=5 d=4'],
+    ['get unvisited', 'access', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['delete ahead', 'insertion', 'forwards', 'a=1 b=2 c=3 e=5'],
+    ['delete ahead', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['delete ahead', 'access', 'forwards', 'a=1 b=2 c=3 e=5'],
+    ['delete ahead', 'access', 'reversed', 'e=5 d=4 c=3 b=2 a=1'],
+    ['delete behind', 'insertion', 'forwards', 'a=1 b=2 c=3 d=4 e=5'],
+    ['delete behind', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2'],
+    ['delete behind', 'access', 'forwards', 'a=1 b=2 c=3 d=4 e=5'],
+    ['delete behind', 'access', 'reversed', 'e=5 d=4 c=3 b=2'],
+    ['putFirst', 'insertion', 'forwards', 'a=1 b=2 c=3 e=5'],
+    ['putFirst', 'insertion', 'reversed', 'e=5 d=4 c=3 b=2 a=1 d=40'],
+    ['putFirst', 'access', 'forwards', 'a=1 b=2 c=3 e=5'],
+    ['putFirst', 'access', 'reversed', 'e=5 d=4 c=3 b=2 a=1 d=40'],
+    ['putLast', 'insertion', 'forwards', 'a=1 b=2 c=3 d=4 e=5 b=20'],
+    ['putLast', 'insertion', 'reversed', 'e=5 d=4 c=3 a=1'],
+    ['putLast', 'access', 'forwards', 'a=1 b=2 c=3 d=4 e=5 b=20'],
+    ['putLast', 'access', 'reversed', 'e=5 d=4 c=3 a=1'],
+    ['re-add', 'insertion', 'forwards', 'a=1 b=2 d=4 e=5 c=30'],
+    ['re-add', 'insertion', 'reversed', 'e=5 d=4 b=2 a=1'],
+    ['re-add', 'access', 'forwards', 'a=1 b=2 d=4 e=5 c=30'],
+    ['re-add', 'access', 'reversed', 'e=5 d=4 b=2 a=1'],
+  ]
+
+  it.each(EXPECTED)(
+    'yields the same sequence through for…of, keys, values, entries and forEach after %s (%s order, %s) [044 S4-AC1]',
+    (change, order, direction, expected) => {
+      const steps = expected.split(' ')
+      const walk = (
+        visit: (source: SequencedMap<string, number>, step: (s: string) => void) => void,
+      ) => {
+        const map = start(order === 'access')
+        const source = direction === 'reversed' ? map.reversed() : map
+        const seen: string[] = []
+        visit(source, (s) => {
+          seen.push(s)
+          if (seen.length === 2) CHANGES[change]?.(map)
+        })
+        return seen
+      }
+      const arrays: unknown[] = []
+      const pair = (entry: [string, number], step: (s: string) => void) => {
+        arrays.push(entry)
+        step(`${entry[0]}=${entry[1]}`)
+      }
+      expect(
+        walk((s, step) => {
+          for (const e of s) pair(e, step)
+        }),
+      ).toEqual(steps)
+      expect(
+        walk((s, step) => {
+          for (const e of s.entries()) pair(e, step)
+        }),
+      ).toEqual(steps)
+      expect(
+        walk((s, step) =>
+          s.forEach((v, k) => {
+            step(`${k}=${v}`)
+          }),
+        ),
+      ).toEqual(steps)
+      expect(
+        walk((s, step) => {
+          for (const k of s.keys()) step(k)
+        }),
+      ).toEqual(steps.map((x) => x.split('=')[0]))
+      expect(
+        walk((s, step) => {
+          for (const v of s.values()) step(String(v))
+        }),
+      ).toEqual(steps.map((x) => x.split('=')[1]))
+      // Every entry of for…of and entries() is a fresh [key, value] array.
+      expect(arrays.every((e) => Array.isArray(e) && e.length === 2)).toBe(true)
+      expect(new Set(arrays).size).toBe(arrays.length)
+    },
+  )
+})
+
+describe('LinkedHashMap — writes in access order, eviction and revisions', () => {
+  const WRITES: Array<[string, (m: LinkedHashMap<string, number>) => unknown]> = [
+    ['set new', (m) => m.set('d', 4)],
+    ['set present, same value', (m) => m.set('a', 1)],
+    ['set present, new value', (m) => m.set('a', 10)],
+    ['set the last key', (m) => m.set('d', 40)],
+    ['put present', (m) => m.put('b', 20)],
+    ['put new', (m) => m.put('e', 5)],
+    ['get present', (m) => m.get('c')],
+    ['get the last key', (m) => m.get('c')],
+    ['get absent', (m) => m.get('x')],
+    ['putFirst present', (m) => m.putFirst('d', 41)],
+    ['putLast present', (m) => m.putLast('a', 11)],
+    ['delete present', (m) => m.delete('b')],
+    ['delete absent', (m) => m.delete('x')],
+  ]
+  // Per write: the revision's change and the key order after it.
+  const AFTER: Record<'insertion' | 'access', Array<[number, string]>> = {
+    insertion: [
+      [1, 'abcd'],
+      [1, 'abcd'],
+      [1, 'abcd'],
+      [1, 'abcd'],
+      [1, 'abcd'],
+      [1, 'abcde'],
+      [0, 'abcde'],
+      [0, 'abcde'],
+      [0, 'abcde'],
+      [1, 'dabce'],
+      [1, 'dbcea'],
+      [1, 'dcea'],
+      [0, 'dcea'],
+    ],
+    access: [
+      [1, 'abcd'],
+      [2, 'bcda'],
+      [1, 'bcda'],
+      [2, 'bcad'],
+      [2, 'cadb'],
+      [1, 'cadbe'],
+      [1, 'adbec'],
+      [0, 'adbec'],
+      [0, 'adbec'],
+      [1, 'dabec'],
+      [1, 'dbeca'],
+      [1, 'deca'],
+      [0, 'deca'],
+    ],
+  }
+
+  it.each(['insertion', 'access'] as const)(
+    'moves written keys and counts revisions per write as before, in %s order [044 S3-AC3]',
+    (order) => {
+      const map = new LinkedHashMap(
+        [
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ],
+        { accessOrder: order === 'access' },
+      )
+      const seen = WRITES.map(([, write]): [number, string] => {
+        const revision = map.revision
+        write(map)
+        return [map.revision - revision, [...map.keys()].join('')]
+      })
+      expect(seen).toEqual(AFTER[order])
+    },
+  )
+
+  const BOUNDED: Record<'insertion' | 'access', string[]> = {
+    insertion: [
+      'a=1 b=2 c=3 (+0)',
+      'a=1 b=20 c=3 (+1)',
+      'b=20 c=3 d=4 (+2)',
+      'c=3 d=4 e=5 (+2)',
+      'f=6 d=4 e=5 (+2)',
+      'd=4 e=5 g=7 (+2)',
+    ],
+    access: [
+      'b=2 c=3 a=1 (+1)',
+      'c=3 a=1 b=20 (+2)',
+      'a=1 b=20 d=4 (+2)',
+      'b=20 d=4 e=5 (+2)',
+      'f=6 d=4 e=5 (+2)',
+      'd=4 e=5 g=7 (+2)',
+    ],
+  }
+  const EVICTED: Record<'insertion' | 'access', string[]> = {
+    insertion: ['a=1', 'b=20', 'c=3', 'f=6'],
+    access: ['c=3', 'a=1', 'b=20', 'f=6'],
+  }
+
+  it.each([
+    ['insertion', false],
+    ['insertion', true],
+    ['access', false],
+    ['access', true],
+  ] as const)(
+    'evicts after an insert past maxSize as before, in %s order (onEvict given: %s) [044 S3-AC3]',
+    (order, withEvict) => {
+      const evicted: string[] = []
+      const map = new LinkedHashMap(
+        [
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ],
+        {
+          accessOrder: order === 'access',
+          maxSize: 3,
+          ...(withEvict ? { onEvict: (v: number, k: string) => evicted.push(`${k}=${v}`) } : {}),
+        },
+      )
+      const seen = [
+        (m: LinkedHashMap<string, number>) => m.get('a'),
+        (m: LinkedHashMap<string, number>) => m.set('b', 20),
+        (m: LinkedHashMap<string, number>) => m.set('d', 4),
+        (m: LinkedHashMap<string, number>) => m.put('e', 5),
+        (m: LinkedHashMap<string, number>) => m.putFirst('f', 6),
+        (m: LinkedHashMap<string, number>) => m.putLast('g', 7),
+      ].map((write) => {
+        const revision = map.revision
+        write(map)
+        return `${[...map].map(([k, v]) => `${k}=${v}`).join(' ')} (+${map.revision - revision})`
+      })
+      expect(seen).toEqual(BOUNDED[order])
+      expect(evicted).toEqual(withEvict ? EVICTED[order] : [])
+    },
+  )
+})

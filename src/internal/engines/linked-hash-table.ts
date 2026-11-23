@@ -344,7 +344,8 @@ export class LinkedRecordIterator<K, V>
     this.epoch = table.epoch
   }
 
-  // Returns a fresh result object every step: `LinkedKeyIterator` rewrites its `value` in place.
+  // Returns a fresh result object every step: `LinkedKeyIterator`, `LinkedValueIterator` and
+  // `LinkedEntryIterator` rewrite its `value` in place.
   next(): IteratorResult<LinkedRecord<K, V>> {
     if (this.finished) return done()
     const table = this.table
@@ -394,8 +395,10 @@ export class LinkedRecordIterator<K, V>
 /**
  * The keys of a `LinkedRecordIterator`: each step's result object is fresh, so its value is
  * replaced by the record's key instead of building another result.
+ *
+ * @internal
  */
-class LinkedKeyIterator<K, V> extends IteratorBase implements IterableIterator<K> {
+export class LinkedKeyIterator<K, V> extends IteratorBase implements IterableIterator<K> {
   private readonly records: LinkedRecordIterator<K, V>
 
   constructor(records: LinkedRecordIterator<K, V>) {
@@ -407,6 +410,59 @@ class LinkedKeyIterator<K, V> extends IteratorBase implements IterableIterator<K
     const step = this.records.next() as IteratorResult<unknown>
     if (step.done !== true) step.value = (step.value as LinkedRecord<K, V>).key
     return step as IteratorResult<K>
+  }
+
+  [Symbol.iterator](): this {
+    return this
+  }
+}
+
+/**
+ * The values of a `LinkedRecordIterator`, read when each step is taken; the step's fresh result
+ * object is reused.
+ *
+ * @internal
+ */
+export class LinkedValueIterator<K, V> extends IteratorBase implements IterableIterator<V> {
+  private readonly records: LinkedRecordIterator<K, V>
+
+  constructor(records: LinkedRecordIterator<K, V>) {
+    super()
+    this.records = records
+  }
+
+  next(): IteratorResult<V> {
+    const step = this.records.next() as IteratorResult<unknown>
+    if (step.done !== true) step.value = (step.value as LinkedRecord<K, V>).value
+    return step as IteratorResult<V>
+  }
+
+  [Symbol.iterator](): this {
+    return this
+  }
+}
+
+/**
+ * The entries of a `LinkedRecordIterator`, each a fresh `[key, value]` array read when the step is
+ * taken; the step's fresh result object is reused.
+ *
+ * @internal
+ */
+export class LinkedEntryIterator<K, V> extends IteratorBase implements IterableIterator<[K, V]> {
+  private readonly records: LinkedRecordIterator<K, V>
+
+  constructor(records: LinkedRecordIterator<K, V>) {
+    super()
+    this.records = records
+  }
+
+  next(): IteratorResult<[K, V]> {
+    const step = this.records.next() as IteratorResult<unknown>
+    if (step.done !== true) {
+      const record = step.value as LinkedRecord<K, V>
+      step.value = [record.key, record.value]
+    }
+    return step as IteratorResult<[K, V]>
   }
 
   [Symbol.iterator](): this {

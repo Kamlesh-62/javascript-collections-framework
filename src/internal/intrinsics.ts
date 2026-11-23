@@ -117,3 +117,17 @@ export const isFrozen: (value: object) => boolean = /*#__PURE__*/ (() => Object.
 
 /** `Object.isExtensible`. @internal */
 export const isExtensible: (value: object) => boolean = /*#__PURE__*/ (() => Object.isExtensible)()
+
+/**
+ * `Array.from`, bound to the `Array` constructor captured at load, so it always makes a plain array
+ * (and takes the engine's fast path for arrays, which an unbound call misses). With `mapFn`, calls
+ * it as `Array.from` does: `(element, index)` with `this` set to `thisArg`. @internal
+ */
+export const arrayFrom: <T, U = T>(
+  items: Iterable<T>,
+  mapFn?: (element: T, index: number) => U,
+  thisArg?: unknown,
+) => U[] = /*#__PURE__*/ (() => {
+  const ArrayConstructor = Array
+  return ArrayConstructor.from.bind(ArrayConstructor)
+})() as never

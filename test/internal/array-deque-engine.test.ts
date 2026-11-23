@@ -113,7 +113,7 @@ describe('ArrayDequeEngine', () => {
     expect(reversedClear.revision).toBe(revision)
   })
 
-  it('refuses to grow past its maximum and changes nothing [008 S6-AC8]', () => {
+  it('refuses to grow past its maximum and changes nothing [008 S6-AC8] [044 S5-AC4]', () => {
     const deque = engine(16)
     for (let i = 0; i < 16; i++) deque.add(i)
     const revision = deque.revision
@@ -147,7 +147,7 @@ describe('ArrayDequeEngine', () => {
     expect(deque.size).toBe(16)
   })
 
-  it('grows by building the new buffer before switching to it, keeping the order', () => {
+  it('grows in place, keeping the order and a full-size buffer [044 S5-AC4]', () => {
     const deque = engine()
     for (let i = 0; i < 5; i++) deque.add(i)
     for (let i = 0; i < 3; i++) deque.poll()

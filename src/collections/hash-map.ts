@@ -142,7 +142,7 @@ export class HashMap<K, V> implements MapCollection<K, V> {
     }
     this.engine = new HashMapEngine<K, V>(this, readEquality<K>(given, 'HashMap'))
     if (pairs !== undefined) {
-      for (const pair of pairs) this.engine.setValue(pair[0], pair[1], 'HashMap')
+      for (const pair of pairs) this.engine.setKey(pair[0], pair[1], 'HashMap')
     }
   }
 
@@ -170,7 +170,7 @@ export class HashMap<K, V> implements MapCollection<K, V> {
     const pairs = readPairs<K, V>(entries, 'HashMap.from')
     const map = new HashMap<K, V>()
     map.engine = new HashMapEngine<K, V>(map, readEquality<K>(options, 'HashMap.from'))
-    for (const pair of pairs) map.engine.setValue(pair[0], pair[1], 'HashMap.from')
+    for (const pair of pairs) map.engine.setKey(pair[0], pair[1], 'HashMap.from')
     return map
   }
 

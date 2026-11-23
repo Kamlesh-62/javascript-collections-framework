@@ -65,6 +65,18 @@ describe('ArrayList — read by index', () => {
     expect(() => new ArrayList().get(0)).toThrow(IndexOutOfBoundsError)
   })
 
+  it('get rejects a fractional, negative, NaN, infinite or out-of-range index with the same message [044 S7-AC1]', () => {
+    const list = new ArrayList([1, 2, 3])
+    for (const index of [1.5, -1, Number.NaN, Number.POSITIVE_INFINITY, 3, 2 ** 53]) {
+      const error = caught(() => list.get(index))
+      expect(error, String(index)).toBeInstanceOf(IndexOutOfBoundsError)
+      expect((error as Error).message).toBe(
+        `ArrayList.get: index ${String(index)} is out of bounds for size 3`,
+      )
+    }
+    expect(list.get(2)).toBe(3)
+  })
+
   it('indexOf returns the lowest SameValueZero match or -1 [006 S1-AC3]', () => {
     const list = new ArrayList<unknown>([1, Number.NaN, 0, 1, Number.NaN])
     expect(list.indexOf(1)).toBe(0)
@@ -741,6 +753,133 @@ describe('ArrayList — construct and copy', () => {
     expect(() => ArrayList.from(tracking, 5 as never)).toThrow(TypeError)
     expect(read).toBe(false)
     expect(ArrayList.from([1], undefined as never).toArray()).toEqual([1])
+  })
+})
+
+describe('ArrayList — building from an iterable', () => {
+  it('holds its own copy of the elements, in order [044 S5-AC3]', () => {
+    const source = [1, 2, 3]
+    const built = new ArrayList(source)
+    const fromSource = ArrayList.from(source)
+    const mapped = ArrayList.from(source, (n) => n)
+    source.push(4)
+    source[0] = 9
+    for (const list of [built, fromSource, mapped]) {
+      expect(list.toArray()).toEqual([1, 2, 3])
+      list.add(5)
+      expect(source).toEqual([9, 2, 3, 4])
+    }
+  })
+
+  it('reads each hole of a sparse array as undefined [044 S5-AC3]', () => {
+    // biome-ignore lint/suspicious/noSparseArray: a sparse array is the input under test
+    const sparse = [1, , 3, ,] as Array<number | undefined>
+    for (const list of [new ArrayList(sparse), ArrayList.from(sparse)]) {
+      expect(list.size).toBe(4)
+      expect(list.toArray()).toEqual([1, undefined, 3, undefined])
+      expect(Object.keys(list.toArray())).toEqual(['0', '1', '2', '3'])
+      expect(list.get(1)).toBe(undefined)
+    }
+    expect(ArrayList.from(sparse, (v, i) => [v, i]).toArray()).toEqual([
+      [1, 0],
+      [undefined, 1],
+      [3, 2],
+      [undefined, 3],
+    ])
+  })
+
+  it('reads a Set, a Map, a string and a custom iterable in iteration order [044 S5-AC3]', () => {
+    let steps = 0
+    const custom = {
+      [Symbol.iterator](): Iterator<number> {
+        let n = 0
+        return {
+          next: () => {
+            steps++
+            return n < 3 ? { value: n++ * 2, done: false } : { value: undefined, done: true }
+          },
+        }
+      },
+    }
+    expect(new ArrayList(custom).toArray()).toEqual([0, 2, 4])
+    expect(steps).toBe(4)
+    expect(ArrayList.from(custom).toArray()).toEqual([0, 2, 4])
+    expect(new ArrayList(new Set(['b', 'a'])).toArray()).toEqual(['b', 'a'])
+    expect(ArrayList.from(new Map([['k', 1]])).toArray()).toEqual([['k', 1]])
+    expect(new ArrayList('a\u{1F600}b').toArray()).toEqual(['a', '\u{1F600}', 'b'])
+  })
+
+  it('rejects array-likes with the same TypeError, with or without mapFn [044 S5-AC3]', () => {
+    const arrayLike = { length: 2, 0: 'a', 1: 'b' }
+    for (const [build, message] of [
+      [() => new ArrayList(arrayLike as never), 'ArrayList: elements is not iterable (object)'],
+      [
+        () => ArrayList.from(arrayLike as never),
+        'ArrayList.from: elements is not iterable (object)',
+      ],
+      [
+        () => ArrayList.from(arrayLike as never, (x: unknown) => x),
+        'ArrayList.from: elements is not iterable (object)',
+      ],
+    ] as const) {
+      const error = caught(build)
+      expect(error).toBeInstanceOf(TypeError)
+      expect((error as Error).message).toBe(message)
+    }
+    const error = caught(() => ArrayList.from([1], 'f' as never))
+    expect(error).toBeInstanceOf(TypeError)
+  })
+
+  it('from calls mapFn once per element with (element, index) and thisArg [044 S5-AC3]', () => {
+    const receiver = { calls: [] as unknown[][] }
+    const list = ArrayList.from(
+      new Set(['x', 'y', 'z']),
+      function (this: typeof receiver, ...args: unknown[]) {
+        this.calls.push(args)
+        return `${String(args[0])}${String(args[1])}`
+      },
+      receiver,
+    )
+    expect(list.toArray()).toEqual(['x0', 'y1', 'z2'])
+    expect(receiver.calls).toEqual([
+      ['x', 0],
+      ['y', 1],
+      ['z', 2],
+    ])
+    let seen: unknown = 'unset'
+    ArrayList.from([1], function (this: unknown) {
+      seen = this
+    })
+    expect(seen).toBe(undefined)
+    const source = [1, 2]
+    expect(
+      ArrayList.from(source, (n) => {
+        if (source.length < 4) source.push(n + 10)
+        return n
+      }).toArray(),
+    ).toEqual([1, 2, 11, 12])
+  })
+
+  it('closes the source iterator when mapFn throws, and returns no list [044 S5-AC3]', () => {
+    let closed = 0
+    const source = {
+      [Symbol.iterator](): Iterator<number> {
+        return {
+          next: () => ({ value: 1, done: false }),
+          return: () => {
+            closed++
+            return { value: undefined, done: true }
+          },
+        }
+      },
+    }
+    const failure = new Error('stop')
+    expect(() =>
+      ArrayList.from(source, () => {
+        throw failure
+      }),
+    ).toThrow(failure)
+    expect(closed).toBe(1)
   })
 })
 

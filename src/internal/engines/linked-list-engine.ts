@@ -1,62 +1,99 @@
-// The engine behind `LinkedList`: a doubly linked list whose nodes are also the public handles.
-// The public class holds one engine and delegates to it, so nothing here reaches the published
-// types except through the `LinkedListNode` interface.
+// The engine behind `LinkedList`: a doubly linked list of internal nodes with plain fields. A
+// node is handed out only through a `NodeHandle`, made the first time the node is returned and then
+// reused. The public class holds one engine and delegates to it, so nothing here reaches the
+// published types except through the `LinkedListNode` interface.
 
 import { IllegalArgumentError, IllegalStateError } from '../../errors/errors'
 import type { LinkedListNode } from '../../interfaces/linked-list-node'
 import type { Deque } from '../../interfaces/queue'
 import { describeValue } from '../checks'
+import { defineProperty } from '../intrinsics'
 import { INSPECT } from '../output'
 import { AbstractDeque, type DequeWalker } from '../skeletons/abstract-deque'
 import { ReversedDeque } from '../views/reversed-deque'
 
-// Module-local keys for a node's state. They are not registered symbols, so no other code can name
-// them, and the properties are non-enumerable, so `Object.keys`, `JSON.stringify`, `for…in` and
-// spread never show the links or the list. Reflection (`Object.getOwnPropertySymbols`) still sees
-// them; they are hidden, not protected.
-const ITEM: unique symbol = Symbol('item')
-const NEXT: unique symbol = Symbol('next')
-const PREV: unique symbol = Symbol('previous')
-const LIST: unique symbol = Symbol('list')
+// Module-local key for a handle's internal node. It is not a registered symbol, so no other code
+// can name it, and the property is non-enumerable, so `Object.keys`, `JSON.stringify`, `for…in`
+// and spread never show it. Reflection (`Object.getOwnPropertySymbols`) still sees it; the state
+// is hidden, not protected.
+const NODE: unique symbol = Symbol('node')
 
 const REMOVED = 'LinkedListNode.value: the node has been removed from its list'
 
 /**
- * A node of a `LinkedListEngine`, handed out as a `LinkedListNode`. A removed node keeps its value
- * but no reference to its list or to other nodes.
+ * An element's place in a `LinkedListEngine`. Never handed out: `handleOf` wraps it. A removed
+ * node keeps its value and its handle but no reference to its list or to other nodes.
  *
  * @internal
  */
-export class ListNode<E> implements LinkedListNode<E> {
-  declare [ITEM]: E
-  declare [NEXT]: ListNode<E> | undefined
-  declare [PREV]: ListNode<E> | undefined
-  declare [LIST]: LinkedListEngine<E> | undefined
+class ListNode<E> {
+  item: E
+  next: ListNode<E> | undefined
+  prev: ListNode<E> | undefined
+  list: LinkedListEngine<E> | undefined
+  handle: NodeHandle<E> | undefined
 
-  constructor(item: E, list: LinkedListEngine<E>) {
-    Object.defineProperty(this, ITEM, { value: item, writable: true })
-    Object.defineProperty(this, NEXT, { value: undefined, writable: true })
-    Object.defineProperty(this, PREV, { value: undefined, writable: true })
-    Object.defineProperty(this, LIST, { value: list, writable: true })
+  constructor(
+    item: E,
+    prev: ListNode<E> | undefined,
+    next: ListNode<E> | undefined,
+    list: LinkedListEngine<E>,
+  ) {
+    this.item = item
+    this.next = next
+    this.prev = prev
+    this.list = list
+    this.handle = undefined
+  }
+}
+
+/** Returns the handle of `node`, made on first use and then the same object; `undefined` for none. */
+function handleOf<E>(node: ListNode<E> | undefined): NodeHandle<E> | undefined {
+  if (node === undefined) return undefined
+  let handle = node.handle
+  if (handle === undefined) {
+    handle = new NodeHandle(node)
+    node.handle = handle
+  }
+  return handle
+}
+
+/**
+ * The public face of a node of a `LinkedListEngine`, handed out as a `LinkedListNode`. Its only
+ * own property is the internal node, non-enumerable. A handle of a removed node keeps its value
+ * but answers `undefined` for its neighbours.
+ *
+ * @internal
+ */
+export class NodeHandle<E> implements LinkedListNode<E> {
+  declare readonly [NODE]: ListNode<E>
+
+  constructor(node: ListNode<E>) {
+    defineProperty(this, NODE, { value: node })
   }
 
   get value(): E {
-    return this[ITEM]
+    // An object made from this prototype has no node: it reads `undefined` without throwing.
+    const node = this[NODE] as ListNode<E> | undefined
+    return node === undefined ? (undefined as E) : node.item
   }
 
   set value(value: E) {
-    const list = this[LIST]
+    const node = this[NODE] as ListNode<E> | undefined
+    const list = node === undefined ? undefined : node.list
     if (list === undefined) throw new IllegalStateError(REMOVED)
-    this[ITEM] = value
+    ;(node as ListNode<E>).item = value
     list.changeCounter.replaced()
   }
 
-  get next(): ListNode<E> | undefined {
-    return this[NEXT]
+  get next(): NodeHandle<E> | undefined {
+    const node = this[NODE] as ListNode<E> | undefined
+    return node === undefined ? undefined : handleOf(node.next)
   }
 
-  get previous(): ListNode<E> | undefined {
-    return this[PREV]
+  get previous(): NodeHandle<E> | undefined {
+    const node = this[NODE] as ListNode<E> | undefined
+    return node === undefined ? undefined : handleOf(node.prev)
   }
 
   get [Symbol.toStringTag](): string {
@@ -68,7 +105,7 @@ export class ListNode<E> implements LinkedListNode<E> {
     options: object,
     inspect: (value: unknown, options: object) => string,
   ): string {
-    return `LinkedListNode { value: ${inspect(this[ITEM], options)} }`
+    return `LinkedListNode { value: ${inspect(this.value, options)} }`
   }
 }
 
@@ -82,7 +119,7 @@ class NodeWalker<E> implements DequeWalker<E> {
   constructor(list: LinkedListEngine<E>, fromBack: boolean) {
     this.list = list
     this.fromBack = fromBack
-    this.upcoming = fromBack ? list.lastNode() : list.firstNode()
+    this.upcoming = fromBack ? list.tailNode : list.headNode
   }
 
   hasNext(): boolean {
@@ -92,8 +129,8 @@ class NodeWalker<E> implements DequeWalker<E> {
   next(): E {
     const node = this.upcoming as ListNode<E>
     this.last = node
-    this.upcoming = this.fromBack ? node[PREV] : node[NEXT]
-    return node[ITEM]
+    this.upcoming = this.fromBack ? node.prev : node.next
+    return node.item
   }
 
   remove(): void {
@@ -141,11 +178,11 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
   }
 
   peekFront(): E {
-    return (this.head as ListNode<E>)[ITEM]
+    return (this.head as ListNode<E>).item
   }
 
   peekBack(): E {
-    return (this.tail as ListNode<E>)[ITEM]
+    return (this.tail as ListNode<E>).item
   }
 
   walker(fromBack: boolean): DequeWalker<E> {
@@ -167,20 +204,20 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
   takeFront(): E {
     const node = this.head as ListNode<E>
     this.unlink(node)
-    return node[ITEM]
+    return node.item
   }
 
   takeBack(): E {
     const node = this.tail as ListNode<E>
     this.unlink(node)
-    return node[ITEM]
+    return node.item
   }
 
   compact(flags: readonly boolean[]): void {
     let node = this.head
     let index = 0
     while (node !== undefined) {
-      const next = node[NEXT]
+      const next = node.next
       if (flags[index++] === true) {
         this.detach(node)
         this.length--
@@ -193,10 +230,10 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
   clearAll(): void {
     let node = this.head
     while (node !== undefined) {
-      const next = node[NEXT]
-      node[NEXT] = undefined
-      node[PREV] = undefined
-      node[LIST] = undefined
+      const next = node.next
+      node.next = undefined
+      node.prev = undefined
+      node.list = undefined
       node = next
     }
     this.head = undefined
@@ -211,36 +248,46 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
 
   // ── Handles ──
 
-  firstNode(): ListNode<E> | undefined {
+  /** The first internal node, for walkers. */
+  get headNode(): ListNode<E> | undefined {
     return this.head
   }
 
-  lastNode(): ListNode<E> | undefined {
+  /** The last internal node, for walkers. */
+  get tailNode(): ListNode<E> | undefined {
     return this.tail
   }
 
-  addFirstNode(element: E): ListNode<E> {
-    return this.link(undefined, this.head, element)
+  firstNode(): NodeHandle<E> | undefined {
+    return handleOf(this.head)
   }
 
-  addLastNode(element: E): ListNode<E> {
-    return this.link(this.tail, undefined, element)
+  lastNode(): NodeHandle<E> | undefined {
+    return handleOf(this.tail)
   }
 
-  insertBefore(node: unknown, element: E): ListNode<E> {
+  addFirstNode(element: E): NodeHandle<E> {
+    return handleOf(this.link(undefined, this.head, element)) as NodeHandle<E>
+  }
+
+  addLastNode(element: E): NodeHandle<E> {
+    return handleOf(this.link(this.tail, undefined, element)) as NodeHandle<E>
+  }
+
+  insertBefore(node: unknown, element: E): NodeHandle<E> {
     const at = this.requireNode(node, 'LinkedList.insertBefore')
-    return this.link(at[PREV], at, element)
+    return handleOf(this.link(at.prev, at, element)) as NodeHandle<E>
   }
 
-  insertAfter(node: unknown, element: E): ListNode<E> {
+  insertAfter(node: unknown, element: E): NodeHandle<E> {
     const at = this.requireNode(node, 'LinkedList.insertAfter')
-    return this.link(at, at[NEXT], element)
+    return handleOf(this.link(at, at.next, element)) as NodeHandle<E>
   }
 
   removeNode(node: unknown): E {
     const at = this.requireNode(node, 'LinkedList.removeNode')
     this.unlink(at)
-    return at[ITEM]
+    return at.item
   }
 
   /** Removes `node`, a node of this list, as one structural change. */
@@ -250,14 +297,15 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
     this.changes.structural()
   }
 
-  /** Returns `node` when it is a node of this list; otherwise throws, before any change. */
+  /** Returns the internal node of `node` when it is a handle of this list; otherwise throws, before any change. */
   private requireNode(node: unknown, where: string): ListNode<E> {
-    if (!(node instanceof ListNode) || node[LIST] !== this) {
+    const at = node instanceof NodeHandle ? (node[NODE] as ListNode<E> | undefined) : undefined
+    if (at === undefined || at.list !== this) {
       throw new IllegalArgumentError(
         `${where}: node is not a node of this list (${describeValue(node)})`,
       )
     }
-    return node as ListNode<E>
+    return at
   }
 
   /** Adds a node for `element` between `prev` and `next` (neighbours, or `undefined` at an end). */
@@ -266,13 +314,11 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
     next: ListNode<E> | undefined,
     element: E,
   ): ListNode<E> {
-    const node = new ListNode(element, this)
-    node[PREV] = prev
-    node[NEXT] = next
+    const node = new ListNode(element, prev, next, this)
     if (prev === undefined) this.head = node
-    else prev[NEXT] = node
+    else prev.next = node
     if (next === undefined) this.tail = node
-    else next[PREV] = node
+    else next.prev = node
     this.length++
     this.changes.structural()
     return node
@@ -280,14 +326,14 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
 
   /** Takes `node` out of the chain and cuts it loose; the caller updates `length` and counts. */
   private detach(node: ListNode<E>): void {
-    const prev = node[PREV]
-    const next = node[NEXT]
+    const prev = node.prev
+    const next = node.next
     if (prev === undefined) this.head = next
-    else prev[NEXT] = next
+    else prev.next = next
     if (next === undefined) this.tail = prev
-    else next[PREV] = prev
-    node[NEXT] = undefined
-    node[PREV] = undefined
-    node[LIST] = undefined
+    else next.prev = prev
+    node.next = undefined
+    node.prev = undefined
+    node.list = undefined
   }
 }

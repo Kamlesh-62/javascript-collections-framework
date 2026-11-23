@@ -14,12 +14,13 @@ import { requireFunction } from '../checks'
 import type { HashFunction } from '../equality'
 import { apply } from '../intrinsics'
 import { LiveCursor, MappedLiveIterator, NativeMapIterator } from '../iteration'
+import { deriveKey } from '../key'
 import { readPairs } from '../map-input'
 import { AbstractMap } from '../skeletons/abstract-map'
 import { MapEntryHandle } from '../views/map-entry'
 import { HashMapEntrySet, HashMapKeySet, HashMapValues } from '../views/map-views'
 import { type HashEquality, normalise, Operation } from './hash-support'
-import { type MapStore, MISSING, newMapStore } from './map-stores'
+import { type KeyedMap, type KeyedRecord, type MapStore, MISSING, newMapStore } from './map-stores'
 
 /** A mapping a cursor has reached: its handle and the value it had then. */
 type Reached<V> = readonly [unknown, V]
@@ -39,6 +40,11 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
    * reads and writes then call it directly, with no `Operation` and one call where one suffices.
    */
   private readonly native: Map<K, V> | undefined
+  /**
+   * The store's key function and derived-key `Map` when keys are compared by a `key` option:
+   * reads then call the key function and the `Map` directly, with no `Operation`.
+   */
+  private readonly keyed: KeyedMap<K, V> | undefined
 
   /**
    * @param facade - The public map, for identity and callbacks.
@@ -55,6 +61,7 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
     this.equality = equality
     this.store = store
     this.native = store.nativeMap()
+    this.keyed = store.keyedMap()
   }
 
   get owner(): MapCollection<K, V> {
@@ -85,6 +92,11 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
     return this.store.keyHash(handle, hash)
   }
 
+  /** `<Class>.<method>`, built only when an error names it. */
+  errorLabel(method: string): string {
+    return this.at(method)
+  }
+
   /** Starts an operation whose errors name `where`. */
   operation(where: string): Operation {
     return new Operation(this.changes, where, 'map')
@@ -100,21 +112,52 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
 
   // ── Hot paths: one native call where one suffices, no Operation on the native store ──
 
+  /**
+   * Finds the record of `key` in the keyed store: one call of the key function, its result
+   * checked, then one `Map.get`. Throws as an `Operation` would when the key function added or
+   * removed mappings; the label is built only then.
+   */
+  private keyedRecord(
+    keyed: KeyedMap<K, V>,
+    key: K,
+    method: string,
+  ): KeyedRecord<K, V> | undefined {
+    const changes = this.changes
+    const start = changes.structure
+    const derived = deriveKey(keyed.key, normalise(key), this, method)
+    if (changes.structure !== start) {
+      throw new ConcurrentModificationError(
+        `${this.at(method)}: the map was changed by a key, equals or hash function`,
+      )
+    }
+    return keyed.map.get(derived)
+  }
+
   override get(key: K): V | undefined {
     const native = this.native
     if (native !== undefined) return native.get(normalise(key))
-    return super.get(key)
+    const keyed = this.keyed
+    if (keyed === undefined) return super.get(key)
+    const record = this.keyedRecord(keyed, key, 'get')
+    return record === undefined ? undefined : record.value
   }
 
   override has(key: K): boolean {
     const native = this.native
     if (native !== undefined) return native.has(normalise(key))
-    return super.has(key)
+    const keyed = this.keyed
+    if (keyed === undefined) return super.has(key)
+    return this.keyedRecord(keyed, key, 'has') !== undefined
   }
 
   override getOrDefault<D>(key: K, fallback: D): V | D {
     const native = this.native
-    if (native === undefined) return super.getOrDefault(key, fallback)
+    if (native === undefined) {
+      const keyed = this.keyed
+      if (keyed === undefined) return super.getOrDefault(key, fallback)
+      const record = this.keyedRecord(keyed, key, 'getOrDefault')
+      return record === undefined ? fallback : record.value
+    }
     const normalised = normalise(key)
     const value = native.get(normalised)
     // `undefined` is a stored value or an absent key; only then is a second call needed.
@@ -234,7 +277,7 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
   /** Sets every mapping of `entries` after reading and checking them all. */
   putAll(entries: unknown): void {
     const pairs = readPairs<K, V>(entries, 'HashMap.putAll')
-    for (const pair of pairs) this.setValue(pair[0], pair[1], 'HashMap.putAll')
+    for (const pair of pairs) this.setKey(pair[0], pair[1], 'HashMap.putAll')
   }
 
   /** Removes the mapping of `key`; returns its value, or `MISSING`. */

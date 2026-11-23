@@ -798,6 +798,144 @@ describe('HashMap — key options', () => {
   })
 })
 
+describe('HashMap — reads with the key option', () => {
+  /** A keyed map whose key function records each call's `this` and arguments. */
+  function recording(): {
+    map: HashMap<string, number>
+    calls: Array<{ self: unknown; args: unknown[] }>
+  } {
+    const calls: Array<{ self: unknown; args: unknown[] }> = []
+    const map = new HashMap<string, number>({
+      key: function (this: unknown, ...args: unknown[]) {
+        calls.push({ self: this, args })
+        return String(args[0]).toLowerCase()
+      } as never,
+    })
+    return { map, calls }
+  }
+
+  it('calls the key function exactly once per get, has, getOrDefault, set and delete [044 S6-AC1]', () => {
+    const { map, calls } = recording()
+    const steps: Array<[string, () => unknown, unknown]> = [
+      ['set', () => map.set('A', 1), map],
+      ['get hit', () => map.get('a'), 1],
+      ['get miss', () => map.get('b'), undefined],
+      ['has hit', () => map.has('A'), true],
+      ['has miss', () => map.has('b'), false],
+      ['getOrDefault hit', () => map.getOrDefault('a', 9), 1],
+      ['getOrDefault miss', () => map.getOrDefault('b', 9), 9],
+      ['set existing', () => map.set('a', 2), map],
+      ['delete miss', () => map.delete('b'), false],
+      ['delete hit', () => map.delete('A'), true],
+    ]
+    for (const [name, step, result] of steps) {
+      calls.length = 0
+      expect(step(), name).toBe(result)
+      expect(calls.length, name).toBe(1)
+      expect(calls[0]?.self, name).toBe(undefined)
+      expect(calls[0]?.args.length, name).toBe(1)
+    }
+    expect(map.size).toBe(0)
+  })
+
+  it('passes -0 to the key function as 0 and reads a stored undefined value [044 S6-AC1]', () => {
+    const seen: unknown[] = []
+    const map = new HashMap<number, unknown>({
+      key: (k) => {
+        seen.push(k)
+        return k
+      },
+    })
+    map.set(0, undefined)
+    seen.length = 0
+    expect(map.has(-0)).toBe(true)
+    expect(map.get(-0)).toBe(undefined)
+    expect(map.getOrDefault(-0, 'fallback')).toBe(undefined)
+    expect(map.getOrDefault(1, 'fallback')).toBe('fallback')
+    expect(seen.map((k) => Object.is(k, 0))).toEqual([true, true, true, false])
+  })
+
+  it('throws the same TypeError when the key function returns an object or a function [044 S6-AC1]', () => {
+    for (const result of [{}, [], () => 1]) {
+      const map = new HashMap<unknown, unknown>({ key: () => result as never })
+      for (const method of ['get', 'has', 'getOrDefault', 'set', 'delete'] as const) {
+        const error = caught(() =>
+          method === 'set'
+            ? map.set('a', 1)
+            : method === 'getOrDefault'
+              ? map.getOrDefault('a', 0)
+              : map[method]('a'),
+        )
+        expect(error, method).toBeInstanceOf(TypeError)
+        expect((error as Error).message).toBe(
+          `HashMap.${method}: key function returned ${typeof result}`,
+        )
+      }
+    }
+  })
+
+  it('throws the same ConcurrentModificationError when the key function adds or removes mappings [044 S6-AC1]', () => {
+    for (const change of ['add', 'remove'] as const) {
+      for (const method of ['get', 'has', 'getOrDefault', 'set', 'delete'] as const) {
+        let armed = false
+        const map: HashMap<string, number> = new HashMap<string, number>(
+          [
+            ['a', 1],
+            ['z', 26],
+          ],
+          {
+            key: (k) => {
+              if (armed) {
+                armed = false
+                if (change === 'add') map.set('added', 0)
+                else map.delete('z')
+              }
+              return k
+            },
+          },
+        )
+        armed = true
+        const error = caught(() =>
+          method === 'set'
+            ? map.set('a', 2)
+            : method === 'getOrDefault'
+              ? map.getOrDefault('a', 0)
+              : map[method]('a'),
+        )
+        expect(error, `${change} ${method}`).toBeInstanceOf(ConcurrentModificationError)
+        expect((error as Error).message).toBe(
+          `HashMap.${method}: the map was changed by a key, equals or hash function`,
+        )
+        expect(map.get('a')).toBe(1)
+      }
+    }
+  })
+
+  it('checks the key function result before the change count, as before [044 S6-AC1]', () => {
+    const map: HashMap<string, number> = new HashMap<string, number>({
+      key: (k) => {
+        if (k !== 'x') return k
+        map.set('y', 1)
+        return {} as never
+      },
+    })
+    const error = caught(() => map.get('x'))
+    expect(error).toBeInstanceOf(TypeError)
+    expect((error as Error).message).toBe('HashMap.get: key function returned object')
+  })
+
+  it('lets a value-changing key function through, as a read changes no mappings [044 S6-AC1]', () => {
+    const map: HashMap<string, number> = new HashMap<string, number>([['a', 1]], {
+      key: (k) => {
+        if (k === 'b') map.set('a', 5)
+        return k
+      },
+    })
+    expect(map.get('b')).toBe(undefined)
+    expect(map.get('a')).toBe(5)
+  })
+})
+
 /** Runs the same scripted changes inside a loop over `ours` and over a native Map. */
 function liveRun(
   visitOurs: (visit: (key: number) => void) => void,

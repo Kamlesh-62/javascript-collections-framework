@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { benchCases, LINEAR_LIMIT, lowerBound, OPS, SIZES } from '../bench/lib/cases.mjs'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  benchCases,
+  LINEAR_LIMIT,
+  LOOKUPS,
+  lookupKeys,
+  lowerBound,
+  OPS,
+  SIZES,
+} from '../bench/lib/cases.mjs'
 import { measure, seeded, shuffled, summarise } from '../bench/lib/harness.mjs'
 import {
   BENCH_END,
@@ -16,6 +24,7 @@ import {
   renderBenchSection,
   resultFile,
   runInfo,
+  runOrder,
   sortCases,
   withBenchSection,
 } from '../bench/lib/results.mjs'
@@ -139,10 +148,67 @@ describe('the benchmark cases', () => {
     )
     for (const c of cases) {
       expect(c.native.name, `${c.collection} ${c.operation}`).toMatch(/Array|Map|Set/)
-      expect(c.ops).toBe(
-        c.operation === 'iterate' || /^build|^add at the end/.test(c.operation) ? 1_000 : OPS,
-      )
     }
+  })
+
+  it('give every side of every case its own run function with its own loop, sharing no iteration helper [044 S1-AC1]', () => {
+    const cases = benchCases(lib, 1_000)
+    const runs = cases.flatMap((c) => [c.native.run, c.library.run])
+    expect(new Set(runs).size).toBe(cases.length * 2)
+    // One function literal in the source per side: no helper or factory hands out a run.
+    const source = read('bench/lib/cases.mjs')
+    expect(source.match(/\brun:/g)?.length).toBe(cases.length * 2)
+    expect(source.match(/\brun: \((?:\w+)?\) =>/g)?.length).toBe(cases.length * 2)
+    expect(source).not.toMatch(/\bconst sum\b|=> \{\s*return \(\w+\) =>/)
+    for (const c of cases) {
+      for (const run of [c.native.run, c.library.run]) {
+        const text = run.toString()
+        expect(text, `${c.collection} ${c.operation}`).not.toMatch(/\bsum\(|sortedInsert/)
+        if (c.operation === 'iterate' || c.ops !== c.size) expect(text).toMatch(/for \(/)
+      }
+    }
+  })
+
+  it('read min(n, 10,000) distinct present keys in a seeded order in lookups, and OPS operations in updates [044 S1-AC2]', () => {
+    expect(LOOKUPS).toBe(10_000)
+    expect(OPS).toBe(1_000)
+    const lookup = /^get|^has|floor|ceiling/
+    for (const n of [10, 1_000, 20_000]) {
+      const keys = lookupKeys(n, 3)
+      expect(keys).toHaveLength(Math.min(n, LOOKUPS))
+      expect(new Set(keys).size).toBe(keys.length)
+      expect(keys.every((k) => Number.isInteger(k) && k >= 0 && k < n)).toBe(true)
+      expect(lookupKeys(n, 3)).toEqual(keys)
+      for (const c of benchCases(lib, n)) {
+        const name = `${c.collection} ${c.operation} at ${n}`
+        if (
+          c.operation === 'iterate' ||
+          /^build|^add at the end|one by one|^set new/.test(c.operation)
+        )
+          expect(c.ops, name).toBe(n)
+        else if (lookup.test(c.operation)) expect(c.ops, name).toBe(Math.min(n, LOOKUPS))
+        else expect(c.ops, name).toBe(Math.min(n, OPS))
+      }
+    }
+    // The native side of a lookup reads exactly those keys, in that order; the library side
+    // returns the same checksum.
+    const n = 20_000
+    const get = benchCases(lib, n, 9).find(
+      (c) => c.collection === 'HashMap' && c.operation === 'get',
+    )
+    if (get === undefined) throw new Error('no HashMap get case')
+    const state = get.native.setup()
+    const spy = vi.spyOn(Map.prototype, 'get')
+    try {
+      get.native.run(state)
+      expect(spy.mock.calls.map((call) => call[0])).toEqual(lookupKeys(n, 10))
+    } finally {
+      spy.mockRestore()
+    }
+    expect(get.library.run(get.library.setup())).toBe(get.native.run(state))
+    // Queries between stored keys use the same count.
+    const floor = benchCases(lib, n).find((c) => c.operation === 'floor entry')
+    expect(floor?.ops).toBe(LOOKUPS)
   })
 
   it('run the same work on both sides: each case returns the same checksum for the library and the native structure [041 S1-AC1]', () => {
@@ -217,9 +283,11 @@ describe('the benchmark results', () => {
       'date',
       'memoryGb',
       'node',
+      'order',
       'platform',
       'version',
     ])
+    expect(run.order).toBe('native-first')
     expect(resultFile(info)).toBe(`${RESULTS_DIR}/2026-11-20-node-24.json`)
     expect(sortCases(result.cases).map((c) => c.collection)).toEqual(['HashMap', 'TreeMap'])
     expect([formatRate(1.23e9), formatRate(4.567e6), formatRate(45_600), formatRate(789)]).toEqual([
@@ -285,6 +353,20 @@ describe('the benchmark results', () => {
     expect(scripts['bench:check']).toBe('node bench/docs.mjs check')
     expect(scripts.check).toContain('pnpm bench:check')
     expect(scripts.check).not.toMatch(/pnpm bench( |$|:tree)/)
+  })
+
+  it('time the library side first when the runner is given --library-first, and record the order [044 S1-AC3]', () => {
+    expect(runOrder([])).toBe('native-first')
+    expect(runOrder(['--sizes', '100000'])).toBe('native-first')
+    expect(runOrder(['--library-first'])).toBe('library-first')
+    expect(runOrder(['--sizes', '1000', '--library-first'])).toBe('library-first')
+    expect(runInfo('0.1.1', new Date(0), 'library-first').order).toBe('library-first')
+    const run = read('bench/run.mjs')
+    expect(run).toContain('const order = runOrder(args)')
+    expect(run).toMatch(
+      /if \(order === 'library-first'\) \{\s*library = timed\(c\.library\)\s*nativeRate = timed\(c\.native\)/,
+    )
+    expect(run).toContain('runInfo(version, new Date(), order)')
   })
 
   it('are smoke-run in CI once per case, with nothing timed or recorded [041 S1-AC4]', () => {
