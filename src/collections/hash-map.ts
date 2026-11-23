@@ -342,7 +342,7 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    * ```
    */
   set(key: K, value: V): this {
-    this.engine.setValue(key, value, 'HashMap.set')
+    this.engine.setKey(key, value, 'HashMap.set')
     return this
   }
 
@@ -404,7 +404,7 @@ export class HashMap<K, V> implements MapCollection<K, V> {
    * ```
    */
   delete(key: K): boolean {
-    return this.engine.removeKey(key, 'HashMap.delete') !== MISSING
+    return this.engine.deleteKey(key, 'HashMap.delete')
   }
 
   /**

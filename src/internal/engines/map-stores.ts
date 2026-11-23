@@ -53,6 +53,12 @@ export interface MapStore<K, V> {
   /** The hash of a stored key: by the given function, or the stored hash of a user equivalence. */
   keyHash(handle: unknown, hash: HashFunction): number
   copy(): MapStore<K, V>
+  /**
+   * The native `Map` that holds the mappings, when keys are compared with SameValueZero and no
+   * user code runs on a lookup; `undefined` for the keyed and bucket stores. The engine uses it
+   * directly on its hot paths.
+   */
+  nativeMap(): Map<K, V> | undefined
 }
 
 class NativeMapStore<K, V> implements MapStore<K, V> {
@@ -122,6 +128,10 @@ class NativeMapStore<K, V> implements MapStore<K, V> {
 
   copy(): MapStore<K, V> {
     return new NativeMapStore(new Map(this.map))
+  }
+
+  nativeMap(): Map<K, V> {
+    return this.map
   }
 }
 
@@ -200,6 +210,10 @@ class KeyedMapStore<K, V> implements MapStore<K, V> {
 
   keyHash(handle: unknown, hash: HashFunction): number {
     return hash((handle as KeyedRecord<K, V>).derived)
+  }
+
+  nativeMap(): undefined {
+    return undefined
   }
 
   copy(): MapStore<K, V> {
@@ -321,6 +335,10 @@ class BucketMapStore<K, V> implements MapStore<K, V> {
   keyHash(handle: unknown, hash: HashFunction): number {
     const entry = handle as Bucketed<K, V>
     return this.builtIn ? hash(entry.value.key) : entry.hash
+  }
+
+  nativeMap(): undefined {
+    return undefined
   }
 
   copy(): MapStore<K, V> {

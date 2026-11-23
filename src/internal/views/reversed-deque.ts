@@ -3,6 +3,7 @@
 // nest. It shares the source's change counter and never goes stale.
 
 import type { Deque } from '../../interfaces/queue'
+import type { Where } from '../checks'
 import { AbstractDeque, type DequeWalker } from '../skeletons/abstract-deque'
 
 /**
@@ -42,12 +43,12 @@ export class ReversedDeque<E> extends AbstractDeque<E> {
     return this.source.walker(!fromBack)
   }
 
-  insertFront(element: E, where: string): void {
-    this.source.insertBack(element, where)
+  insertFront(element: E, where: Where, method = ''): void {
+    this.source.insertBack(element, where, method)
   }
 
-  insertBack(element: E, where: string): void {
-    this.source.insertFront(element, where)
+  insertBack(element: E, where: Where, method = ''): void {
+    this.source.insertFront(element, where, method)
   }
 
   takeFront(): E {

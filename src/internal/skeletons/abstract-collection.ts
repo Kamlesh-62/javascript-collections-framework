@@ -60,6 +60,11 @@ export abstract class AbstractCollection<E> implements Collection<E> {
     return this[Symbol.toStringTag]
   }
 
+  /** `<Class>.<method>`, the label of an error; built only when an error is thrown. */
+  errorLabel(method: string): string {
+    return `${this.className}.${method}`
+  }
+
   /** Marks every collection for `isCollection`, across loaded copies. */
   get [COLLECTION_BRAND](): true {
     return true
@@ -176,7 +181,7 @@ export abstract class AbstractCollection<E> implements Collection<E> {
 
   /** Throws `TypeError` unless `value` is a function. */
   protected requireFunction(value: unknown, method: string, what: string): void {
-    requireFunction(value, `${this.className}.${method}`, what)
+    if (typeof value !== 'function') requireFunction(value, this.errorLabel(method), what)
   }
 
   /** Reads the whole argument into an array before any change (self, views, throwing iterables). */

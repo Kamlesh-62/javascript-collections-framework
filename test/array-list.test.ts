@@ -116,7 +116,7 @@ describe('ArrayList — read by index', () => {
         expect(() => list.subList(index, 3), `subList from ${String(bad)}`).toThrow(
           IndexOutOfBoundsError,
         )
-        // A negative `to` is a valid integer below `from`: spec 001 makes that IllegalArgumentError.
+        // A negative `to` is a valid integer below `from`, which is an IllegalArgumentError.
         expect(() => list.subList(0, index), `subList to ${String(bad)}`).toThrow(
           bad === -1 ? IllegalArgumentError : IndexOutOfBoundsError,
         )

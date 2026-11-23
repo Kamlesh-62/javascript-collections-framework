@@ -13,7 +13,7 @@ import type { SetCollection } from '../../interfaces/set'
 import { requireFunction } from '../checks'
 import type { HashFunction } from '../equality'
 import { apply } from '../intrinsics'
-import { LiveCursor, MappedLiveIterator } from '../iteration'
+import { LiveCursor, MappedLiveIterator, NativeMapIterator } from '../iteration'
 import { readPairs } from '../map-input'
 import { AbstractMap } from '../skeletons/abstract-map'
 import { MapEntryHandle } from '../views/map-entry'
@@ -34,6 +34,11 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
   readonly store: MapStore<K, V>
   private readonly facade: MapCollection<K, V>
   private readonly equality: HashEquality<K>
+  /**
+   * The store's native `Map` when no user code runs on a lookup (the default SameValueZero map):
+   * reads and writes then call it directly, with no `Operation` and one call where one suffices.
+   */
+  private readonly native: Map<K, V> | undefined
 
   /**
    * @param facade - The public map, for identity and callbacks.
@@ -49,6 +54,7 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
     this.facade = facade
     this.equality = equality
     this.store = store
+    this.native = store.nativeMap()
   }
 
   get owner(): MapCollection<K, V> {
@@ -85,9 +91,90 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
   }
 
   find(key: K, where: string): unknown {
-    const op = this.operation(where)
     const normalised = normalise(key)
+    const native = this.native
+    if (native !== undefined) return native.has(normalised) ? normalised : MISSING
+    const op = this.operation(where)
     return this.store.find(normalised, this.store.probe(normalised, op), op)
+  }
+
+  // ── Hot paths: one native call where one suffices, no Operation on the native store ──
+
+  override get(key: K): V | undefined {
+    const native = this.native
+    if (native !== undefined) return native.get(normalise(key))
+    return super.get(key)
+  }
+
+  override has(key: K): boolean {
+    const native = this.native
+    if (native !== undefined) return native.has(normalise(key))
+    return super.has(key)
+  }
+
+  override getOrDefault<D>(key: K, fallback: D): V | D {
+    const native = this.native
+    if (native === undefined) return super.getOrDefault(key, fallback)
+    const normalised = normalise(key)
+    const value = native.get(normalised)
+    // `undefined` is a stored value or an absent key; only then is a second call needed.
+    return value !== undefined || native.has(normalised) ? (value as V) : fallback
+  }
+
+  // Iteration of the native store is the native `Map`'s own: live, in insertion order, with no
+  // lookup per step.
+
+  override keys(): IterableIterator<K> {
+    const native = this.native
+    return native === undefined ? super.keys() : new NativeMapIterator(native.keys())
+  }
+
+  override values(): IterableIterator<V> {
+    const native = this.native
+    return native === undefined ? super.values() : new NativeMapIterator(native.values())
+  }
+
+  override entries(): IterableIterator<[K, V]> {
+    const native = this.native
+    return native === undefined ? super.entries() : new NativeMapIterator(native.entries())
+  }
+
+  override forEach(
+    action: (value: V, key: K, map: MapCollection<K, V>) => void,
+    thisArg?: unknown,
+  ): void {
+    const native = this.native
+    if (native === undefined) {
+      super.forEach(action, thisArg)
+      return
+    }
+    requireFunction(action, 'HashMap.forEach', 'action')
+    const owner = this.facade
+    native.forEach((value, key) => {
+      apply(action, thisArg, [value, key, owner])
+    })
+  }
+
+  /** `set`: maps `key` to `value`. One native call: the size tells a new key from an old one. */
+  setKey(key: K, value: V, where: string): void {
+    const native = this.native
+    if (native === undefined) {
+      this.setValue(key, value, where)
+      return
+    }
+    const before = native.size
+    native.set(normalise(key), value)
+    if (native.size !== before) this.changes.structural()
+    else this.changes.replaced()
+  }
+
+  /** `delete`: removes the mapping of `key`; one native call. */
+  deleteKey(key: K, where: string): boolean {
+    const native = this.native
+    if (native === undefined) return this.removeKey(key, where) !== MISSING
+    if (!native.delete(normalise(key))) return false
+    this.changes.structural()
+    return true
   }
 
   /** Throws when a callback of `where` added or removed mappings since `start`. */
@@ -115,6 +202,20 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
 
   /** Maps `key` to `value`; returns the previous value, or `MISSING` when the key was absent. */
   setValue(key: K, value: V, where: string): unknown {
+    const native = this.native
+    if (native !== undefined) {
+      // Two native calls: the old value, then the write; the size tells a new key from an old one.
+      const normalised = normalise(key)
+      const old = native.get(normalised)
+      const before = native.size
+      native.set(normalised, value)
+      if (native.size !== before) {
+        this.changes.structural()
+        return MISSING
+      }
+      this.changes.replaced()
+      return old
+    }
     const op = this.operation(where)
     const normalised = normalise(key)
     const probe = this.store.probe(normalised, op)
@@ -138,6 +239,14 @@ export class HashMapEngine<K, V> extends AbstractMap<K, V> {
 
   /** Removes the mapping of `key`; returns its value, or `MISSING`. */
   removeKey(key: K, where: string): unknown {
+    const native = this.native
+    if (native !== undefined) {
+      const normalised = normalise(key)
+      const old = native.get(normalised)
+      if (!native.delete(normalised)) return MISSING
+      this.changes.structural()
+      return old
+    }
     const handle = this.find(key, where)
     return handle === MISSING ? MISSING : this.removeAt(handle)
   }

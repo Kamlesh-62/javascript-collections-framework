@@ -125,6 +125,9 @@ describe('ArrayDequeEngine', () => {
     ]) {
       expect(call).toThrow(IllegalStateError)
     }
+    expect(() => deque.reversed().add(16)).toThrow(
+      'ReversedDeque.add: the deque cannot hold more than 16 elements',
+    )
     expect(() => deque.add(16)).toThrow(
       'ArrayDeque.add: the deque cannot hold more than 16 elements',
     )

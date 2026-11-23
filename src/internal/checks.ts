@@ -67,9 +67,42 @@ function isSafeIndex(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value)
 }
 
-function outOfBounds(where: string, label: string, value: unknown, size: number): Error {
+/**
+ * Something that names the API in its error messages: `errorLabel('get')` is `ArrayList.get`.
+ * Passed instead of the label so that the label is built only when an error is thrown.
+ *
+ * @internal
+ */
+export interface Labelled {
+  errorLabel(method: string): string
+}
+
+/**
+ * Where an error happened: the label itself (`<Class>.<method>`), or the collection and the
+ * method, from which the label is built only when it is needed.
+ *
+ * @internal
+ */
+export type Where = string | Labelled
+
+/**
+ * The label of `where`.
+ *
+ * @internal
+ */
+export function labelOf(where: Where, method: string): string {
+  return typeof where === 'string' ? where : where.errorLabel(method)
+}
+
+function outOfBounds(
+  where: Where,
+  method: string,
+  label: string,
+  value: unknown,
+  size: number,
+): Error {
   return new IndexOutOfBoundsError(
-    `${where}: ${label} ${describeValue(value)} is out of bounds for size ${size}`,
+    `${labelOf(where, method)}: ${label} ${describeValue(value)} is out of bounds for size ${size}`,
   )
 }
 
@@ -80,14 +113,15 @@ function outOfBounds(where: string, label: string, value: unknown, size: number)
  *
  * @param index - The index given by the caller; any value.
  * @param size - The collection's current size.
- * @param where - `<Class>.<method>`, for the message.
+ * @param where - `<Class>.<method>`, or the collection, for the message.
+ * @param method - The method, when `where` is the collection.
  * @returns The index, with `-0` turned into `0`.
  * @throws IndexOutOfBoundsError when the index is not a safe integer or is out of range.
  * @internal
  */
-export function checkIndex(index: unknown, size: number, where: string): number {
+export function checkIndex(index: unknown, size: number, where: Where, method = ''): number {
   if (!isSafeIndex(index) || index < 0 || index >= size) {
-    throw outOfBounds(where, 'index', index, size)
+    throw outOfBounds(where, method, 'index', index, size)
   }
   return index + 0
 }
@@ -99,14 +133,15 @@ export function checkIndex(index: unknown, size: number, where: string): number 
  *
  * @param position - The position given by the caller; any value.
  * @param size - The collection's current size.
- * @param where - `<Class>.<method>`, for the message.
+ * @param where - `<Class>.<method>`, or the collection, for the message.
+ * @param method - The method, when `where` is the collection.
  * @returns The position, with `-0` turned into `0`.
  * @throws IndexOutOfBoundsError when the position is not a safe integer or is out of range.
  * @internal
  */
-export function checkPosition(position: unknown, size: number, where: string): number {
+export function checkPosition(position: unknown, size: number, where: Where, method = ''): number {
   if (!isSafeIndex(position) || position < 0 || position > size) {
-    throw outOfBounds(where, 'position', position, size)
+    throw outOfBounds(where, method, 'position', position, size)
   }
   return position + 0
 }
@@ -129,8 +164,8 @@ export function checkPosition(position: unknown, size: number, where: string): n
  * @internal
  */
 export function checkRange(from: unknown, to: unknown, size: number, where: string): void {
-  if (!isSafeIndex(from) || from < 0) throw outOfBounds(where, 'from', from, size)
-  if (!isSafeIndex(to) || to > size) throw outOfBounds(where, 'to', to, size)
+  if (!isSafeIndex(from) || from < 0) throw outOfBounds(where, '', 'from', from, size)
+  if (!isSafeIndex(to) || to > size) throw outOfBounds(where, '', 'to', to, size)
   if (from > to) {
     throw new IllegalArgumentError(
       `${where}: from ${describeValue(from)} is greater than to ${describeValue(to)} for size ${size}`,
@@ -180,14 +215,15 @@ export function requireFunction(value: unknown, where: string, what: string): vo
  * Time: O(1).
  *
  * @param value - The element given by the caller.
- * @param where - `<Class>.<method>`, for the message.
+ * @param where - `<Class>.<method>`, or the collection, for the message.
+ * @param method - The method, when `where` is the collection.
  * @throws NullElementError when `value` is `null` or `undefined`.
  * @internal
  */
-export function requireElement(value: unknown, where: string): void {
+export function requireElement(value: unknown, where: Where, method = ''): void {
   if (value === null || value === undefined) {
     throw new NullElementError(
-      `${where}: ${value === null ? 'null' : 'undefined'} is not allowed as an element`,
+      `${labelOf(where, method)}: ${value === null ? 'null' : 'undefined'} is not allowed as an element`,
     )
   }
 }

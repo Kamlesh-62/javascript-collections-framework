@@ -90,6 +90,23 @@ export class LinkedHashTable<K, V> {
   ) {
     this.store = store === undefined ? newMapStore<K, LinkedRecord<K, V>>(equality) : store
     this.accessOrder = accessOrder
+    this.native = this.store.nativeMap()
+  }
+
+  /**
+   * The native `Map` from key to record when no user code runs on a lookup (SameValueZero keys):
+   * `findPlain` then reads it once, and `insert` writes it once.
+   */
+  private readonly native: Map<K, LinkedRecord<K, V>> | undefined
+
+  /** Whether lookups run no user code, so `findPlain` may be used. */
+  get plain(): boolean {
+    return this.native !== undefined
+  }
+
+  /** The record of `key` (already normalised) on a plain table, with one native call. */
+  findPlain(key: K): LinkedRecord<K, V> | undefined {
+    return (this.native as Map<K, LinkedRecord<K, V>>).get(key)
   }
 
   get size(): number {
@@ -103,12 +120,21 @@ export class LinkedHashTable<K, V> {
 
   /** Returns the record whose key equals `key`, or `undefined`. */
   find(key: K, probe: unknown, op: Operation): LinkedRecord<K, V> | undefined {
+    const native = this.native
+    if (native !== undefined) return native.get(key)
     const handle = this.store.find(key, probe, op)
     return handle === MISSING ? undefined : this.store.valueAt(handle)
   }
 
   /** Links a new record for a key known to be absent, at the front or the back. */
   insert(key: K, probe: unknown, value: V, front: boolean): LinkedRecord<K, V> {
+    const native = this.native
+    if (native !== undefined) {
+      // On the native store a record's handle is its key: link it, then store it with one write.
+      const record = this.link(key, value, key, front)
+      native.set(key, record)
+      return record
+    }
     const store = this.store
     const handle = store.insert(key, probe, undefined as unknown as LinkedRecord<K, V>)
     const record = this.link(key, value, handle, front)
@@ -201,6 +227,11 @@ export class LinkedHashTable<K, V> {
   /** A live iterator over the records, from the front or from the back. */
   iterator(fromBack: boolean): LinkedRecordIterator<K, V> {
     return new LinkedRecordIterator(this, fromBack)
+  }
+
+  /** An iterator over the keys, with one result object per step. */
+  keyIterator(fromBack: boolean): IterableIterator<K> {
+    return new LinkedKeyIterator(new LinkedRecordIterator(this, fromBack))
   }
 
   /** A test of records against `keys` under this table's equality. */
@@ -313,6 +344,7 @@ export class LinkedRecordIterator<K, V>
     this.epoch = table.epoch
   }
 
+  // Returns a fresh result object every step: `LinkedKeyIterator` rewrites its `value` in place.
   next(): IteratorResult<LinkedRecord<K, V>> {
     if (this.finished) return done()
     const table = this.table
@@ -352,6 +384,29 @@ export class LinkedRecordIterator<K, V>
       else visited.add(candidate.origin)
     }
     return { done: false, value: candidate }
+  }
+
+  [Symbol.iterator](): this {
+    return this
+  }
+}
+
+/**
+ * The keys of a `LinkedRecordIterator`: each step's result object is fresh, so its value is
+ * replaced by the record's key instead of building another result.
+ */
+class LinkedKeyIterator<K, V> extends IteratorBase implements IterableIterator<K> {
+  private readonly records: LinkedRecordIterator<K, V>
+
+  constructor(records: LinkedRecordIterator<K, V>) {
+    super()
+    this.records = records
+  }
+
+  next(): IteratorResult<K> {
+    const step = this.records.next() as IteratorResult<unknown>
+    if (step.done !== true) step.value = (step.value as LinkedRecord<K, V>).key
+    return step as IteratorResult<K>
   }
 
   [Symbol.iterator](): this {

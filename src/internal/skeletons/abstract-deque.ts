@@ -7,7 +7,7 @@ import { NoSuchElementError } from '../../errors/errors'
 import type { Cursor } from '../../interfaces/collection'
 import type { Deque } from '../../interfaces/queue'
 import { DEQUE_BRAND, QUEUE_BRAND, SEQUENCED_COLLECTION_BRAND } from '../brand'
-import { requireElement } from '../checks'
+import { requireElement, type Where } from '../checks'
 import { sameValueZero } from '../equality'
 import { done, FailFastCursor, FailFastIterator } from '../iteration'
 import type { ChangeCounter } from '../revision'
@@ -80,9 +80,9 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   /** A walker from the front to the back, or from the back to the front. */
   abstract walker(fromBack: boolean): DequeWalker<E>
   /** Adds `element` at the front; throws before any change when the deque is full. */
-  abstract insertFront(element: E, where: string): void
+  abstract insertFront(element: E, where: Where, method?: string): void
   /** Adds `element` at the back; throws before any change when the deque is full. */
-  abstract insertBack(element: E, where: string): void
+  abstract insertBack(element: E, where: Where, method?: string): void
   /** Removes and returns the front element of a non-empty deque. */
   abstract takeFront(): E
   /** Removes and returns the back element of a non-empty deque. */
@@ -263,10 +263,9 @@ export abstract class AbstractDeque<E> extends AbstractCollection<E> implements 
   }
 
   private insertChecked(element: E, method: string, front: boolean): void {
-    const where = `${this.className}.${method}`
-    if (!this.storesEmpty) requireElement(element, where)
-    if (front) this.insertFront(element, where)
-    else this.insertBack(element, where)
+    if (!this.storesEmpty) requireElement(element, this, method)
+    if (front) this.insertFront(element, this, method)
+    else this.insertBack(element, this, method)
   }
 
   private empty(method: string): NoSuchElementError {

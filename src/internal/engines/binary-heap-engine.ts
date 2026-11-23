@@ -9,11 +9,11 @@ import { ConcurrentModificationError } from '../../errors/errors'
 import type { Comparator } from '../../functions/comparators'
 import type { Cursor } from '../../interfaces/collection'
 import type { Queue } from '../../interfaces/queue'
-import { requireElement } from '../checks'
+import { type Labelled, labelOf, requireElement, type Where } from '../checks'
 import { guardedCompare } from '../compare'
 import { sameValueZero } from '../equality'
 import { done, FailFastCursor, FailFastIterator } from '../iteration'
-import { compareNatural } from '../natural-order'
+import { compareNatural, isPlainKind } from '../natural-order'
 import type { ChangeCounter } from '../revision'
 import { AbstractCollection } from '../skeletons/abstract-collection'
 
@@ -105,6 +105,21 @@ class HeapCursor<E> extends FailFastCursor<E> {
  * @internal
  */
 export class BinaryHeapEngine<E> extends AbstractCollection<E> {
+  /** The labels of `add` and `poll`, each built once per queue, the first time a comparison needs it. */
+  private readonly addSite: Labelled = this.site('add')
+  private readonly pollSite: Labelled = this.site('poll')
+
+  /** A label source for `method` that builds its label once, the first time it is needed. */
+  private site(method: string): Labelled {
+    let label: string | undefined
+    return {
+      errorLabel: () => {
+        if (label === undefined) label = this.errorLabel(method)
+        return label
+      },
+    }
+  }
+
   protected readonly iterationMode = 'fail-fast' as const
   private heap: E[] = []
   private readonly order: Comparator<E> | undefined
@@ -151,19 +166,25 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
    * Compares `a` and `b` under the queue's order, then checks that the comparator did not add or
    * remove elements: `expected` is the structure count when the outer operation started.
    */
-  private compare(a: E, b: E, where: string, expected: number): number {
+  private compare(a: E, b: E, where: Where, expected: number): number {
+    if (this.order === undefined) {
+      // Two numbers or two strings run no user code and cannot throw, so nothing can have changed
+      // the queue and no label is needed.
+      if (isPlainKind(a, b)) return compareNatural(a, b, '')
+    }
+    const label = labelOf(where, '')
     const result =
       this.order === undefined
-        ? compareNatural(a, b, where)
-        : guardedCompare(this.order, a, b, where)
+        ? compareNatural(a, b, label)
+        : guardedCompare(this.order, a, b, label)
     if (this.changes.structure !== expected) {
-      throw new ConcurrentModificationError(`${where}: the queue was changed by the comparator`)
+      throw new ConcurrentModificationError(`${label}: the queue was changed by the comparator`)
     }
     return result
   }
 
   /** The slot `x` rises to from the hole at `index`, comparing it with each parent. */
-  private planUp(x: E, index: number, where: string, expected: number): number {
+  private planUp(x: E, index: number, where: Where, expected: number): number {
     const heap = this.heap
     let i = index
     while (i > 0) {
@@ -178,7 +199,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
    * The children that move up, in order, when `x` sinks from the hole at `index` in a heap of
    * `length` slots: at each level the smaller child moves up while it is less than `x`.
    */
-  private planDown(x: E, index: number, length: number, where: string, expected: number): number[] {
+  private planDown(x: E, index: number, length: number, where: Where, expected: number): number[] {
     const heap = this.heap
     const path: number[] = []
     let i = index
@@ -221,7 +242,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
   }
 
   /** Orders `items` into a heap in place (bottom-up), checking the structure after each call. */
-  private heapify(items: E[], where: string, expected: number): void {
+  private heapify(items: E[], where: Where, expected: number): void {
     const length = items.length
     if (length === 1 && this.order === undefined) {
       // Alone, the element is compared with itself so an incomparable value is still refused.
@@ -269,7 +290,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
   // ── Adding ──
 
   add(element: E): this {
-    this.insert(element, `${this.className}.add`)
+    this.insert(element, this.addSite)
     return this
   }
 
@@ -281,7 +302,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
     return items.length > 0
   }
 
-  private insert(x: E, where: string): void {
+  private insert(x: E, where: Where): void {
     requireElement(x, where)
     const expected = this.changes.structure
     const length = this.heap.length
@@ -310,7 +331,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
       return top
     }
     const x = heap[length - 1] as E
-    const path = this.planDown(x, 0, length - 1, `${this.className}.poll`, this.changes.structure)
+    const path = this.planDown(x, 0, length - 1, this.pollSite, this.changes.structure)
     heap.pop()
     this.applyDown(x, 0, path)
     this.changes.structural()

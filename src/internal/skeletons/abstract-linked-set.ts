@@ -11,7 +11,7 @@ import { SEQUENCED_COLLECTION_BRAND } from '../brand'
 import { normalise, Operation } from '../engines/hash-support'
 import type { LinkedHashTable, LinkedRecord } from '../engines/linked-hash-table'
 import type { HashFunction } from '../equality'
-import { LiveCursor, MappedLiveIterator } from '../iteration'
+import { LiveCursor } from '../iteration'
 import type { ChangeCounter } from '../revision'
 import { AbstractSet } from './abstract-set'
 
@@ -54,7 +54,7 @@ export abstract class AbstractLinkedSet<E> extends AbstractSet<E> implements Seq
   }
 
   [Symbol.iterator](): IterableIterator<E> {
-    return new MappedLiveIterator(this.table.iterator(this.fromBack), keyOf)
+    return this.table.keyIterator(this.fromBack)
   }
 
   /** Starts an operation whose errors name `<tag>.<method>`. */
@@ -69,6 +69,8 @@ export abstract class AbstractLinkedSet<E> extends AbstractSet<E> implements Seq
   }
 
   protected hasMember(element: E, method: string): boolean {
+    const table = this.table
+    if (table.plain) return table.findPlain(normalise(element)) !== undefined
     return this.findRecord(normalise(element), this.operation(method)) !== undefined
   }
 
