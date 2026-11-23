@@ -159,7 +159,7 @@ describe('stated counts', () => {
     }
   })
 
-  it('builds a tree from strictly ascending input with at most m − 1 comparisons, one for a single element in natural order [036 S1-AC12]', () => {
+  it('builds a tree from strictly ascending input with at most m − 1 comparisons, one for a single element in natural order [036 S1-AC12] [043 S2-AC4]', () => {
     for (const m of SIZES) {
       const values = shaped('ascending', m)
       const pairs = values.map((v) => [v, v] as [number, number])
@@ -200,7 +200,7 @@ describe('stated counts', () => {
     expect(tally.calls).toBeLessThanOrEqual(2)
   })
 
-  it('adds to a tree with at most 2⌈log₂(n + 1)⌉ + 2 comparisons, and finds and navigates with at most 2⌈log₂(n + 1)⌉ [036 S1-AC12]', () => {
+  it('adds to a tree with at most 2⌈log₂(n + 1)⌉ + 2 comparisons, and finds and navigates with at most 2⌈log₂(n + 1)⌉ [036 S1-AC12] [043 S2-AC4]', () => {
     for (const n of SIZES) {
       for (const shape of ['ascending', 'descending', 'random'] as const) {
         const tally = { calls: 0 }
