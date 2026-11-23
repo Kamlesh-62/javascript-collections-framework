@@ -378,6 +378,15 @@ class BucketMapStore<K, V> implements MapStore<K, V> {
 }
 
 /**
+ * Returns a store over `map`, a native `Map` compared with SameValueZero.
+ *
+ * @internal
+ */
+export function nativeMapStore<K, V>(map: Map<K, V>): MapStore<K, V> {
+  return new NativeMapStore(map)
+}
+
+/**
  * Returns a new empty store for `equality`.
  *
  * @internal

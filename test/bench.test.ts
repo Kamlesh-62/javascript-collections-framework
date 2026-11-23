@@ -169,6 +169,38 @@ describe('the benchmark cases', () => {
     }
   })
 
+  it('take from the front of linked maps and sets, and evict by maxSize, against one native iterator kept per structure [045 S5-AC1]', () => {
+    const cases = benchCases(lib, 1_000)
+    const row = (collection: string, operation: string) => {
+      const c = cases.find((x) => x.collection === collection && x.operation === operation)
+      if (c === undefined) throw new Error(`no ${collection} ${operation} case`)
+      return c
+    }
+    const takeEntry = row('LinkedHashMap', 'take the first entry')
+    expect(takeEntry.native.name).toBe('Map keys().next() and delete')
+    expect(takeEntry.library.run.toString()).toMatch(/pollFirstEntry\(\)/)
+    expect(takeEntry.ops).toBe(OPS)
+    const evict = row('LinkedHashMap', 'set new keys with maxSize')
+    expect(evict.native.name).toBe('Map set and delete the first key')
+    expect(evict.library.run.toString()).toMatch(/maxSize/)
+    expect(evict.ops).toBe(1_000)
+    const take = row('LinkedHashSet', 'take the first')
+    expect(take.native.name).toBe('Set values().next() and delete')
+    expect(take.library.run.toString()).toMatch(/removeFirst\(\)/)
+    expect(take.ops).toBe(OPS)
+    // Each side refills at the back, so the structure keeps its size from pass to pass.
+    for (const c of [takeEntry, take]) {
+      const native = c.native.setup() as { m?: Map<number, number>; s?: Set<number> }
+      const library = c.library.setup() as { m?: { size: number }; s?: { size: number } }
+      c.native.run(native)
+      c.library.run(library)
+      expect((native.m ?? native.s)?.size).toBe(1_000)
+      expect((library.m ?? library.s)?.size).toBe(1_000)
+    }
+    expect(evict.native.run(undefined)).toBe(500)
+    expect(evict.library.run(undefined)).toBe(500)
+  })
+
   it('read min(n, 10,000) distinct present keys in a seeded order in lookups, and OPS operations in updates [044 S1-AC2]', () => {
     expect(LOOKUPS).toBe(10_000)
     expect(OPS).toBe(1_000)

@@ -1,4 +1,4 @@
-// The reversed view of a linked hash set: the same table and change counter, walked from the back,
+// The reversed view of a linked hash set: the same state, walked from the back,
 // so changes show in both and the view's ends are the set's ends swapped.
 
 import type { SequencedSet } from '../../interfaces/sequenced-set'
@@ -15,7 +15,7 @@ export class ReversedLinkedHashSet<E> extends AbstractLinkedSet<E> {
 
   /** @param source - The set to reverse. */
   constructor(source: LinkedHashSetEngine<E>) {
-    super(source.table, source.changeCounter, true)
+    super(source.state, true)
     this.source = source
   }
 

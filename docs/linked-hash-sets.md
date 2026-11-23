@@ -3,7 +3,8 @@
 `LinkedHashSet` is a set in insertion order — like native `Set` and [`HashSet`](sets.md) — that
 can also be read and changed at **both ends**: the first and last member, removing either,
 inserting at the front, moving a member to either end, and walking the set newest first through a
-live reversed view. Each of these takes O(1) (average for those that look up or remove).
+live reversed view. Each of these takes O(1) amortised (average for those that look up or
+remove).
 
 ```ts
 import { LinkedHashSet } from 'javascript-collections-framework'
@@ -158,14 +159,20 @@ give unspecified results for it; `removeFirst`, `removeLast`, a cursor's `remove
 
 | Operation                                          | Time                                                                                                 |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `add`, `has`, `delete`, `addFirst`, `addLast`      | O(1) average, plus one `key` or `hash` call                                                          |
-| `getFirst`, `getLast`, `removeFirst`, `removeLast` | O(1) average, no user calls                                                                          |
+| `add`, `has`, `delete`                             | O(1) average, plus one `key` or `hash` call                                                          |
+| `addFirst`, `addLast`                              | O(1) amortised average, plus one `key` or `hash` call                                                |
+| `getFirst`, `getLast`, `removeFirst`, `removeLast` | O(1) amortised average, no user calls                                                                |
 | `reversed()`                                       | O(1)                                                                                                 |
 | iteration step, cursor `next` and `remove`         | O(1) amortised over the steps and the changes made while the iterator is open (average for `remove`) |
 | `removeIf`, `removeAll`, `retainAll`               | O(n + m) average, plus the calls                                                                     |
 | `addAll`                                           | O(m) average                                                                                         |
 | `clear`                                            | O(1) with `equivalence`; one native `clear`                                                          |
 | `toArray`, `copy`, `toString`, `forEach`, `equals` | O(n)                                                                                                 |
+
+A set without the `key` or `equivalence` option keeps its members in a native `Set` until the first
+call that needs linked order: `addFirst`, `addLast` of a member, `getLast`, `removeLast`, or any
+call through `reversed()`. That call costs O(n), once in the set's life, which is why the rows above
+that can make it are amortised; everything else then runs on linked records as before.
 
 With an `equivalence`, the same seeded buckets and collision behaviour as
 [`HashSet`](sets.md#cost) apply. Each member costs a little more memory than in a `HashSet`: it
@@ -175,7 +182,7 @@ also carries its place in the order.
 
 | `Set`                                           | `LinkedHashSet`                                   |
 | ----------------------------------------------- | ------------------------------------------------- |
-| the last member needs a full walk               | `getLast()` in O(1)                               |
+| the last member needs a full walk               | `getLast()` in O(1) amortised                     |
 | the first member is removed through an iterator | `removeFirst()`, `removeLast()`                   |
 | no front insertion                              | `addFirst(e)`                                     |
 | moving to the end is `delete` then `add`        | `addLast(e)`, and `addFirst(e)` for the front     |

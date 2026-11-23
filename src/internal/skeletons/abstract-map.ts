@@ -172,13 +172,18 @@ export abstract class AbstractMap<K, V> {
     )
   }
 
-  /** The 32-bit sum of the mappings' hashes, unguarded (the entry view's hash is the map's). */
+  /**
+   * The 32-bit sum of the mappings' hashes, unguarded (the entry view's hash is the map's). Each
+   * value is read before its key is hashed: hashing runs user code, after which a handle may no
+   * longer be read.
+   */
   mappingHashes(hash: HashFunction): number {
     let sum = 0
     const handles = this.handles(this.at('[hashCodeSymbol]'))
     for (let step = handles.next(); step.done !== true; step = handles.next()) {
       const handle = step.value
-      sum = (sum + mappingHash(this.keyHash(handle, hash), hash(this.valueAt(handle)))) | 0
+      const value = this.valueAt(handle)
+      sum = (sum + mappingHash(this.keyHash(handle, hash), hash(value))) | 0
     }
     return sum
   }

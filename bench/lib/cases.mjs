@@ -1205,6 +1205,70 @@ export function benchCases(lib, size, seed = 41) {
       },
     },
   )
+  // Front reads take one native iterator per map or set and keep it, as a queue does; a fresh
+  // `keys()` per read would skip every deleted slot at the front of the native table each time.
+  add(
+    'LinkedHashMap',
+    'take the first entry',
+    ops,
+    'Map keys().next() and delete',
+    {
+      setup: () => {
+        const m = new Map(entries)
+        return { m, first: m.keys(), next: n }
+      },
+      run: (t) => {
+        let c = 0
+        for (let i = 0; i < ops; i++) {
+          const k = t.first.next().value
+          t.m.delete(k)
+          c += k
+          t.m.set(t.next, t.next)
+          t.next++
+        }
+        return c
+      },
+    },
+    {
+      setup: () => ({ m: new LinkedHashMap(entries), next: n }),
+      run: (t) => {
+        let c = 0
+        for (let i = 0; i < ops; i++) {
+          c += t.m.pollFirstEntry().key
+          t.m.set(t.next, t.next)
+          t.next++
+        }
+        return c
+      },
+    },
+  )
+  add(
+    'LinkedHashMap',
+    'set new keys with maxSize',
+    n,
+    'Map set and delete the first key',
+    {
+      setup: none,
+      run: () => {
+        const m = new Map()
+        const first = m.keys()
+        const cap = Math.max(1, n >> 1)
+        for (const k of keys) {
+          m.set(k, k)
+          if (m.size > cap) m.delete(first.next().value)
+        }
+        return m.size
+      },
+    },
+    {
+      setup: none,
+      run: () => {
+        const m = new LinkedHashMap({ maxSize: Math.max(1, n >> 1) })
+        for (const k of keys) m.set(k, k)
+        return m.size
+      },
+    },
+  )
   add(
     'HashSet',
     'add one by one',
@@ -1246,6 +1310,41 @@ export function benchCases(lib, size, seed = 41) {
         const t = new LinkedHashSet()
         for (const k of keys) t.add(k)
         return t.size
+      },
+    },
+  )
+  add(
+    'LinkedHashSet',
+    'take the first',
+    ops,
+    'Set values().next() and delete',
+    {
+      setup: () => {
+        const s = new Set(keys)
+        return { s, first: s.values(), next: n }
+      },
+      run: (t) => {
+        let c = 0
+        for (let i = 0; i < ops; i++) {
+          const v = t.first.next().value
+          t.s.delete(v)
+          c += v
+          t.s.add(t.next)
+          t.next++
+        }
+        return c
+      },
+    },
+    {
+      setup: () => ({ s: new LinkedHashSet(keys), next: n }),
+      run: (t) => {
+        let c = 0
+        for (let i = 0; i < ops; i++) {
+          c += t.s.removeFirst()
+          t.s.add(t.next)
+          t.next++
+        }
+        return c
       },
     },
   )

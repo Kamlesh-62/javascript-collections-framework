@@ -80,7 +80,7 @@ Checked on 2026-11-19 against [mnemonist](https://www.npmjs.com/package/mnemonis
 and [@datastructures-js/linked-list](https://www.npmjs.com/package/@datastructures-js/linked-list)
 6.1.4. Sizes are one export bundled alone, minified and gzipped, the way the
 [size table](docs/performance.md#bundle-size) measures this library. Importing every export
-at once: 35.1 kB (whole package).
+at once: 37.5 kB (whole package).
 
 When another choice is better:
 

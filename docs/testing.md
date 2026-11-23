@@ -154,7 +154,7 @@ reason; among them are the members that call no user code, whose work no counter
   - `ArrayList`: `[INSPECT]`, `[equalsSymbol]`
   - `HashMap`: `[INSPECT]`, `[equalsSymbol]`, `compute`, `computeIfPresent`, `delete`, `getOrDefault`, `getOrInsert`, `getOrInsertComputed`, `has`, `merge`, `put`, `remove`, `replace`
   - `HashSet`: `[INSPECT]`, `[equalsSymbol]`
-  - `LinkedHashMap`: `[INSPECT]`, `[equalsSymbol]`, `compute`, `computeIfPresent`, `delete`, `getOrDefault`, `getOrInsert`, `getOrInsertComputed`, `has`, `merge`, `put`, `putFirst`, `putLast`, `remove`, `replace`
+  - `LinkedHashMap`: `[INSPECT]`, `[equalsSymbol]`, `compute`, `computeIfPresent`, `delete`, `getOrDefault`, `getOrInsert`, `getOrInsertComputed`, `has`, `merge`, `put`, `remove`, `replace`
   - `LinkedHashSet`: `[INSPECT]`, `[equalsSymbol]`
   - `LinkedList`: `[INSPECT]`
   - `PriorityQueue`: `[INSPECT]`

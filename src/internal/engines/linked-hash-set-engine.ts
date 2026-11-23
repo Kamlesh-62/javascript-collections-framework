@@ -7,30 +7,48 @@ import { AbstractLinkedSet } from '../skeletons/abstract-linked-set'
 import { ReversedLinkedHashSet } from '../views/reversed-linked-hash-set'
 import type { HashEquality } from './hash-support'
 import { LinkedHashTable } from './linked-hash-table'
+import { MISSING } from './map-stores'
 
 /**
  * A set in insertion order, changeable at both ends, whose members are compared with
- * SameValueZero, by derived key, or by an equivalence; iteration is live.
+ * SameValueZero, by derived key, or by an equivalence; iteration is live. With SameValueZero
+ * members it starts in the native layout.
  *
  * @internal
  */
 export class LinkedHashSetEngine<E> extends AbstractLinkedSet<E> {
   private readonly facade: SequencedSet<E>
-  private readonly equality: HashEquality<E>
 
   /**
    * @param facade - The public set, for identity and callbacks.
    * @param equality - How members are compared.
-   * @param table - The table to use; a new empty one by default.
+   * @param contents - The table to use, or the native `Set` of a set in the native layout; a new
+   *   empty one by default.
    */
   constructor(
     facade: SequencedSet<E>,
     equality: HashEquality<E>,
-    table: LinkedHashTable<E, undefined> = new LinkedHashTable<E, undefined>(equality),
+    contents?: LinkedHashTable<E, undefined> | Set<E>,
   ) {
-    super(table, new ChangeCounter(), false)
+    let flat: Set<E> | undefined
+    let table: LinkedHashTable<E, undefined> | undefined
+    if (contents instanceof LinkedHashTable) table = contents
+    else if (contents !== undefined) flat = contents
+    else if (equality.kind === 'native') flat = new Set<E>()
+    else table = new LinkedHashTable<E, undefined>(equality)
+    super(
+      {
+        flat,
+        table,
+        front: undefined,
+        frontKey: MISSING,
+        frontValue: undefined,
+        changes: new ChangeCounter(),
+        equality,
+      },
+      false,
+    )
     this.facade = facade
-    this.equality = equality
   }
 
   get [Symbol.toStringTag](): string {
@@ -41,17 +59,17 @@ export class LinkedHashSetEngine<E> extends AbstractLinkedSet<E> {
     return this.facade
   }
 
-  /** The change counter, shared with the reversed view. */
-  get changeCounter(): ChangeCounter {
-    return this.changes
-  }
-
   reversed(): SequencedSet<E> {
     return new ReversedLinkedHashSet(this)
   }
 
-  /** A new engine for `facade` with the same equality, order and stored keys and hashes. */
+  /**
+   * A new engine for `facade` with the same equality, order and stored keys and hashes; in the
+   * native layout whenever the equality allows it, whatever this set's layout.
+   */
   copy(facade: SequencedSet<E>): LinkedHashSetEngine<E> {
-    return new LinkedHashSetEngine(facade, this.equality, this.table.copy(this.equality))
+    const equality = this.state.equality
+    if (equality.kind === 'native') return new LinkedHashSetEngine(facade, equality, new Set(this))
+    return new LinkedHashSetEngine(facade, equality, this.table.copy(equality))
   }
 }

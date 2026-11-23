@@ -25,7 +25,7 @@ export interface ReadonlySequencedMap<K, V> extends ReadonlyMapCollection<K, V> 
    * Returns the entry of the first mapping, or `undefined` when the map is empty. Reading the ends
    * never changes the order.
    *
-   * Time: as the implementation documents (O(1) for a `LinkedHashMap`).
+   * Time: as the implementation documents (O(1) amortised for a `LinkedHashMap`).
    *
    * @returns A live entry, or `undefined`.
    */
@@ -34,7 +34,7 @@ export interface ReadonlySequencedMap<K, V> extends ReadonlyMapCollection<K, V> 
    * Returns the entry of the last mapping, or `undefined` when the map is empty. Reading the ends
    * never changes the order.
    *
-   * Time: as the implementation documents (O(1) for a `LinkedHashMap`).
+   * Time: as the implementation documents (O(1) amortised for a `LinkedHashMap`).
    *
    * @returns A live entry, or `undefined`.
    */

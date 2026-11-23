@@ -39,7 +39,7 @@ export class EvictionQueue<K, V> {
    * it, also when it throws (before its error propagates).
    */
   run<T>(body: () => T): T {
-    this.depth++
+    this.enter()
     let result: T
     try {
       result = body()
@@ -51,11 +51,16 @@ export class EvictionQueue<K, V> {
     return result
   }
 
+  /** Starts a call on the map; each `enter` is matched by one `leave`. */
+  enter(): void {
+    this.depth++
+  }
+
   /**
    * Ends a call; the outermost one delivers the queue. An error from `onEvict` drops the rest of
    * the queue and propagates, unless the call failed itself (`failed`), whose error then wins.
    */
-  private leave(failed: boolean): void {
+  leave(failed: boolean): void {
     if (--this.depth > 0) return
     const pending = this.pending
     if (pending.length === 0) return
