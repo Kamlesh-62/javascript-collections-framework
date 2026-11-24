@@ -152,6 +152,36 @@ lists:
 <!-- example: not run — a framework recipe, tested in test/frameworks/ -->
 ```
 
+## Releases
+
+Releases are made by the maintainer through the hand-started `Release` workflow; nothing is
+published from a pull request.
+
+1. On a branch, run `pnpm release:version`. It runs `changeset version` (bumps `package.json`,
+   writes `CHANGELOG.md`, deletes the consumed changesets), builds the package, and runs
+   `pnpm cdn:snippet`, which sets the README's CDN snippet to the new version and the SHA-384
+   integrity hash of that build. Commit as `chore(release): <version>` and merge the version pull
+   request once CI is green.
+2. Run the `Release` workflow from that merge commit, with no other merge in between: the snippet's
+   hash is of that commit's build, and `prepublishOnly` stops the release, showing both hashes, if
+   the build npm packs differs. The release check also stops the run when `CHANGELOG.md` has no
+   `## <version>` section or the tag `v<version>` already exists.
+3. The workflow stages the package on npm, then creates a draft GitHub release titled
+   `v<version>` with the changelog section, the install command and the CDN snippet.
+4. The maintainer approves the staged version on npm (`npm stage approve <id>`, with 2FA), and only
+   then publishes the draft from the Releases page, which creates the tag `v<version>`.
+
+If something goes wrong:
+
+- After `npm stage reject <id>`, delete the draft (`gh release delete v<version>`), fix the
+  problem, and bump the version with `pnpm release:version` again.
+- If only the draft job failed, delete any draft for the version (`gh release delete v<version>`),
+  then run the draft job again alone with `gh run rerun <run-id> --failed`.
+- `node scripts/release-notes.mjs <version>` (or `pnpm -s release:notes <version>`) prints the
+  notes of any version in `CHANGELOG.md`; `--integrity sha384-<hash>` sets the snippet's hash.
+- Between releases the README names the last published version, so `npm publish --dry-run` stops
+  at the snippet check: the build of `main` differs from the published file.
+
 ## Rules for changes
 
 - **Every public export** comes from `src/index.ts`, has TSDoc with an `@example`, and states its

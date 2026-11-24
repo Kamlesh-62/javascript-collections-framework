@@ -29,11 +29,10 @@ import {/* … */} from 'javascript-collections-framework'
 const {/* … */} = require('javascript-collections-framework')
 ```
 
-```html
-<!-- Script tag: exposes a global `JCF`. Pin an exact version and add the published integrity hash. -->
-<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@VERSION/dist/index.iife.js"
-        integrity="sha384-…" crossorigin="anonymous"></script>
-```
+A `<script>` tag loads the script-tag build and exposes a global `JCF`. The
+[install section of the README](../README.md#install) and the notes of each
+[GitHub release](https://github.com/Kamlesh-62/javascript-collections-framework/releases) give the
+tag for a published version with its `integrity` hash, ready to copy.
 
 <!-- example: not run — loads the package in Deno -->
 ```ts

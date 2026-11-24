@@ -13,6 +13,8 @@ export const MIN_NPM = '11.15.0'
  * @property {string} head - The commit being released.
  * @property {string} mainTip - The commit at the tip of `main` on the remote.
  * @property {string[]} changesets - From {@link pendingChangesets}.
+ * @property {boolean} changelogSection - Whether `CHANGELOG.md` has a `## <version>` line.
+ * @property {boolean | { error: string }} tagExists - From {@link tagState}.
  */
 
 /**
@@ -88,9 +90,23 @@ export function registryState(name, version, run) {
 }
 
 /**
+ * Whether `tag` exists on the remote, from the outcome of
+ * `git ls-remote --tags origin refs/tags/<tag>`: any line printed means it exists, nothing printed
+ * means it does not, and a failed lookup is an error.
+ * @param {string} tag
+ * @param {(ref: string) => { ok: true, stdout: string } | { ok: false, stderr: string }} run
+ * @returns {boolean | { error: string }}
+ */
+export function tagState(tag, run) {
+  const result = run(`refs/tags/${tag}`)
+  if (!result.ok) return { error: result.stderr.trim() || 'git ls-remote failed with no output' }
+  return result.stdout.trim() !== ''
+}
+
+/**
  * Every reason the release must stop: an npm without staged publishing, a registry error, a
- * version already published, a commit that is not the tip of `main`, and changesets not yet
- * versioned.
+ * version already published, a commit that is not the tip of `main`, changesets not yet
+ * versioned, a version with no changelog section, and a tag that exists or could not be looked up.
  * @param {ReleaseFacts} facts
  * @returns {string[]}
  */
@@ -113,5 +129,10 @@ export function releaseProblems(facts) {
     problems.push(
       `release: .changeset/ holds changesets not yet versioned: ${facts.changesets.join(', ')}`,
     )
+  if (!facts.changelogSection)
+    problems.push(`release: CHANGELOG.md has no '## ${facts.version}' section`)
+  if (typeof facts.tagExists === 'object')
+    problems.push(`release: the lookup of tag v${facts.version} failed: ${facts.tagExists.error}`)
+  else if (facts.tagExists) problems.push(`release: tag v${facts.version} already exists on origin`)
   return problems
 }

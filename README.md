@@ -105,9 +105,8 @@ bun add javascript-collections-framework
 Or without a build step:
 
 ```html
-<!-- Pin an exact version; add the integrity hash published with each release. -->
-<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@VERSION/dist/index.iife.js"
-        integrity="sha384-…" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@0.1.1/dist/index.iife.js"
+        integrity="sha384-PObd63FV1OrX53vTeW7oXwFogfgzC0o7u8jwCe/0FgR0dY4HiPfRNb00G5XGHPLP" crossorigin="anonymous"></script>
 ```
 
 ## Goals

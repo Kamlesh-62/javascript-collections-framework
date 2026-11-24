@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { formatKb } from '../scripts/lib/badge.mjs'
+import { CDN, readSnippet, snippetProblems } from '../scripts/lib/cdn-snippet.mjs'
 import { parseReport } from '../scripts/lib/size-compare.mjs'
 import { SIZE_REPORT_PATH } from '../scripts/lib/size-report.mjs'
 import { readPageBlocks } from './support/doc-examples'
@@ -184,5 +185,16 @@ describe('the README badges for the package', () => {
       },
     ])
     expect(read('docs/performance.md')).toMatch(/^## Bundle size$/m)
+  })
+})
+
+describe('the CDN snippet', () => {
+  const version = JSON.parse(read('package.json')).version
+
+  it('loads the version in package.json with a SHA-384 integrity value and crossorigin, with no placeholder [046 S2-AC1] [046 S2-AC4]', () => {
+    expect(snippetProblems(readme, version)).toEqual([])
+    const snippet = readSnippet(readme)
+    expect(snippet).toMatchObject({ version, crossorigin: true })
+    expect(section('Install')).toContain(`<script src="${CDN}@${version}/dist/index.iife.js"`)
   })
 })
