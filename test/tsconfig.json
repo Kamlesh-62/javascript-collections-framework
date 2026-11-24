@@ -19,6 +19,10 @@
     "../scripts/two-copies.mjs",
     "../scripts/old-typescript.mjs",
     "../scripts/site-coverage.mjs",
+    "../scripts/cdn-snippet.mjs",
+    "../scripts/release-check.mjs",
+    "../scripts/release-draft.mjs",
+    "../scripts/release-notes.mjs",
     "../bench",
     "../fixtures/engines"
   ],
