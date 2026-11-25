@@ -197,13 +197,13 @@ const PAGE_OF: Record<string, string> = {
   LinkedHashSet: 'docs/linked-hash-sets.md',
 }
 
-/** The README's `## ` sections, as before the recipes were added; the link adds none. */
+/** The README's `## ` sections; the recipes link sits on the "Try it" paragraph and adds none. */
 const README_SECTIONS = [
-  'Quick start',
-  'Why this library?',
   'Install',
-  'Goals',
+  'More examples',
+  'Why this library?',
   'Available collections',
+  'Goals',
   'Planned collections',
   'Documentation',
   'Security',

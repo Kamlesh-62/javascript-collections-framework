@@ -6,31 +6,57 @@
 [![size](https://kamlesh-62.github.io/javascript-collections-framework/badges/size.svg)](https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#bundle-size)
 [![dependencies](https://kamlesh-62.github.io/javascript-collections-framework/badges/dependencies.svg)](https://www.npmjs.com/package/javascript-collections-framework?activeTab=dependencies)
 
-A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and
-deques behind shared interfaces, with documented complexity.
+**JavaScript has no sorted map, no priority queue, and no way to use an object such as
+`{ x: 1, y: 2 }` as a `Map` key compared by value; this library adds them, with deques, linked
+and LRU maps, and live views.**
+
+Zero runtime dependencies · TypeScript types included · Runs on Node.js, Bun, Deno, Chrome,
+Firefox, Cloudflare Workers and React Native.
+
+```ts
+import { HashMap, PriorityQueue, TreeMap } from 'javascript-collections-framework'
+
+const bookings = new TreeMap<number, string>().set(900, 'stand-up').set(1030, 'review')
+bookings.floorEntry(1100)?.value // 'review': the booking at or before 11:00
+
+new PriorityQueue([5, 1, 3]).poll() // 1: the smallest first
+
+type Point = { x: number; y: number }
+const places = new HashMap<Point, string>({ key: (p) => `${p.x},${p.y}` })
+places.set({ x: 1, y: 2 }, 'home').size // 1
+places.get({ x: 1, y: 2 }) // 'home': an equal point, not the stored object
+new Map([[{ x: 1, y: 2 }, 'home']]).get({ x: 1, y: 2 }) // undefined: a native Map compares by reference
+```
+
+[Try it in your browser](https://stackblitz.com/github/Kamlesh-62/javascript-collections-framework/tree/main/examples/playground), browse the [recipes](docs/recipes.md),
+see the [benchmarks](docs/performance.md#benchmarks), or read
+[coming from native JavaScript](docs/coming-from-native.md).
 
 > **Status: 0.x.** Published on npm. Until `1.0.0`, a minor release may contain breaking changes,
 > each listed in the [changelog](CHANGELOG.md); see [versioning](docs/versioning.md).
 
-## Quick start
+## Install
 
 ```sh
 npm install javascript-collections-framework
+pnpm add javascript-collections-framework
+yarn add javascript-collections-framework
+bun add javascript-collections-framework
 ```
 
+Or without a build step:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@0.1.1/dist/index.iife.js"
+        integrity="sha384-PObd63FV1OrX53vTeW7oXwFogfgzC0o7u8jwCe/0FgR0dY4HiPfRNb00G5XGHPLP" crossorigin="anonymous"></script>
+```
+
+## More examples
+
+A map that keeps the most recently used entries, evicting the least recently used:
+
 ```ts
-import { LinkedHashMap, PriorityQueue, TreeMap } from 'javascript-collections-framework'
-
-const bookings = new TreeMap([
-  [900, 'stand-up'],
-  [1030, 'review'],
-  [1400, 'planning'],
-])
-bookings.floorEntry(1100)?.value // 'review': the booking at or before 11:00
-bookings.headMap(1200).toJSON() // [[900, 'stand-up'], [1030, 'review']]
-
-const tasks = new PriorityQueue([5, 1, 3])
-tasks.poll() // 1: the smallest first
+import { LinkedHashMap } from 'javascript-collections-framework'
 
 const cache = new LinkedHashMap<string, number>({ accessOrder: true, maxSize: 2 })
 cache.set('a', 1).set('b', 2).size // 2
@@ -50,11 +76,6 @@ Array.from(sorted) // [1, 2, 3]
 const json = JSON.stringify(sorted) // '[1,2,3]'
 TreeSet.from(JSON.parse(json)).equals(sorted) // true
 ```
-
-[Open in StackBlitz](https://stackblitz.com/github/Kamlesh-62/javascript-collections-framework/tree/main/examples/playground)
-to try it without installing anything, or browse [runnable recipes](docs/recipes.md) for common
-tasks. Used to `Array`, `Map` and `Set`? See
-[coming from native JavaScript](docs/coming-from-native.md).
 
 ## Why this library?
 
@@ -83,6 +104,10 @@ and [@datastructures-js/linked-list](https://www.npmjs.com/package/@datastructur
 [size table](docs/performance.md#bundle-size) measures this library. Importing every export
 at once: 37.5 kB (whole package).
 
+<!-- readme-chart:start -->
+[![Bar chart of other libraries' median operations per second relative to javascript-collections-framework at 100,000 elements, on a log scale centred on 1×; another library's median is higher in 16 of 24 rows.](https://raw.githubusercontent.com/Kamlesh-62/javascript-collections-framework/main/docs/images/benchmarks.svg)](https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#compared-with-other-libraries)
+<!-- readme-chart:end -->
+
 When another choice is better:
 
 - **Native `Array`, `Map` and `Set`** when keys are primitives or compared by reference and no
@@ -93,34 +118,6 @@ When another choice is better:
   `TreeMap`, with iterators in the style of the C++ standard library.
 - **@datastructures-js** when one structure is all that is needed: each is a small package of its
   own.
-
-## Install
-
-```sh
-npm install javascript-collections-framework
-pnpm add javascript-collections-framework
-yarn add javascript-collections-framework
-bun add javascript-collections-framework
-```
-
-Or without a build step:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@0.1.1/dist/index.iife.js"
-        integrity="sha384-PObd63FV1OrX53vTeW7oXwFogfgzC0o7u8jwCe/0FgR0dY4HiPfRNb00G5XGHPLP" crossorigin="anonymous"></script>
-```
-
-## Goals
-
-- **One model.** Shared interfaces (`Collection`, `List`, `Queue`, `Deque`, sorted and
-  navigable maps and sets) with interchangeable implementations, plus iterables,
-  `Symbol.iterator`, `for…of` and spread throughout.
-- **Typed.** Written in TypeScript with full generic types; works from plain JavaScript.
-- **Documented cost.** Every operation states its time complexity.
-- **Zero runtime dependencies.** Tree-shakeable ESM, with a CommonJS build for older tooling.
-- **Runs everywhere.** ES2015 output with no platform APIs: Node.js, Bun, Deno, browsers, edge
-  runtimes and React Native, from TypeScript or plain JavaScript, via ESM, CommonJS or a
-  `<script>` tag. See [compatibility](docs/compatibility.md) for what is tested today.
 
 ## Available collections
 
@@ -135,6 +132,18 @@ Or without a build step:
 | Read-only views   | [`unmodifiableList`, `unmodifiableSet`, `unmodifiableMap` and six more](docs/unmodifiable.md)                    |
 | Lists over arrays | [`asList`](docs/unmodifiable.md#aslist-a-list-over-an-array)                                                     |
 | Algorithms        | [`binarySearch`, `sortedIndex`, `rotate`, `shuffle`, `min`, `max` and seven more](docs/algorithms.md)            |
+
+## Goals
+
+- **One model.** Shared interfaces (`Collection`, `List`, `Queue`, `Deque`, sorted and
+  navigable maps and sets) with interchangeable implementations, plus iterables,
+  `Symbol.iterator`, `for…of` and spread throughout.
+- **Typed.** Written in TypeScript with full generic types; works from plain JavaScript.
+- **Documented cost.** Every operation states its time complexity.
+- **Zero runtime dependencies.** Tree-shakeable ESM, with a CommonJS build for older tooling.
+- **Runs everywhere.** ES2015 output with no platform APIs: Node.js, Bun, Deno, browsers, edge
+  runtimes and React Native, from TypeScript or plain JavaScript, via ESM, CommonJS or a
+  `<script>` tag. See [compatibility](docs/compatibility.md) for what is tested today.
 
 ## Planned collections
 

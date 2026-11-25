@@ -262,3 +262,102 @@ export function renderChart(result) {
   out.push('</svg>')
   return `${out.join('\n')}\n`
 }
+
+// ── The chart in the README ──
+
+/** The markers around the chart in the README's comparison section. */
+export const README_CHART_START = '<!-- readme-chart:start -->'
+export const README_CHART_END = '<!-- readme-chart:end -->'
+
+/**
+ * Where the README loads the chart from and links it to. Absolute, because the README is also
+ * shown on npm and as the front page of the API site, where relative paths do not resolve.
+ */
+export const CHART_RAW_URL =
+  'https://raw.githubusercontent.com/Kamlesh-62/javascript-collections-framework/main/docs/images/benchmarks.svg'
+export const CHART_PAGE_URL =
+  'https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#compared-with-other-libraries'
+
+/**
+ * The README's alt text for the chart: what it shows and in how many rows another library's
+ * median is higher, counted as {@link chartAlt} counts them, without the list of rows.
+ * @param {CompareResult} result
+ * @returns {string}
+ */
+export function chartShortAlt(result) {
+  const rows = [...chartRows(result).values()].flat()
+  const higher = rows.filter((r) => r.ratio !== undefined && r.ratio > 1)
+  const size = chartSize(result).toLocaleString('en-US')
+  return (
+    `Bar chart of other libraries' median operations per second relative to ${THIS} at ${size} ` +
+    `elements, on a log scale centred on 1×; another library's median is higher in ` +
+    `${higher.length} of ${rows.length} rows.`
+  )
+}
+
+/**
+ * The chart as the README shows it: the image, loaded from `main`, linked to the comparison.
+ * @param {CompareResult} result
+ * @returns {string}
+ */
+export function renderReadmeChart(result) {
+  return `[![${chartShortAlt(result)}](${CHART_RAW_URL})](${CHART_PAGE_URL})`
+}
+
+/**
+ * `readme` with the text between the README chart markers replaced by `chart`.
+ * @param {string} readme
+ * @param {string} chart
+ * @returns {string}
+ */
+export function withReadmeChart(readme, chart) {
+  const start = readme.indexOf(README_CHART_START)
+  const end = readme.indexOf(README_CHART_END)
+  if (start < 0 || end < start)
+    throw new Error(`README.md needs ${README_CHART_START} and ${README_CHART_END}`)
+  return `${readme.slice(0, start + README_CHART_START.length)}\n${chart}\n${readme.slice(end)}`
+}
+
+/**
+ * The README as `bench:docs` writes it: the chart of the newest comparison between the markers, or
+ * the README unchanged when there is no comparison run.
+ * @param {string} readme
+ * @param {CompareResult | undefined} result
+ * @returns {string}
+ */
+export function updatedReadme(readme, result) {
+  return result === undefined ? readme : withReadmeChart(readme, renderReadmeChart(result))
+}
+
+/**
+ * What is wrong with the README's chart: missing markers, a chart shown with no comparison run, or
+ * the first line that differs from {@link renderReadmeChart} of the newest comparison.
+ * @param {string} readme
+ * @param {CompareResult | undefined} result
+ * @returns {string[]}
+ */
+export function readmeChartProblems(readme, result) {
+  const start = readme.indexOf(README_CHART_START)
+  const end = readme.indexOf(README_CHART_END)
+  if (start < 0 || end < start)
+    return [`README.md has no ${README_CHART_START} … ${README_CHART_END} section`]
+  const shown = readme.slice(start + README_CHART_START.length, end).trim()
+  if (result === undefined) {
+    return shown === ''
+      ? []
+      : ['README.md shows the chart, but there is no compare run in bench/results']
+  }
+  const expected = renderReadmeChart(result)
+  if (shown === expected) return []
+  const shownLines = shown.split('\n')
+  const expectedLines = expected.split('\n')
+  for (let i = 0; i < Math.max(shownLines.length, expectedLines.length); i++) {
+    if (shownLines[i] !== expectedLines[i]) {
+      return [
+        `README.md: the chart differs from the newest compare results at its line ${i + 1}: ` +
+          `expected "${expectedLines[i] ?? ''}", found "${shownLines[i] ?? ''}"; run \`pnpm bench:docs\``,
+      ]
+    }
+  }
+  return []
+}

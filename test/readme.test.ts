@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { formatKb } from '../scripts/lib/badge.mjs'
 import { CDN, readSnippet, snippetProblems } from '../scripts/lib/cdn-snippet.mjs'
 import { parseReport } from '../scripts/lib/size-compare.mjs'
 import { SIZE_REPORT_PATH } from '../scripts/lib/size-report.mjs'
 import { readPageBlocks } from './support/doc-examples'
+import { uncommentedExpressions } from './support/readme'
 
 const ROOT = join(import.meta.dirname, '..')
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8')
@@ -25,65 +25,59 @@ function section(title: string): string {
   return readme.slice(start + 1, end === -1 ? undefined : end)
 }
 const headings = [...readme.matchAll(/^## (.+)$/gm)].map((m) => m[1])
-const quick = section('Quick start')
 const why = section('Why this library?')
+const more = section('More examples')
 const blocks = readPageBlocks('README.md', readme)
-const quickLine = readme.slice(0, readme.indexOf(quick)).split('\n').length
-const quickBlocks = blocks.filter(
-  (b) => b.line > quickLine && b.line < quickLine + quick.split('\n').length,
-)
+/** The README's blocks whose first line lies in `text`, a part of the README. */
+function blocksIn(text: string) {
+  const first = readme.slice(0, readme.indexOf(text)).split('\n').length
+  return blocks.filter((b) => b.line >= first && b.line < first + text.split('\n').length)
+}
+const top = readme.slice(0, readme.indexOf('\n## '))
+const openingBlocks = blocksIn(top)
+const moreBlocks = blocksIn(more)
 
-describe('the quick start', () => {
-  it('comes after the badges, description and status note, before every other section [042 S1-AC1]', () => {
-    expect(headings.slice(0, 3)).toEqual(['Quick start', 'Why this library?', 'Install'])
-    const top = readme.slice(0, readme.indexOf('\n## '))
+describe('the first examples', () => {
+  it('open with a sorted map and a priority queue before any section, install comes first, and an LRU cache follows in More examples [042 S1-AC1]', () => {
+    expect(headings.slice(0, 2)).toEqual(['Install', 'More examples'])
     expect(top).toContain('[![CI]')
-    expect(top).toContain('A typed collections framework')
     expect(top).toContain('> **Status:')
-  })
-
-  it('shows one install command and a short example of a sorted map, a priority queue and an LRU cache [042 S1-AC1]', () => {
-    const shell = [...quick.matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1]?.trim())
-    expect(shell).toEqual(['npm install javascript-collections-framework'])
-    const first = quickBlocks[0]
-    expect(first?.lang).toBe('ts')
-    const code = first?.code ?? ''
-    expect(code.trimEnd().split('\n').length).toBeLessThanOrEqual(20)
-    expect(code).toMatch(/^import \{[^}]*\} from 'javascript-collections-framework'/)
-    expect(code).toContain('new TreeMap(')
-    expect(code).toMatch(
+    const shell = [...section('Install').matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1]?.trim())
+    expect(shell[0]?.split('\n')[0]).toBe('npm install javascript-collections-framework')
+    const opening = openingBlocks[0]?.code ?? ''
+    expect(opening).toMatch(/^import \{[^}]*\} from 'javascript-collections-framework'/)
+    expect(opening).toMatch(/new TreeMap(<[^>]*>)?\(/)
+    expect(opening).toMatch(
       /\.(floorEntry|ceilingEntry|lowerEntry|higherEntry|headMap|tailMap|subMap)\(/,
     )
-    expect(code).toContain('new PriorityQueue(')
-    expect(code).toMatch(/new LinkedHashMap[^(]*\(\{ accessOrder: true, maxSize: \d+ \}\)/)
+    expect(opening).toContain('new PriorityQueue(')
+    const lru = moreBlocks[0]?.code ?? ''
+    expect(lru.trimEnd().split('\n').length).toBeLessThanOrEqual(20)
+    expect(lru).toMatch(/new LinkedHashMap[^(]*\(\{ accessOrder: true, maxSize: \d+ \}\)/)
   })
 
-  it('converts a collection to an array and round-trips it through JSON [042 S1-AC2]', () => {
-    const code = quickBlocks[1]?.code ?? ''
+  it('convert a collection to an array and round-trip it through JSON [042 S1-AC2]', () => {
+    const code = moreBlocks[1]?.code ?? ''
     expect(code).toMatch(/\[\.\.\.\w+\]|Array\.from\(/)
     expect(code).toContain('JSON.stringify(')
     expect(code).toContain('JSON.parse(')
     expect(code).toMatch(/\.from\(JSON\.parse\(/)
   })
 
-  it('runs with the documentation runner, a result comment on every expression [042 S1-AC3]', () => {
-    expect(quickBlocks).toHaveLength(2)
-    for (const block of quickBlocks) {
+  it('run with the documentation runner, a result comment on every expression [042 S1-AC3]', () => {
+    expect(openingBlocks).toHaveLength(1)
+    expect(moreBlocks).toHaveLength(2)
+    for (const block of [...openingBlocks, ...moreBlocks]) {
       expect(block.skip).toBeUndefined()
-      const lines = block.code.split('\n')
-      const file = ts.createSourceFile('quick.ts', block.code, ts.ScriptTarget.Latest, true)
-      for (const statement of file.statements) {
-        if (!ts.isExpressionStatement(statement)) continue
-        const end = file.getLineAndCharacterOfPosition(statement.getEnd()).line
-        expect(lines[end], lines[end]).toMatch(/\/\/ \S/)
-      }
+      expect(uncommentedExpressions(block.code)).toEqual([])
     }
   })
 
-  it('links to the playground and to the page for developers coming from native JavaScript [042 S5-AC2]', () => {
-    expect(quick).toContain(`(${STACKBLITZ})`)
+  it('link to the playground and to the page for developers coming from native JavaScript [042 S5-AC2]', () => {
+    const tryIt = top.slice(top.indexOf('[Try it in your browser]('))
+    expect(tryIt).toContain(`[Try it in your browser](${STACKBLITZ})`)
     expect(read('docs/README.md')).toContain(`(${STACKBLITZ})`)
-    expect(quick).toContain('(docs/coming-from-native.md)')
+    expect(tryIt).toContain('(docs/coming-from-native.md)')
   })
 })
 

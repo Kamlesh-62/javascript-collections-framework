@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title">
+  <title id="title">javascript-collections-framework: TreeMap · PriorityQueue · LRU map for JavaScript</title>
+  <rect x="0" y="0" width="1280" height="640" fill="#0d1117"/>
+  <rect x="80" y="200" width="160" height="8" fill="#58a6ff"/>
+  <text x="80" y="300" font-size="64" font-weight="700" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#f0f6fc">javascript-collections-framework</text>
+  <text x="80" y="400" font-size="56" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#c9d1d9">TreeMap · PriorityQueue · LRU map</text>
+  <text x="80" y="476" font-size="56" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#c9d1d9">for JavaScript</text>
+</svg>

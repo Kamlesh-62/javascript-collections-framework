@@ -1,7 +1,7 @@
 {
   "name": "javascript-collections-framework",
   "version": "0.1.1",
-  "description": "A typed collections framework for JavaScript and TypeScript: lists, sets, maps, queues and deques with shared interfaces, sorted and navigable collections, and documented complexity.",
+  "description": "Sorted maps and sets, priority queues, deques, LRU maps, and value-keyed maps and sets for JavaScript and TypeScript, with zero dependencies.",
   "keywords": [
     "collections",
     "data-structures",
@@ -15,7 +15,14 @@
     "priority-queue",
     "typescript",
     "sorted-map",
-    "data-structure"
+    "data-structure",
+    "heap",
+    "lru",
+    "lru-cache",
+    "sorted-set",
+    "ordered-map",
+    "value-equality",
+    "leetcode"
   ],
   "license": "MIT",
   "author": "Kamlesh Prajapati",
