@@ -35,6 +35,8 @@ To hand out a read-only view, use [`unmodifiableSortedMap`](unmodifiable.md).
 `replaceAll`, `putAll`, live `keySet()`, `entrySet()` and `valueCollection()` views, `revision`,
 printing and JSON — with every result in ascending key order.
 
+Recipes: [a booking calendar that rejects overlaps](../examples/recipes/booking-calendar.mjs), [the events inside a time range](../examples/recipes/time-range.mjs). More in [recipes](recipes.md).
+
 ## Order and sameness
 
 Without options the map orders its keys by [natural order](ordering.md): numbers, strings,

@@ -97,7 +97,7 @@
     "release:notes": "node scripts/release-notes.mjs",
     "release:version": "changeset version && pnpm build && pnpm cdn:snippet",
     "check:syntax": "node scripts/check-syntax.mjs",
-    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs && node scripts/playground.mjs",
+    "test:smoke": "node scripts/smoke.mjs && node scripts/smoke.cjs && node scripts/playground.mjs && node scripts/recipes.mjs",
     "test:worker": "node scripts/worker.mjs",
     "api:check": "node scripts/api-report.mjs check",
     "api:update": "node scripts/api-report.mjs update",

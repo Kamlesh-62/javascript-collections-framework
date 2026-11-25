@@ -18,6 +18,8 @@ const members = [...tags] // ['a', 'c']
 For a set that cannot change, see [immutable sets](immutable.md) (`setOf`, `copyOfSet`). For a read-only view of a set
 that keeps changing, see [unmodifiable views](unmodifiable.md).
 
+Recipes: [the shortest path on a grid](../examples/recipes/grid-shortest-path.mjs). More in [recipes](recipes.md).
+
 ## A drop-in for `Set`
 
 | Native `Set`                                              | `HashSet`                                            |

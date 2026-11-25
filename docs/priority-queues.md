@@ -31,6 +31,8 @@ jobs.poll() // { name: 'hotfix', priority: 1 }
 interface: `size`, `has`, `add`, `delete`, `forEach`, iteration, cursors, `revision`, printing and
 JSON. It is not a deque: there is no `push`, `pop`, `peekLast` or `reversed()`.
 
+Recipes: [the k largest values of a stream](../examples/recipes/top-k.mjs), [merging sorted arrays](../examples/recipes/merge-sorted.mjs), [a running median](../examples/recipes/running-median.mjs). More in [recipes](recipes.md).
+
 ## Order and options
 
 Without options the queue uses [natural order](ordering.md): numbers, strings, bigints, booleans,

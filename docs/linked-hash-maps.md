@@ -18,6 +18,8 @@ cache.set('c', 3) // evicts 'b', the least recently used
 
 To hand out a read-only view, use [`unmodifiableSequencedMap`](unmodifiable.md).
 
+Recipes: [an LRU cache](../examples/recipes/lru-cache.mjs). More in [recipes](recipes.md).
+
 ## When to use it
 
 | Need                                                                    | Use                                              |

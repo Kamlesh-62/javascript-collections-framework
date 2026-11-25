@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 18
-      - run: node scripts/smoke.mjs && node scripts/smoke.cjs
+      - run: node scripts/smoke.mjs && node scripts/smoke.cjs && node scripts/recipes.mjs
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
