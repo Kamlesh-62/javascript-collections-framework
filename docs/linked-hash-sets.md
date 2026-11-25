@@ -19,6 +19,8 @@ const newestFirst = [...recent.reversed()] // ['a', 'c', 'z']
 
 To hand out a read-only view, use [`unmodifiableSequencedSet`](unmodifiable.md).
 
+Recipes: [the most recent distinct items](../examples/recipes/recent-distinct.mjs). More in [recipes](recipes.md).
+
 ## When to use it
 
 | Need                                                                   | Use                           |

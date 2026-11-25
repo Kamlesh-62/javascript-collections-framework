@@ -26,6 +26,8 @@ history.pop() // 2
 handles for O(1) insertion and removal next to a known element. For a queue that hands out its
 least element first instead of its oldest, see [`PriorityQueue`](priority-queues.md).
 
+Recipes: [the maximum of each sliding window](../examples/recipes/sliding-window-max.mjs), [the shortest path on a grid](../examples/recipes/grid-shortest-path.mjs). More in [recipes](recipes.md).
+
 ## Operations
 
 | Operation                                                 | Does                                                                         | Time                    |
