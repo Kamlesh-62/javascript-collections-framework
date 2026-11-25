@@ -2,8 +2,10 @@ name: Nightly
 
 # Slow checks that do not need to block pull requests: the framework recipes run against the real
 # React, Vue and Svelte packages in fixtures/frameworks/, which installs on its own; the dependency
-# audit of the browser and bundler fixtures in fixtures/bundlers/; and the stress suites, against
-# the source and against the built package.
+# audit of the browser and bundler fixtures in fixtures/bundlers/; the comparison with other
+# collection libraries in fixtures/competitors/, run once at the smallest size to check that every
+# case still runs and agrees, with no timing, and audited; and the stress suites, against the
+# source and against the built package.
 on:
   schedule:
     - cron: "0 3 * * *"
@@ -133,6 +135,34 @@ jobs:
           node-version: 24
       - name: Audit the browser and bundler fixtures' dependencies
         working-directory: fixtures/bundlers
+        run: pnpm audit
+
+  # The comparison cases against other collection libraries (fixtures/competitors/, which
+  # installs on its own): checks the installed versions against the pins and runs every case once
+  # at 1,000 elements, checking that every library returns the same result. Nothing is timed.
+  competitors:
+    name: Comparison cases and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install the compared packages
+        working-directory: fixtures/competitors
+        run: pnpm install --frozen-lockfile
+      - name: Run every comparison case once
+        run: node fixtures/competitors/compare.mjs --smoke
+      - name: Audit the compared packages
+        working-directory: fixtures/competitors
         run: pnpm audit
 
   stress:

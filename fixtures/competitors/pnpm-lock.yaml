@@ -1,0 +1,68 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@datastructures-js/deque':
+        specifier: 1.0.8
+        version: 1.0.8
+      '@datastructures-js/linked-list':
+        specifier: 6.1.4
+        version: 6.1.4
+      '@datastructures-js/priority-queue':
+        specifier: 6.4.0
+        version: 6.4.0
+      js-sdsl:
+        specifier: 4.4.2
+        version: 4.4.2
+      mnemonist:
+        specifier: 0.40.8
+        version: 0.40.8
+
+packages:
+
+  '@datastructures-js/deque@1.0.8':
+    resolution: {integrity: sha512-PSBhJ2/SmeRPRHuBv7i/fHWIdSC3JTyq56qb+Rq0wjOagi0/fdV5/B/3Md5zFZus/W6OkSPMaxMKKMNMrSmubg==}
+
+  '@datastructures-js/heap@4.3.7':
+    resolution: {integrity: sha512-Dx4un7Uj0dVxkfoq4RkpzsY2OrvNJgQYZ3n3UlGdl88RxxdHd7oTi21/l3zoxUUe0sXFuNUrfmWqlHzqnoN6Ug==}
+
+  '@datastructures-js/linked-list@6.1.4':
+    resolution: {integrity: sha512-lwM6KDBPgV9xxJMzozCqZzdofzc0fx8FPjNfrWDf8+u8Fm7zcjksvXrv6Z9dA2Kg40HZIUKqLPaQriqLhhAisg==}
+
+  '@datastructures-js/priority-queue@6.4.0':
+    resolution: {integrity: sha512-m07hIOpbPC4kE5SPtOwVcS6Sm3xhvhXiQy1qmATavYljeBqokvpWbBq+Tf3GtRLbiLJCOx1S7inWjrFihueu6A==}
+
+  js-sdsl@4.4.2:
+    resolution: {integrity: sha512-dwXFwByc/ajSV6m5bcKAPwe4yDDF6D614pxmIi5odytzxRlwqF6nwoiCek80Ixc7Cvma5awClxrzFtxCQvcM8w==}
+
+  mnemonist@0.40.8:
+    resolution: {integrity: sha512-tebbu8e/W45Nz7USfGcmnHUiOcNsXa9Mow8eb0UPwOk3gu6grw0/2+SefXBJCgDQpE9mdn7dNUMJBra9mcRUVw==}
+
+  obliterator@2.0.5:
+    resolution: {integrity: sha512-42CPE9AhahZRsMNslczq0ctAEtqk8Eka26QofnqC346BZdHDySk3LWka23LI7ULIw11NmltpiLagIq8gBozxTw==}
+
+snapshots:
+
+  '@datastructures-js/deque@1.0.8': {}
+
+  '@datastructures-js/heap@4.3.7': {}
+
+  '@datastructures-js/linked-list@6.1.4': {}
+
+  '@datastructures-js/priority-queue@6.4.0':
+    dependencies:
+      '@datastructures-js/heap': 4.3.7
+
+  js-sdsl@4.4.2: {}
+
+  mnemonist@0.40.8:
+    dependencies:
+      obliterator: 2.0.5
+
+  obliterator@2.0.5: {}

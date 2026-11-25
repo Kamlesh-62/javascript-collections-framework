@@ -350,3 +350,251 @@ Run on 2026-11-23 with Node.js v24.11.1 on darwin, Intel(R) Core(TM) i5-8600 CPU
 | iterate              |   100,000 | sorted Array for…of    |       91.3 M ±1 % |        62.7 M ±5 % |            0.69× |
 | iterate              | 1,000,000 | sorted Array for…of    |       85.1 M ±2 % |        25.4 M ±3 % |            0.30× |
 <!-- bench:end -->
+
+### Compared with other libraries
+
+The same harness measures five structures against their counterparts in other collection
+libraries, on the built package, at 1,000, 100,000 and 1,000,000 elements, with input from a
+fixed seed:
+
+| Case           | This library                                              | Other libraries                                                                  | Operations                                                                                                                                                                                           |
+| -------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sorted map     | `TreeMap`                                                 | js-sdsl `OrderedMap`                                                             | insert n keys into an empty map; get present keys; the nearest key at or below a key that is not present (`floorEntry`, `reverseLowerBound`); iterate in key order; delete a key and insert it again |
+| Priority queue | `PriorityQueue`                                           | js-sdsl `PriorityQueue`, mnemonist `Heap`, @datastructures-js `MinPriorityQueue` | build from an array; push n elements onto an empty queue; build, then poll every element                                                                                                             |
+| Deque          | `ArrayDeque`                                              | js-sdsl `Deque`, @datastructures-js `Deque`                                      | add at the end, then take from the front; add at the front, then take from the end                                                                                                                   |
+| LRU map        | `LinkedHashMap` with `accessOrder: true` and `maxSize: n` | mnemonist `LRUMap` with capacity n                                               | set 2n keys into an empty map, evicting n; get present keys of a full map                                                                                                                            |
+| Linked list    | `LinkedList`                                              | js-sdsl `LinkList`, @datastructures-js `DoublyLinkedList`                        | add n elements at the end; add at the end, then take from the front                                                                                                                                  |
+
+Every library is used through its documented API. This library runs with its default options,
+except those the LRU case names. Every queue takes the least element first: js-sdsl
+`PriorityQueue`, whose default order puts the greatest first, is given the comparator
+`(a, b) => a - b`; the others are ascending by default. Every build copies its input once inside
+the timed work: this library, js-sdsl and mnemonist copy the array themselves, and
+@datastructures-js, which orders the array it is given in place, is given a copy.
+
+Each side of a case returns a checksum of the values it polled, read or iterated, in order, and
+its final size. Before anything is timed, the runner checks that every installed package is at
+its pinned version and that every library returns this library's checksum at every size; either
+difference stops the run with no results file.
+
+Each figure is the median of the timed batches, as in the native comparison above. The last
+column divides the other library's figure by this library's: above 1× the other library is
+faster. Every measured row is shown, and the list after the tables names every row in which
+another library has the higher median, marked "(within spread)" where the two ranges
+median ± spread overlap. A library with no counterpart in a case is named under its table. The
+chart shows the ratios at 100,000 elements.
+
+The compared packages install on their own, in `fixtures/competitors/`, with their own lockfile;
+they are never part of this package or its development install. To repeat the run:
+
+```sh
+pnpm -C fixtures/competitors install --frozen-lockfile
+pnpm build && pnpm bench:compare
+pnpm bench:docs && pnpm bench:chart
+```
+
+`pnpm bench:compare --reverse` times this library's side of each case last instead of first.
+
+<!-- compare:start -->
+Run on 2026-11-24 with Node.js v24.11.1 on darwin, Intel(R) Core(TM) i5-8600 CPU @ 3.10GHz (6 cores, 64 GB), version 0.1.1 of the package, each case timed this library first. Compared packages: @datastructures-js/deque 1.0.8, @datastructures-js/linked-list 6.1.4, @datastructures-js/priority-queue 6.4.0, js-sdsl 4.4.2, mnemonist 0.40.8.
+
+![Bar chart of each other library's median operations per second divided by javascript-collections-framework's, at 100,000 elements, on a log scale centred on 1×. Rows where another library's median is higher, 16 of 24: Sorted map insert (js-sdsl 1.3×), Sorted map get (js-sdsl 1.0×), Sorted map delete and insert again (js-sdsl 1.2×), Priority queue build from an array (js-sdsl 1.7×), Priority queue build from an array (mnemonist 2.7×), Priority queue build from an array (@datastructures-js 1.9×), Priority queue push (js-sdsl 1.6×), Priority queue push (mnemonist 1.6×), Priority queue push (@datastructures-js 1.1×), Priority queue poll all (js-sdsl 1.2×), Priority queue poll all (mnemonist 2.9×), Priority queue poll all (@datastructures-js 1.7×), Deque add at the front, take from the end (js-sdsl 2.1×), LRU map set 2n keys, evicting n (mnemonist 1.3×), LRU map get present keys (mnemonist 2.0×), Linked list add at the end (js-sdsl 1.2×).](images/benchmarks.svg)
+
+#### Sorted map
+
+| Operation               |      Size | Library                                    |   Per second | Other ÷ this library |
+| ----------------------- | --------: | ------------------------------------------ | -----------: | -------------------: |
+| insert                  |     1,000 | javascript-collections-framework `TreeMap` |  8.55 M ±7 % |                   1× |
+| insert                  |     1,000 | js-sdsl `OrderedMap`                       |  10.9 M ±6 % |                 1.3× |
+| get                     |     1,000 | javascript-collections-framework `TreeMap` |  9.89 M ±4 % |                   1× |
+| get                     |     1,000 | js-sdsl `OrderedMap`                       |  14.1 M ±4 % |                 1.4× |
+| nearest key at or below |     1,000 | javascript-collections-framework `TreeMap` |  9.73 M ±4 % |                   1× |
+| nearest key at or below |     1,000 | js-sdsl `OrderedMap`                       |  3.11 M ±6 % |                0.32× |
+| iterate in order        |     1,000 | javascript-collections-framework `TreeMap` |  45.7 M ±3 % |                   1× |
+| iterate in order        |     1,000 | js-sdsl `OrderedMap`                       |  20.3 M ±4 % |                0.44× |
+| delete and insert again |     1,000 | javascript-collections-framework `TreeMap` |  3.57 M ±3 % |                   1× |
+| delete and insert again |     1,000 | js-sdsl `OrderedMap`                       |  4.26 M ±6 % |                 1.2× |
+| insert                  |   100,000 | javascript-collections-framework `TreeMap` |  2.69 M ±1 % |                   1× |
+| insert                  |   100,000 | js-sdsl `OrderedMap`                       |  3.51 M ±8 % |                 1.3× |
+| get                     |   100,000 | javascript-collections-framework `TreeMap` |  2.35 M ±5 % |                   1× |
+| get                     |   100,000 | js-sdsl `OrderedMap`                       | 2.36 M ±17 % |                 1.0× |
+| nearest key at or below |   100,000 | javascript-collections-framework `TreeMap` |  2.86 M ±4 % |                   1× |
+| nearest key at or below |   100,000 | js-sdsl `OrderedMap`                       |  1.49 M ±3 % |                0.52× |
+| iterate in order        |   100,000 | javascript-collections-framework `TreeMap` |  26.7 M ±4 % |                   1× |
+| iterate in order        |   100,000 | js-sdsl `OrderedMap`                       |  11.7 M ±1 % |                0.44× |
+| delete and insert again |   100,000 | javascript-collections-framework `TreeMap` | 1.99 M ±13 % |                   1× |
+| delete and insert again |   100,000 | js-sdsl `OrderedMap`                       |  2.39 M ±3 % |                 1.2× |
+| insert                  | 1,000,000 | javascript-collections-framework `TreeMap` |  1.11 M ±6 % |                   1× |
+| insert                  | 1,000,000 | js-sdsl `OrderedMap`                       |  1.21 M ±2 % |                 1.1× |
+| get                     | 1,000,000 | javascript-collections-framework `TreeMap` |  1.24 M ±7 % |                   1× |
+| get                     | 1,000,000 | js-sdsl `OrderedMap`                       |  1.36 M ±4 % |                 1.1× |
+| nearest key at or below | 1,000,000 | javascript-collections-framework `TreeMap` |  1.08 M ±6 % |                   1× |
+| nearest key at or below | 1,000,000 | js-sdsl `OrderedMap`                       |  882 k ±11 % |                0.82× |
+| iterate in order        | 1,000,000 | javascript-collections-framework `TreeMap` |  15.5 M ±5 % |                   1× |
+| iterate in order        | 1,000,000 | js-sdsl `OrderedMap`                       |  7.89 M ±6 % |                0.51× |
+| delete and insert again | 1,000,000 | javascript-collections-framework `TreeMap` | 1.21 M ±10 % |                   1× |
+| delete and insert again | 1,000,000 | js-sdsl `OrderedMap`                       | 1.48 M ±15 % |                 1.2× |
+
+No counterpart: mnemonist, @datastructures-js.
+
+#### Priority queue
+
+| Operation           |      Size | Library                                          |  Per second | Other ÷ this library |
+| ------------------- | --------: | ------------------------------------------------ | ----------: | -------------------: |
+| build from an array |     1,000 | javascript-collections-framework `PriorityQueue` | 31.9 M ±4 % |                   1× |
+| build from an array |     1,000 | js-sdsl `PriorityQueue`                          | 53.4 M ±6 % |                 1.7× |
+| build from an array |     1,000 | mnemonist `Heap`                                 |  173 M ±3 % |                 5.4× |
+| build from an array |     1,000 | @datastructures-js `MinPriorityQueue`            | 76.8 M ±5 % |                 2.4× |
+| push                |     1,000 | javascript-collections-framework `PriorityQueue` | 24.7 M ±4 % |                   1× |
+| push                |     1,000 | js-sdsl `PriorityQueue`                          | 84.8 M ±3 % |                 3.4× |
+| push                |     1,000 | mnemonist `Heap`                                 | 79.1 M ±3 % |                 3.2× |
+| push                |     1,000 | @datastructures-js `MinPriorityQueue`            | 32.2 M ±4 % |                 1.3× |
+| poll all            |     1,000 | javascript-collections-framework `PriorityQueue` | 4.40 M ±5 % |                   1× |
+| poll all            |     1,000 | js-sdsl `PriorityQueue`                          | 5.51 M ±1 % |                 1.3× |
+| poll all            |     1,000 | mnemonist `Heap`                                 | 14.1 M ±1 % |                 3.2× |
+| poll all            |     1,000 | @datastructures-js `MinPriorityQueue`            | 7.72 M ±5 % |                 1.8× |
+| build from an array |   100,000 | javascript-collections-framework `PriorityQueue` | 20.3 M ±3 % |                   1× |
+| build from an array |   100,000 | js-sdsl `PriorityQueue`                          | 35.4 M ±3 % |                 1.7× |
+| build from an array |   100,000 | mnemonist `Heap`                                 | 55.7 M ±2 % |                 2.7× |
+| build from an array |   100,000 | @datastructures-js `MinPriorityQueue`            | 38.1 M ±6 % |                 1.9× |
+| push                |   100,000 | javascript-collections-framework `PriorityQueue` | 17.3 M ±1 % |                   1× |
+| push                |   100,000 | js-sdsl `PriorityQueue`                          | 27.2 M ±4 % |                 1.6× |
+| push                |   100,000 | mnemonist `Heap`                                 | 27.7 M ±2 % |                 1.6× |
+| push                |   100,000 | @datastructures-js `MinPriorityQueue`            | 18.7 M ±4 % |                 1.1× |
+| poll all            |   100,000 | javascript-collections-framework `PriorityQueue` | 2.59 M ±1 % |                   1× |
+| poll all            |   100,000 | js-sdsl `PriorityQueue`                          | 3.03 M ±2 % |                 1.2× |
+| poll all            |   100,000 | mnemonist `Heap`                                 | 7.53 M ±4 % |                 2.9× |
+| poll all            |   100,000 | @datastructures-js `MinPriorityQueue`            | 4.40 M ±5 % |                 1.7× |
+| build from an array | 1,000,000 | javascript-collections-framework `PriorityQueue` | 17.5 M ±6 % |                   1× |
+| build from an array | 1,000,000 | js-sdsl `PriorityQueue`                          | 33.9 M ±8 % |                 1.9× |
+| build from an array | 1,000,000 | mnemonist `Heap`                                 | 50.6 M ±5 % |                 2.9× |
+| build from an array | 1,000,000 | @datastructures-js `MinPriorityQueue`            | 37.7 M ±4 % |                 2.2× |
+| push                | 1,000,000 | javascript-collections-framework `PriorityQueue` | 16.3 M ±5 % |                   1× |
+| push                | 1,000,000 | js-sdsl `PriorityQueue`                          | 24.6 M ±4 % |                 1.5× |
+| push                | 1,000,000 | mnemonist `Heap`                                 | 25.8 M ±4 % |                 1.6× |
+| push                | 1,000,000 | @datastructures-js `MinPriorityQueue`            | 17.0 M ±3 % |                 1.0× |
+| poll all            | 1,000,000 | javascript-collections-framework `PriorityQueue` | 1.74 M ±6 % |                   1× |
+| poll all            | 1,000,000 | js-sdsl `PriorityQueue`                          | 2.06 M ±4 % |                 1.2× |
+| poll all            | 1,000,000 | mnemonist `Heap`                                 | 5.54 M ±5 % |                 3.2× |
+| poll all            | 1,000,000 | @datastructures-js `MinPriorityQueue`            | 2.85 M ±8 % |                 1.6× |
+
+#### Deque
+
+| Operation                           |      Size | Library                                       |   Per second | Other ÷ this library |
+| ----------------------------------- | --------: | --------------------------------------------- | -----------: | -------------------: |
+| add at the end, take from the front |     1,000 | javascript-collections-framework `ArrayDeque` |   135 M ±2 % |                   1× |
+| add at the end, take from the front |     1,000 | js-sdsl `Deque`                               |   109 M ±1 % |                0.81× |
+| add at the end, take from the front |     1,000 | @datastructures-js `Deque`                    |   104 M ±2 % |                0.76× |
+| add at the front, take from the end |     1,000 | javascript-collections-framework `ArrayDeque` |  53.2 M ±1 % |                   1× |
+| add at the front, take from the end |     1,000 | js-sdsl `Deque`                               |   122 M ±2 % |                 2.3× |
+| add at the front, take from the end |     1,000 | @datastructures-js `Deque`                    |   106 M ±2 % |                 2.0× |
+| add at the end, take from the front |   100,000 | javascript-collections-framework `ArrayDeque` |   135 M ±1 % |                   1× |
+| add at the end, take from the front |   100,000 | js-sdsl `Deque`                               |   112 M ±4 % |                0.83× |
+| add at the end, take from the front |   100,000 | @datastructures-js `Deque`                    |  30.4 M ±4 % |                0.23× |
+| add at the front, take from the end |   100,000 | javascript-collections-framework `ArrayDeque` |  53.1 M ±2 % |                   1× |
+| add at the front, take from the end |   100,000 | js-sdsl `Deque`                               |   111 M ±4 % |                 2.1× |
+| add at the front, take from the end |   100,000 | @datastructures-js `Deque`                    |  31.0 M ±5 % |                0.58× |
+| add at the end, take from the front | 1,000,000 | javascript-collections-framework `ArrayDeque` |   131 M ±7 % |                   1× |
+| add at the end, take from the front | 1,000,000 | js-sdsl `Deque`                               |   113 M ±4 % |                0.87× |
+| add at the end, take from the front | 1,000,000 | @datastructures-js `Deque`                    |  29.5 M ±8 % |                0.23× |
+| add at the front, take from the end | 1,000,000 | javascript-collections-framework `ArrayDeque` |  54.8 M ±2 % |                   1× |
+| add at the front, take from the end | 1,000,000 | js-sdsl `Deque`                               |   111 M ±2 % |                 2.0× |
+| add at the front, take from the end | 1,000,000 | @datastructures-js `Deque`                    | 30.9 M ±16 % |                0.56× |
+
+No counterpart: mnemonist.
+
+#### LRU map
+
+| Operation               |      Size | Library                                          |   Per second | Other ÷ this library |
+| ----------------------- | --------: | ------------------------------------------------ | -----------: | -------------------: |
+| set 2n keys, evicting n |     1,000 | javascript-collections-framework `LinkedHashMap` |  12.0 M ±1 % |                   1× |
+| set 2n keys, evicting n |     1,000 | mnemonist `LRUMap`                               |  15.8 M ±2 % |                 1.3× |
+| get present keys        |     1,000 | javascript-collections-framework `LinkedHashMap` |  18.7 M ±1 % |                   1× |
+| get present keys        |     1,000 | mnemonist `LRUMap`                               |  47.5 M ±1 % |                 2.5× |
+| set 2n keys, evicting n |   100,000 | javascript-collections-framework `LinkedHashMap` |  4.36 M ±2 % |                   1× |
+| set 2n keys, evicting n |   100,000 | mnemonist `LRUMap`                               |  5.66 M ±7 % |                 1.3× |
+| get present keys        |   100,000 | javascript-collections-framework `LinkedHashMap` |  10.6 M ±5 % |                   1× |
+| get present keys        |   100,000 | mnemonist `LRUMap`                               |  20.6 M ±3 % |                 2.0× |
+| set 2n keys, evicting n | 1,000,000 | javascript-collections-framework `LinkedHashMap` |  2.06 M ±6 % |                   1× |
+| set 2n keys, evicting n | 1,000,000 | mnemonist `LRUMap`                               |  2.84 M ±9 % |                 1.4× |
+| get present keys        | 1,000,000 | javascript-collections-framework `LinkedHashMap` | 4.80 M ±23 % |                   1× |
+| get present keys        | 1,000,000 | mnemonist `LRUMap`                               | 2.67 M ±32 % |                0.56× |
+
+No counterpart: js-sdsl, @datastructures-js.
+
+#### Linked list
+
+| Operation                           |      Size | Library                                       |    Per second | Other ÷ this library |
+| ----------------------------------- | --------: | --------------------------------------------- | ------------: | -------------------: |
+| add at the end                      |     1,000 | javascript-collections-framework `LinkedList` |   99.7 M ±1 % |                   1× |
+| add at the end                      |     1,000 | js-sdsl `LinkList`                            |    136 M ±3 % |                 1.4× |
+| add at the end                      |     1,000 | @datastructures-js `DoublyLinkedList`         |   64.6 M ±2 % |                0.65× |
+| add at the end, take from the front |     1,000 | javascript-collections-framework `LinkedList` |   39.8 M ±1 % |                   1× |
+| add at the end, take from the front |     1,000 | js-sdsl `LinkList`                            |   34.8 M ±2 % |                0.87× |
+| add at the end, take from the front |     1,000 | @datastructures-js `DoublyLinkedList`         |   31.9 M ±3 % |                0.80× |
+| add at the end                      |   100,000 | javascript-collections-framework `LinkedList` |   88.2 M ±1 % |                   1× |
+| add at the end                      |   100,000 | js-sdsl `LinkList`                            |    102 M ±7 % |                 1.2× |
+| add at the end                      |   100,000 | @datastructures-js `DoublyLinkedList`         |   55.5 M ±2 % |                0.63× |
+| add at the end, take from the front |   100,000 | javascript-collections-framework `LinkedList` |   36.6 M ±8 % |                   1× |
+| add at the end, take from the front |   100,000 | js-sdsl `LinkList`                            |   32.3 M ±3 % |                0.88× |
+| add at the end, take from the front |   100,000 | @datastructures-js `DoublyLinkedList`         |   29.2 M ±2 % |                0.80× |
+| add at the end                      | 1,000,000 | javascript-collections-framework `LinkedList` |   84.8 M ±3 % |                   1× |
+| add at the end                      | 1,000,000 | js-sdsl `LinkList`                            |   48.2 M ±5 % |                0.57× |
+| add at the end                      | 1,000,000 | @datastructures-js `DoublyLinkedList`         |   35.9 M ±3 % |                0.42× |
+| add at the end, take from the front | 1,000,000 | javascript-collections-framework `LinkedList` |  10.8 M ±23 % |                   1× |
+| add at the end, take from the front | 1,000,000 | js-sdsl `LinkList`                            | 10.4 M ±120 % |             unstable |
+| add at the end, take from the front | 1,000,000 | @datastructures-js `DoublyLinkedList`         |  14.5 M ±21 % |                 1.3× |
+
+No counterpart: mnemonist.
+
+Another library has a higher median in:
+
+- Sorted map, insert, 1,000 (js-sdsl `OrderedMap` 1.3×)
+- Sorted map, get, 1,000 (js-sdsl `OrderedMap` 1.4×)
+- Sorted map, delete and insert again, 1,000 (js-sdsl `OrderedMap` 1.2×)
+- Priority queue, build from an array, 1,000 (js-sdsl `PriorityQueue` 1.7×)
+- Priority queue, build from an array, 1,000 (mnemonist `Heap` 5.4×)
+- Priority queue, build from an array, 1,000 (@datastructures-js `MinPriorityQueue` 2.4×)
+- Priority queue, push, 1,000 (js-sdsl `PriorityQueue` 3.4×)
+- Priority queue, push, 1,000 (mnemonist `Heap` 3.2×)
+- Priority queue, push, 1,000 (@datastructures-js `MinPriorityQueue` 1.3×)
+- Priority queue, poll all, 1,000 (js-sdsl `PriorityQueue` 1.3×)
+- Priority queue, poll all, 1,000 (mnemonist `Heap` 3.2×)
+- Priority queue, poll all, 1,000 (@datastructures-js `MinPriorityQueue` 1.8×)
+- Deque, add at the front, take from the end, 1,000 (js-sdsl `Deque` 2.3×)
+- Deque, add at the front, take from the end, 1,000 (@datastructures-js `Deque` 2.0×)
+- LRU map, set 2n keys, evicting n, 1,000 (mnemonist `LRUMap` 1.3×)
+- LRU map, get present keys, 1,000 (mnemonist `LRUMap` 2.5×)
+- Linked list, add at the end, 1,000 (js-sdsl `LinkList` 1.4×)
+- Sorted map, insert, 100,000 (js-sdsl `OrderedMap` 1.3×)
+- Sorted map, get, 100,000 (js-sdsl `OrderedMap` 1.0×) (within spread)
+- Sorted map, delete and insert again, 100,000 (js-sdsl `OrderedMap` 1.2×)
+- Priority queue, build from an array, 100,000 (js-sdsl `PriorityQueue` 1.7×)
+- Priority queue, build from an array, 100,000 (mnemonist `Heap` 2.7×)
+- Priority queue, build from an array, 100,000 (@datastructures-js `MinPriorityQueue` 1.9×)
+- Priority queue, push, 100,000 (js-sdsl `PriorityQueue` 1.6×)
+- Priority queue, push, 100,000 (mnemonist `Heap` 1.6×)
+- Priority queue, push, 100,000 (@datastructures-js `MinPriorityQueue` 1.1×)
+- Priority queue, poll all, 100,000 (js-sdsl `PriorityQueue` 1.2×)
+- Priority queue, poll all, 100,000 (mnemonist `Heap` 2.9×)
+- Priority queue, poll all, 100,000 (@datastructures-js `MinPriorityQueue` 1.7×)
+- Deque, add at the front, take from the end, 100,000 (js-sdsl `Deque` 2.1×)
+- LRU map, set 2n keys, evicting n, 100,000 (mnemonist `LRUMap` 1.3×)
+- LRU map, get present keys, 100,000 (mnemonist `LRUMap` 2.0×)
+- Linked list, add at the end, 100,000 (js-sdsl `LinkList` 1.2×)
+- Sorted map, insert, 1,000,000 (js-sdsl `OrderedMap` 1.1×)
+- Sorted map, get, 1,000,000 (js-sdsl `OrderedMap` 1.1×) (within spread)
+- Sorted map, delete and insert again, 1,000,000 (js-sdsl `OrderedMap` 1.2×) (within spread)
+- Priority queue, build from an array, 1,000,000 (js-sdsl `PriorityQueue` 1.9×)
+- Priority queue, build from an array, 1,000,000 (mnemonist `Heap` 2.9×)
+- Priority queue, build from an array, 1,000,000 (@datastructures-js `MinPriorityQueue` 2.2×)
+- Priority queue, push, 1,000,000 (js-sdsl `PriorityQueue` 1.5×)
+- Priority queue, push, 1,000,000 (mnemonist `Heap` 1.6×)
+- Priority queue, push, 1,000,000 (@datastructures-js `MinPriorityQueue` 1.0×) (within spread)
+- Priority queue, poll all, 1,000,000 (js-sdsl `PriorityQueue` 1.2×)
+- Priority queue, poll all, 1,000,000 (mnemonist `Heap` 3.2×)
+- Priority queue, poll all, 1,000,000 (@datastructures-js `MinPriorityQueue` 1.6×)
+- Deque, add at the front, take from the end, 1,000,000 (js-sdsl `Deque` 2.0×)
+- LRU map, set 2n keys, evicting n, 1,000,000 (mnemonist `LRUMap` 1.4×)
+- Linked list, add at the end, take from the front, 1,000,000 (@datastructures-js `DoublyLinkedList` 1.3×) (within spread)
+<!-- compare:end -->

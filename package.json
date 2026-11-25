@@ -107,6 +107,8 @@
     "bench:docs": "node bench/docs.mjs update",
     "bench:check": "node bench/docs.mjs check",
     "bench:tree": "node bench/tree.mjs",
+    "bench:compare": "node fixtures/competitors/compare.mjs",
+    "bench:chart": "node bench/chart.mjs",
     "test:copies": "node scripts/two-copies.mjs",
     "test:consumers": "node scripts/old-typescript.mjs",
     "docs:api": "typedoc",
