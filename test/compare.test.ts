@@ -3,12 +3,20 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
+  CHART_PAGE_URL,
   CHART_PATH,
+  CHART_RAW_URL,
   CHART_TITLE,
   COLOURS,
   chartAlt,
+  chartShortAlt,
   contrast,
+  README_CHART_END,
+  README_CHART_START,
+  readmeChartProblems,
   renderChart,
+  renderReadmeChart,
+  withReadmeChart,
 } from '../bench/lib/chart.mjs'
 import {
   CHART_LINK,
@@ -1004,5 +1012,58 @@ describe('the nightly comparison job', () => {
     expect(smokeExit).toBeGreaterThan(0)
     expect(smokeExit).toBeLessThan(runner.indexOf('measure('))
     expect(runner.slice(smokeExit, runner.indexOf('measure('))).toContain('process.exit(0)')
+  })
+})
+
+describe('the chart in the README', () => {
+  const readme = (chart: string) =>
+    `# pkg\n\n## Why this library?\n\n${README_CHART_START}\n${chart}\n${README_CHART_END}\n\nWhen another choice is better:\n`
+
+  it('has short alt text that counts the rows as the full alt text does, with no speed word [049 S2-AC4]', () => {
+    const alt = chartShortAlt(SAMPLE)
+    expect(alt).toBe(
+      `Bar chart of other libraries' median operations per second relative to ${THIS} at ` +
+        "100,000 elements, on a log scale centred on 1×; another library's median is higher in " +
+        '2 of 4 rows.',
+    )
+    expect(chartAlt(SAMPLE)).toContain('higher, 2 of 4:')
+    expect(speedClaims(new Map([['README.md', alt]]))).toEqual([])
+  })
+
+  it('loads the image from main and links to the comparison by absolute URLs [049 S2-AC4]', () => {
+    expect(CHART_RAW_URL).toBe(
+      'https://raw.githubusercontent.com/Kamlesh-62/javascript-collections-framework/main/docs/images/benchmarks.svg',
+    )
+    expect(CHART_PAGE_URL).toBe(
+      'https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#compared-with-other-libraries',
+    )
+    expect(read('docs/performance.md')).toMatch(/^### Compared with other libraries$/m)
+    expect(renderReadmeChart(SAMPLE)).toBe(
+      `[![${chartShortAlt(SAMPLE)}](${CHART_RAW_URL})](${CHART_PAGE_URL})`,
+    )
+  })
+
+  it('is written between its markers, and a README without them is refused [049 S2-AC5]', () => {
+    const chart = renderReadmeChart(SAMPLE)
+    expect(withReadmeChart(readme('old'), chart)).toBe(readme(chart))
+    expect(() => withReadmeChart('# pkg\n', chart)).toThrow(
+      `README.md needs ${README_CHART_START} and ${README_CHART_END}`,
+    )
+  })
+
+  it('is reported, naming the README, when missing, stale or shown without a comparison run [049 S2-AC5]', () => {
+    const chart = renderReadmeChart(SAMPLE)
+    expect(readmeChartProblems(readme(chart), SAMPLE)).toEqual([])
+    expect(readmeChartProblems('# pkg\n', SAMPLE)).toEqual([
+      `README.md has no ${README_CHART_START} … ${README_CHART_END} section`,
+    ])
+    const stale = chart.replace('2 of 4', '3 of 4')
+    expect(readmeChartProblems(readme(stale), SAMPLE)).toEqual([
+      `README.md: the chart differs from the newest compare results at its line 1: expected "${chart}", found "${stale}"; run \`pnpm bench:docs\``,
+    ])
+    expect(readmeChartProblems(readme(chart), undefined)).toEqual([
+      'README.md shows the chart, but there is no compare run in bench/results',
+    ])
+    expect(readmeChartProblems(readme(''), undefined)).toEqual([])
   })
 })
