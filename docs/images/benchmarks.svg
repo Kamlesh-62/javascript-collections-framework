@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1126" viewBox="0 0 800 1126" role="img" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12">
+<title>Operations per second relative to javascript-collections-framework</title>
+<desc>Operations per second relative to javascript-collections-framework, at 100,000 elements, run on 2026-11-24 with Node.js v24.11.1: Sorted map, insert, js-sdsl OrderedMap 1.3×; Sorted map, get, js-sdsl OrderedMap 1.0×; Sorted map, nearest key at or below, js-sdsl OrderedMap 0.52×; Sorted map, iterate in order, js-sdsl OrderedMap 0.44×; Sorted map, delete and insert again, js-sdsl OrderedMap 1.2×; Priority queue, build from an array, js-sdsl PriorityQueue 1.7×; Priority queue, build from an array, mnemonist Heap 2.7×; Priority queue, build from an array, @datastructures-js MinPriorityQueue 1.9×; Priority queue, push, js-sdsl PriorityQueue 1.6×; Priority queue, push, mnemonist Heap 1.6×; Priority queue, push, @datastructures-js MinPriorityQueue 1.1×; Priority queue, poll all, js-sdsl PriorityQueue 1.2×; Priority queue, poll all, mnemonist Heap 2.9×; Priority queue, poll all, @datastructures-js MinPriorityQueue 1.7×; Deque, add at the end, take from the front, js-sdsl Deque 0.83×; Deque, add at the end, take from the front, @datastructures-js Deque 0.23×; Deque, add at the front, take from the end, js-sdsl Deque 2.1×; Deque, add at the front, take from the end, @datastructures-js Deque 0.58×; LRU map, set 2n keys, evicting n, mnemonist LRUMap 1.3×; LRU map, get present keys, mnemonist LRUMap 2.0×; Linked list, add at the end, js-sdsl LinkList 1.2×; Linked list, add at the end, @datastructures-js DoublyLinkedList 0.63×; Linked list, add at the end, take from the front, js-sdsl LinkList 0.88×; Linked list, add at the end, take from the front, @datastructures-js DoublyLinkedList 0.80×.</desc>
+<rect x="0" y="0" width="800" height="1126" fill="#ffffff"/>
+<text x="12" y="24" fill="#1f2328" font-size="15" font-weight="bold">Operations per second relative to javascript-collections-framework</text>
+<text x="320.0" y="46" fill="#1f2328">◀ javascript-collections-framework higher</text>
+<text x="700.0" y="46" fill="#1f2328" text-anchor="end">other library higher ▶</text>
+<text x="320.0" y="68" fill="#1f2328" text-anchor="middle">1/8×</text>
+<text x="383.3" y="68" fill="#1f2328" text-anchor="middle">1/4×</text>
+<text x="446.7" y="68" fill="#1f2328" text-anchor="middle">1/2×</text>
+<text x="510.0" y="68" fill="#1f2328" text-anchor="middle">1×</text>
+<text x="573.3" y="68" fill="#1f2328" text-anchor="middle">2×</text>
+<text x="636.7" y="68" fill="#1f2328" text-anchor="middle">4×</text>
+<text x="700.0" y="68" fill="#1f2328" text-anchor="middle">8×</text>
+<line x1="510.0" y1="72" x2="510.0" y2="1022" stroke="#57606a" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="12" y="91" fill="#1f2328" font-weight="bold">Sorted map</text>
+<text x="24" y="113" fill="#1f2328" font-style="italic">insert</text>
+<text x="300" y="135" fill="#1f2328" text-anchor="end">js-sdsl OrderedMap</text>
+<rect x="510.0" y="124" width="24.3" height="14" fill="#0969da"/>
+<text x="788" y="135" fill="#1f2328" text-anchor="end">1.3×</text>
+<text x="24" y="157" fill="#1f2328" font-style="italic">get</text>
+<text x="300" y="179" fill="#1f2328" text-anchor="end">js-sdsl OrderedMap</text>
+<rect x="510.0" y="168" width="1.0" height="14" fill="#0969da"/>
+<text x="788" y="179" fill="#1f2328" text-anchor="end">1.0×</text>
+<text x="24" y="201" fill="#1f2328" font-style="italic">nearest key at or below</text>
+<text x="300" y="223" fill="#1f2328" text-anchor="end">js-sdsl OrderedMap</text>
+<rect x="450.5" y="212" width="59.5" height="14" fill="#0969da"/>
+<text x="788" y="223" fill="#1f2328" text-anchor="end">0.52×</text>
+<text x="24" y="245" fill="#1f2328" font-style="italic">iterate in order</text>
+<text x="300" y="267" fill="#1f2328" text-anchor="end">js-sdsl OrderedMap</text>
+<rect x="434.5" y="256" width="75.5" height="14" fill="#0969da"/>
+<text x="788" y="267" fill="#1f2328" text-anchor="end">0.44×</text>
+<text x="24" y="289" fill="#1f2328" font-style="italic">delete and insert again</text>
+<text x="300" y="311" fill="#1f2328" text-anchor="end">js-sdsl OrderedMap</text>
+<rect x="510.0" y="300" width="16.8" height="14" fill="#0969da"/>
+<text x="788" y="311" fill="#1f2328" text-anchor="end">1.2×</text>
+<text x="12" y="333" fill="#1f2328" font-weight="bold">Priority queue</text>
+<text x="24" y="355" fill="#1f2328" font-style="italic">build from an array</text>
+<text x="300" y="377" fill="#1f2328" text-anchor="end">js-sdsl PriorityQueue</text>
+<rect x="510.0" y="366" width="50.7" height="14" fill="#0969da"/>
+<text x="788" y="377" fill="#1f2328" text-anchor="end">1.7×</text>
+<text x="300" y="399" fill="#1f2328" text-anchor="end">mnemonist Heap</text>
+<rect x="510.0" y="388" width="92.1" height="14" fill="#0969da"/>
+<text x="788" y="399" fill="#1f2328" text-anchor="end">2.7×</text>
+<text x="300" y="421" fill="#1f2328" text-anchor="end">@datastructures-js MinPriorityQueue</text>
+<rect x="510.0" y="410" width="57.3" height="14" fill="#0969da"/>
+<text x="788" y="421" fill="#1f2328" text-anchor="end">1.9×</text>
+<text x="24" y="443" fill="#1f2328" font-style="italic">push</text>
+<text x="300" y="465" fill="#1f2328" text-anchor="end">js-sdsl PriorityQueue</text>
+<rect x="510.0" y="454" width="41.4" height="14" fill="#0969da"/>
+<text x="788" y="465" fill="#1f2328" text-anchor="end">1.6×</text>
+<text x="300" y="487" fill="#1f2328" text-anchor="end">mnemonist Heap</text>
+<rect x="510.0" y="476" width="42.7" height="14" fill="#0969da"/>
+<text x="788" y="487" fill="#1f2328" text-anchor="end">1.6×</text>
+<text x="300" y="509" fill="#1f2328" text-anchor="end">@datastructures-js MinPriorityQueue</text>
+<rect x="510.0" y="498" width="7.2" height="14" fill="#0969da"/>
+<text x="788" y="509" fill="#1f2328" text-anchor="end">1.1×</text>
+<text x="24" y="531" fill="#1f2328" font-style="italic">poll all</text>
+<text x="300" y="553" fill="#1f2328" text-anchor="end">js-sdsl PriorityQueue</text>
+<rect x="510.0" y="542" width="14.3" height="14" fill="#0969da"/>
+<text x="788" y="553" fill="#1f2328" text-anchor="end">1.2×</text>
+<text x="300" y="575" fill="#1f2328" text-anchor="end">mnemonist Heap</text>
+<rect x="510.0" y="564" width="97.5" height="14" fill="#0969da"/>
+<text x="788" y="575" fill="#1f2328" text-anchor="end">2.9×</text>
+<text x="300" y="597" fill="#1f2328" text-anchor="end">@datastructures-js MinPriorityQueue</text>
+<rect x="510.0" y="586" width="48.4" height="14" fill="#0969da"/>
+<text x="788" y="597" fill="#1f2328" text-anchor="end">1.7×</text>
+<text x="12" y="619" fill="#1f2328" font-weight="bold">Deque</text>
+<text x="24" y="641" fill="#1f2328" font-style="italic">add at the end, take from the front</text>
+<text x="300" y="663" fill="#1f2328" text-anchor="end">js-sdsl Deque</text>
+<rect x="492.9" y="652" width="17.1" height="14" fill="#0969da"/>
+<text x="788" y="663" fill="#1f2328" text-anchor="end">0.83×</text>
+<text x="300" y="685" fill="#1f2328" text-anchor="end">@datastructures-js Deque</text>
+<rect x="373.9" y="674" width="136.1" height="14" fill="#0969da"/>
+<text x="788" y="685" fill="#1f2328" text-anchor="end">0.23×</text>
+<text x="24" y="707" fill="#1f2328" font-style="italic">add at the front, take from the end</text>
+<text x="300" y="729" fill="#1f2328" text-anchor="end">js-sdsl Deque</text>
+<rect x="510.0" y="718" width="67.0" height="14" fill="#0969da"/>
+<text x="788" y="729" fill="#1f2328" text-anchor="end">2.1×</text>
+<text x="300" y="751" fill="#1f2328" text-anchor="end">@datastructures-js Deque</text>
+<rect x="460.8" y="740" width="49.2" height="14" fill="#0969da"/>
+<text x="788" y="751" fill="#1f2328" text-anchor="end">0.58×</text>
+<text x="12" y="773" fill="#1f2328" font-weight="bold">LRU map</text>
+<text x="24" y="795" fill="#1f2328" font-style="italic">set 2n keys, evicting n</text>
+<text x="300" y="817" fill="#1f2328" text-anchor="end">mnemonist LRUMap</text>
+<rect x="510.0" y="806" width="23.8" height="14" fill="#0969da"/>
+<text x="788" y="817" fill="#1f2328" text-anchor="end">1.3×</text>
+<text x="24" y="839" fill="#1f2328" font-style="italic">get present keys</text>
+<text x="300" y="861" fill="#1f2328" text-anchor="end">mnemonist LRUMap</text>
+<rect x="510.0" y="850" width="61.0" height="14" fill="#0969da"/>
+<text x="788" y="861" fill="#1f2328" text-anchor="end">2.0×</text>
+<text x="12" y="883" fill="#1f2328" font-weight="bold">Linked list</text>
+<text x="24" y="905" fill="#1f2328" font-style="italic">add at the end</text>
+<text x="300" y="927" fill="#1f2328" text-anchor="end">js-sdsl LinkList</text>
+<rect x="510.0" y="916" width="12.9" height="14" fill="#0969da"/>
+<text x="788" y="927" fill="#1f2328" text-anchor="end">1.2×</text>
+<text x="300" y="949" fill="#1f2328" text-anchor="end">@datastructures-js DoublyLinkedList</text>
+<rect x="467.6" y="938" width="42.4" height="14" fill="#0969da"/>
+<text x="788" y="949" fill="#1f2328" text-anchor="end">0.63×</text>
+<text x="24" y="971" fill="#1f2328" font-style="italic">add at the end, take from the front</text>
+<text x="300" y="993" fill="#1f2328" text-anchor="end">js-sdsl LinkList</text>
+<rect x="498.5" y="982" width="11.5" height="14" fill="#0969da"/>
+<text x="788" y="993" fill="#1f2328" text-anchor="end">0.88×</text>
+<text x="300" y="1015" fill="#1f2328" text-anchor="end">@datastructures-js DoublyLinkedList</text>
+<rect x="489.2" y="1004" width="20.8" height="14" fill="#0969da"/>
+<text x="788" y="1015" fill="#1f2328" text-anchor="end">0.80×</text>
+<text x="12" y="1042" fill="#1f2328">Median operations per second of each library ÷ javascript-collections-framework 0.1.1, 100,000</text>
+<text x="12" y="1058" fill="#1f2328">elements, log scale; bars are clamped at 1/8× and 8×, the printed ratio is exact. Run on 2026-11-24</text>
+<text x="12" y="1074" fill="#1f2328">with Node.js v24.11.1 on Intel(R) Core(TM) i5-8600 CPU @ 3.10GHz. Packages: @datastructures-js/deque</text>
+<text x="12" y="1090" fill="#1f2328">1.0.8, @datastructures-js/linked-list 6.1.4, @datastructures-js/priority-queue 6.4.0, js-sdsl 4.4.2,</text>
+<text x="12" y="1106" fill="#1f2328">mnemonist 0.40.8.</text>
+</svg>

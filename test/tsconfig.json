@@ -24,7 +24,8 @@
     "../scripts/release-draft.mjs",
     "../scripts/release-notes.mjs",
     "../bench",
-    "../fixtures/engines"
+    "../fixtures/engines",
+    "../fixtures/competitors/cases.mjs"
   ],
   "exclude": ["consumers"]
 }

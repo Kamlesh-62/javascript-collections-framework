@@ -408,7 +408,8 @@ replays each one.
 - **Leaks that only garbage collection would show.** Such checks depend on when the engine
   collects, so they cannot be deterministic.
 - **Speed.** No test measures time; the stated time complexities are bounds on work, not timings.
-  Speeds are measured separately with `pnpm bench` and published on the
+  Speeds are measured separately with `pnpm bench` (against native structures) and
+  `pnpm bench:compare` (against other collection libraries) and published on the
   [performance](performance.md#benchmarks) page.
 - **Engines and runtimes outside CI.** Safari itself, browsers older than the current ones, React
   Native on devices, edge runtimes other than Cloudflare Workers, and the other targeted
@@ -419,5 +420,7 @@ replays each one.
 ## Nightly runs
 
 The stress suites, the framework apps, the smoke check on Hermes, QuickJS, JavaScriptCore,
-SpiderMonkey and XS, and the React Native (Metro) bundle run every night in the
+SpiderMonkey and XS, the React Native (Metro) bundle, and the comparison cases against other
+collection libraries (each run once at the smallest size, untimed, to check that every library
+returns the same results) run every night in the
 [nightly workflow](../.github/workflows/nightly.yml).
