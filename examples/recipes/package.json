@@ -1,0 +1,11 @@
+{
+  "name": "javascript-collections-framework-recipes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node top-k.mjs && node merge-sorted.mjs && node sliding-window-max.mjs && node lru-cache.mjs && node booking-calendar.mjs && node grid-shortest-path.mjs && node running-median.mjs && node recent-distinct.mjs && node time-range.mjs"
+  },
+  "dependencies": {
+    "javascript-collections-framework": "latest"
+  }
+}

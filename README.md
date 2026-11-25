@@ -52,7 +52,8 @@ TreeSet.from(JSON.parse(json)).equals(sorted) // true
 ```
 
 [Open in StackBlitz](https://stackblitz.com/github/Kamlesh-62/javascript-collections-framework/tree/main/examples/playground)
-to try it without installing anything. Used to `Array`, `Map` and `Set`? See
+to try it without installing anything, or browse [runnable recipes](docs/recipes.md) for common
+tasks. Used to `Array`, `Map` and `Set`? See
 [coming from native JavaScript](docs/coming-from-native.md).
 
 ## Why this library?

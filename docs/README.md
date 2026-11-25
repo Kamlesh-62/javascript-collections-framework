@@ -10,6 +10,7 @@ cost and examples, is in the
 
 - [Coming from native JavaScript](coming-from-native.md) — `Array`, `Map`, `Set`, sorted arrays, `shift` queues, hand-written heaps and the `Map` LRU trick, each next to its collection, with what it costs and when to keep the native one
 - [Open the playground in StackBlitz](https://stackblitz.com/github/Kamlesh-62/javascript-collections-framework/tree/main/examples/playground) — try the package in the browser, without installing it
+- [Recipes](recipes.md) — short runnable programs for common tasks (top k, merging sorted arrays, sliding windows, an LRU cache, bookings, grid paths, running medians, time ranges), each with its collection and time complexity, runnable in StackBlitz
 - [Behaviour notes](behaviour-notes.md) — the behaviours that most often surprise newcomers: absence and throwing reads, `delete` vs `removeAt`, `set` vs `put`, live and fail-fast iteration, identity equality, views, `sort()` order
 - [Compatibility](compatibility.md) — supported runtimes, frameworks, TypeScript versions and ways to load the package
 - [Errors](errors.md) — the error classes, when each is thrown, catching, subclassing, and two copies of the package
