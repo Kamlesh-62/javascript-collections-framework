@@ -1,0 +1,1004 @@
+{
+  "info": {
+    "date": "2026-11-26",
+    "node": "v24.11.1",
+    "platform": "darwin",
+    "cpu": "Intel(R) Core(TM) i5-8600 CPU @ 3.10GHz",
+    "cores": 6,
+    "memoryGb": 64,
+    "version": "0.1.1",
+    "order": "this-last"
+  },
+  "packages": {
+    "@datastructures-js/deque": "1.0.8",
+    "@datastructures-js/linked-list": "6.1.4",
+    "@datastructures-js/priority-queue": "6.4.0",
+    "js-sdsl": "4.4.2",
+    "mnemonist": "0.40.8"
+  },
+  "sizes": [
+    1000,
+    100000,
+    1000000
+  ],
+  "cases": [
+    {
+      "case": "Sorted map",
+      "operation": "insert",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 11277779.399509251,
+          "rme": 0.4079746608504759
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 12346747.131607445,
+          "rme": 2.0997818464044715
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "get",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 21645248.008540485,
+          "rme": 0.26088067459707814
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 15175923.85918889,
+          "rme": 0.4514325058126477
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "nearest key at or below",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 10327958.315190228,
+          "rme": 23.223974912207492
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 3453998.1982137496,
+          "rme": 1.9496989141050753
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "iterate in order",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 52002270.8843235,
+          "rme": 1.5344325827057805
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 21968467.70790514,
+          "rme": 0.552234307078742
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "delete and insert again",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 5618986.665689192,
+          "rme": 1.6048546377004682
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 5078380.437824545,
+          "rme": 2.1554346650123963
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "build from an array",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 281767227.7490161,
+          "rme": 15.919900657093397
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 61842499.745103344,
+          "rme": 0.5495616102248694
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 186223071.88266516,
+          "rme": 1.0614502594064883
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 86261634.31679766,
+          "rme": 0.8438523350010463
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "push",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 85678952.4099759,
+          "rme": 2.0518889672930056
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 95907893.95490526,
+          "rme": 0.8536620262052935
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 88657953.48666227,
+          "rme": 0.9599651984237009
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 36507527.360146046,
+          "rme": 1.4194854044607228
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "poll all",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 20765295.221662235,
+          "rme": 0.3415765077698033
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 6401611.645741945,
+          "rme": 0.7972522736157888
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 16626081.870431714,
+          "rme": 0.3340278138823817
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 9172473.257269487,
+          "rme": 0.633924762564873
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the end, take from the front",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 157322075.6124469,
+          "rme": 1.1140865085438525
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 127405697.21355906,
+          "rme": 1.3343439554491052
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 121114107.5632971,
+          "rme": 0.385637524325163
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the front, take from the end",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 158519423.93630594,
+          "rme": 0.8745447134512441
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 139598441.64037168,
+          "rme": 0.15341343892349255
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 125480637.02194153,
+          "rme": 0.550140838888378
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "set 2n keys, evicting n",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 14282931.325887976,
+          "rme": 1.5094607018933486
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 18309622.565815423,
+          "rme": 1.5669732702037396
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "get present keys",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 55200284.95530107,
+          "rme": 0.6688277325305758
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 55196952.794005126,
+          "rme": 0.5784589544506086
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 119861313.78798428,
+          "rme": 33.04624537803484
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 156598955.1416468,
+          "rme": 2.653807410011264
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 82982815.68918969,
+          "rme": 2.8109392132192315
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end, take from the front",
+      "size": 1000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 52130998.70883436,
+          "rme": 0.8174460420793459
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 39745585.17131043,
+          "rme": 0.8505662465102877
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 37275537.51534341,
+          "rme": 0.7012825220650656
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "insert",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 4115729.2439941494,
+          "rme": 8.385012256320435
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 4688811.218731043,
+          "rme": 2.365823224863843
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "get",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 4815047.408355121,
+          "rme": 13.214394375103147
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 4261176.878862144,
+          "rme": 5.882131772775279
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "nearest key at or below",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 3636803.5862793867,
+          "rme": 14.838711689998577
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 1953623.2311588803,
+          "rme": 7.0910655679702534
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "iterate in order",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 30045470.345360685,
+          "rme": 4.651878003253921
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 14321681.270142,
+          "rme": 1.8853312775530398
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "delete and insert again",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 3181676.3678589673,
+          "rme": 1.1961419960549733
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 2885106.104059537,
+          "rme": 3.4887413880497875
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "build from an array",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 78893241.23451634,
+          "rme": 1.2495012275761144
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 41502782.28491794,
+          "rme": 0.8642188761495665
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 67388507.08386132,
+          "rme": 1.1656306684462154
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 45760246.652306646,
+          "rme": 5.121732075006235
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "push",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 32208449.7046008,
+          "rme": 1.3037460471231914
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 33217833.369620256,
+          "rme": 1.5292761421344752
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 34853204.99889623,
+          "rme": 1.8142877527192953
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 22273825.88173218,
+          "rme": 2.2739412750462127
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "poll all",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 10225613.134953704,
+          "rme": 0.4548427361877806
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 3480559.431013374,
+          "rme": 0.5125431430799646
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 8761810.317934474,
+          "rme": 4.034343170603356
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 5215978.00109108,
+          "rme": 1.4875704250350936
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the end, take from the front",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 157185926.75561062,
+          "rme": 0.16984790676165293
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 130114536.05225882,
+          "rme": 0.14998377785602554
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 36893215.47908328,
+          "rme": 1.2366720748902016
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the front, take from the end",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 154567926.08927777,
+          "rme": 1.1905231247722763
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 128078021.52852061,
+          "rme": 1.165985015809184
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 37518655.707297966,
+          "rme": 6.912723373308085
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "set 2n keys, evicting n",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 6369830.444668147,
+          "rme": 2.3840728240470335
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 7078396.02307331,
+          "rme": 7.4097498391079295
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "get present keys",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 26094231.52967072,
+          "rme": 2.804490179575011
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 26618408.185814533,
+          "rme": 0.42378238537170665
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 103072821.44761598,
+          "rme": 1.8685183822445777
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 121111180.3189945,
+          "rme": 1.0984627702298688
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 72393187.21741611,
+          "rme": 2.6357921894305685
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end, take from the front",
+      "size": 100000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 45826070.126841135,
+          "rme": 0.5716397419414824
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 37709743.99438394,
+          "rme": 0.6474231932072613
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 34370152.27504804,
+          "rme": 1.3757669502935932
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "insert",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 1530081.0374524763,
+          "rme": 3.3922991968747227
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 1606724.6026279265,
+          "rme": 3.9675343865550508
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "get",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 1967729.40985481,
+          "rme": 16.339079393074968
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 1891282.3079628914,
+          "rme": 7.242498045191509
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "nearest key at or below",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 1625910.1959600162,
+          "rme": 5.010394358057308
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 1138251.3631930302,
+          "rme": 3.8241262471049478
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "iterate in order",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 20329812.16920562,
+          "rme": 1.4626409845514343
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 10563059.949458608,
+          "rme": 0.25045716507050797
+        }
+      ]
+    },
+    {
+      "case": "Sorted map",
+      "operation": "delete and insert again",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "TreeMap",
+          "hz": 2081662.7684682957,
+          "rme": 2.385364763527559
+        },
+        {
+          "library": "js-sdsl",
+          "name": "OrderedMap",
+          "hz": 1863143.3035362049,
+          "rme": 3.3882796457649516
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "build from an array",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 72097281.43862264,
+          "rme": 24.99805023492112
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 38879418.94241613,
+          "rme": 2.616311914489543
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 61458178.719598964,
+          "rme": 22.23642293608442
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 42134225.78117975,
+          "rme": 3.038989170209729
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "push",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 28995228.421980716,
+          "rme": 0.7094244870147577
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 29209540.612936705,
+          "rme": 1.7979630198252132
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 30421466.83506028,
+          "rme": 2.8432413219301047
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 19453970.337704293,
+          "rme": 14.161085289604221
+        }
+      ]
+    },
+    {
+      "case": "Priority queue",
+      "operation": "poll all",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "PriorityQueue",
+          "hz": 7564188.95101901,
+          "rme": 4.819165285994232
+        },
+        {
+          "library": "js-sdsl",
+          "name": "PriorityQueue",
+          "hz": 2444035.1511107357,
+          "rme": 3.6629784937963357
+        },
+        {
+          "library": "mnemonist",
+          "name": "Heap",
+          "hz": 5922906.8053481085,
+          "rme": 5.8096052566353995
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "MinPriorityQueue",
+          "hz": 3696243.2610647217,
+          "rme": 6.878701618727876
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the end, take from the front",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 153776231.40560752,
+          "rme": 0.4220854118303556
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 130043397.30090685,
+          "rme": 1.9660947229444952
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 35366560.890774675,
+          "rme": 4.8899065173698935
+        }
+      ]
+    },
+    {
+      "case": "Deque",
+      "operation": "add at the front, take from the end",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "ArrayDeque",
+          "hz": 152828078.27150625,
+          "rme": 0.5712175290993162
+        },
+        {
+          "library": "js-sdsl",
+          "name": "Deque",
+          "hz": 124474595.49783236,
+          "rme": 1.818370390591307
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "Deque",
+          "hz": 35887770.39060674,
+          "rme": 6.35561350782919
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "set 2n keys, evicting n",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 3518164.9116722755,
+          "rme": 5.9844545643279385
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 3611961.9960483024,
+          "rme": 9.391896144485386
+        }
+      ]
+    },
+    {
+      "case": "LRU map",
+      "operation": "get present keys",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedHashMap",
+          "hz": 4879441.876019552,
+          "rme": 48.501660215902206
+        },
+        {
+          "library": "mnemonist",
+          "name": "LRUMap",
+          "hz": 8842249.217298394,
+          "rme": 21.761833413178593
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 101679711.98305576,
+          "rme": 1.0478565378750047
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 58836680.70777527,
+          "rme": 0.5643289721790522
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 44451537.42809714,
+          "rme": 0.34979788455231714
+        }
+      ]
+    },
+    {
+      "case": "Linked list",
+      "operation": "add at the end, take from the front",
+      "size": 1000000,
+      "results": [
+        {
+          "library": "javascript-collections-framework",
+          "name": "LinkedList",
+          "hz": 14129241.218076907,
+          "rme": 9.740292221836217
+        },
+        {
+          "library": "js-sdsl",
+          "name": "LinkList",
+          "hz": 18768581.284958124,
+          "rme": 12.070457546578721
+        },
+        {
+          "library": "@datastructures-js",
+          "name": "DoublyLinkedList",
+          "hz": 14500173.223260492,
+          "rme": 21.373713723448038
+        }
+      ]
+    }
+  ]
+}

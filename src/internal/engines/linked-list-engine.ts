@@ -193,6 +193,37 @@ export class LinkedListEngine<E> extends AbstractDeque<E> {
     // No limit but memory.
   }
 
+  // The adders and removers at the ends, defined here rather than inherited, so each call site
+  // sees one class. Every element is allowed, so there is nothing to check.
+
+  override add(element: E): this {
+    this.link(this.tail, undefined, element)
+    return this
+  }
+
+  override addLast(element: E): this {
+    this.link(this.tail, undefined, element)
+    return this
+  }
+
+  override push(element: E): this {
+    this.link(this.tail, undefined, element)
+    return this
+  }
+
+  override addFirst(element: E): this {
+    this.link(undefined, this.head, element)
+    return this
+  }
+
+  override poll(): E | undefined {
+    return this.length === 0 ? undefined : this.takeFront()
+  }
+
+  override pop(): E | undefined {
+    return this.length === 0 ? undefined : this.takeBack()
+  }
+
   insertFront(element: E): void {
     this.link(undefined, this.head, element)
   }

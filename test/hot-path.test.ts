@@ -462,6 +462,8 @@ describe('writes to a default LinkedHashMap in linked records', () => {
 
   it('make two native calls for a present key that is not last in access order, one when last [044 S3-AC1]', () => {
     const map = new LinkedHashMap(pairs(), { accessOrder: true })
+    // Once the map has been iterated; before that, a move makes no native call.
+    expect([...map.keys()]).toHaveLength(3)
     expect(nativeCalls(() => map.set(1, 11))).toBe(2)
     expect(nativeCalls(() => map.set(1, 12))).toBe(1)
     expect(nativeCalls(() => map.put(2, 21))).toBe(2)
@@ -473,6 +475,22 @@ describe('writes to a default LinkedHashMap in linked records', () => {
       [2, 22],
       [4, 40],
     ])
+  })
+
+  it('make one native call for a present key in access order before the map is first iterated [050 S3-AC1]', () => {
+    const map = new LinkedHashMap(pairs(), { accessOrder: true })
+    expect(nativeCalls(() => map.set(1, 11))).toBe(1)
+    expect(nativeCalls(() => map.put(2, 21))).toBe(1)
+    expect(nativeCalls(() => map.get(3))).toBe(1)
+    expect(nativeCalls(() => map.set(4, 40))).toBe(2)
+    expect([...map]).toEqual([
+      [1, 11],
+      [2, 21],
+      [3, 30],
+      [4, 40],
+    ])
+    // Iterated once, a move replaces the record and writes it back: two calls.
+    expect(nativeCalls(() => map.get(1))).toBe(2)
   })
 
   it('add one delete per mapping maxSize evicts, with and without onEvict [044 S3-AC1]', () => {

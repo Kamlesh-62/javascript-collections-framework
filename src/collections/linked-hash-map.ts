@@ -125,6 +125,13 @@ function readSettings<K, V>(options: unknown, where: string): LinkedMapSettings<
  * O(n), once; this is why the ends, `putFirst`, `putLast`, and the inserting methods of a map
  * with `maxSize` (each eviction) are amortised.
  *
+ * A map with `accessOrder: true` and neither `key` nor `equivalence` keeps its mappings in a
+ * compact form until the first call on it other than `get`, `has`, `set`, `put` (unless both
+ * `maxSize` and `onEvict` are given), `delete`, `size`, `isEmpty` and `clear`: any other method,
+ * iteration, an entry, or a call through `reversed()` or a view other than `size` and `isEmpty`.
+ * That call costs O(n), once, which is why those other operations are amortised for such a map.
+ * A map built with entries, or made by `copy`, starts in the linked form.
+ *
  * With `accessOrder: true`, every read or write of a present key (`get`, `getOrDefault`, `set`,
  * `put`, `replace`, `getOrInsert`, `getOrInsertComputed`, `compute`, `computeIfPresent`, `merge`,
  * and `putAll`, the constructor and `from` for keys already present) moves its mapping to the end,
@@ -364,7 +371,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Returns the value mapped to `key` when the key is present (even when that value is
    * `undefined`), and `fallback` otherwise. In access order, a present mapping moves to the end.
    *
-   * Time: as `get`.
+   * Time: as `get`; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key to look up.
    * @param fallback - The value to return when the key is absent.
@@ -447,7 +454,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Maps `key` to `value`, as `set` does, and returns the previous value, or `undefined` when the
    * key was absent.
    *
-   * Time: as `set`.
+   * Time: as `set`; O(1) amortised average with `accessOrder`, `maxSize` and `onEvict` (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param value - The value.
@@ -470,7 +477,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * The whole argument is read and checked first, so `map.putAll(map)` is safe; evictions are
    * reported to `onEvict` once, after the last pair.
    *
-   * Time: O(m) average for `m` items, plus the calls; O(m) amortised average with `maxSize`.
+   * Time: O(m) average for `m` items, plus the calls; O(m) amortised average with `maxSize` or in access order (the first call that needs linked records costs O(n), once).
    *
    * @param entries - `[key, value]` arrays, map entries, a native `Map` or a map.
    * @throws TypeError when `entries` is not iterable, an item is not an array of length 2 or a map
@@ -560,7 +567,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
   /**
    * Removes the mapping of `key` and returns its value, or `undefined` when there was none.
    *
-   * Time: as `set`.
+   * Time: as `set`; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @returns The removed value, or `undefined`.
@@ -580,7 +587,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Replaces the value of `key` only when the key is present (in access order, moving it to the
    * end), and returns the previous value, or `undefined`.
    *
-   * Time: as `set`.
+   * Time: as `set`; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param value - The new value.
@@ -620,7 +627,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Returns the value of `key` when present (in access order, moving it to the end); otherwise maps
    * `key` to `value` at the end and returns `value`, as native `Map.prototype.getOrInsert` does.
    *
-   * Time: as `set`.
+   * Time: as `set`; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param value - The value to insert when the key is absent.
@@ -643,7 +650,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * calling `fn`; otherwise calls `fn(key)`, maps `key` to its result and returns it. If `fn`
    * inserted the key itself, that mapping's value is overwritten in place, as an access.
    *
-   * Time: as `set`, plus the call.
+   * Time: as `set`, plus the call; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param fn - Computes the value to insert, called with `this` undefined.
@@ -669,7 +676,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Maps `key` to `fn(currentValueOrUndefined, key, map)`, or removes the mapping when the result
    * is `undefined`, and returns the result. Writing a present key is an access.
    *
-   * Time: as `set`, plus the call.
+   * Time: as `set`, plus the call; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param fn - Computes the new value.
@@ -699,7 +706,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * result is `undefined`, and returns the result; otherwise returns `undefined` without calling
    * `fn`. Writing the value is an access.
    *
-   * Time: as `set`, plus the call.
+   * Time: as `set`, plus the call; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param fn - Computes the new value.
@@ -727,7 +734,7 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * removing the mapping when that result is `undefined`. Returns the stored value, or `undefined`
    * when the mapping was removed. Writing a present key is an access.
    *
-   * Time: as `set`, plus the call.
+   * Time: as `set`, plus the call; O(1) amortised average in access order (the first call that needs linked records costs O(n), once).
    *
    * @param key - The key.
    * @param value - The value to store, or to combine with the present one.
@@ -865,9 +872,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * ends. Removing a key removes its mapping; `add`, `addFirst` and `addLast` throw
    * `UnsupportedOperationError`. Each call returns a new view.
    *
-   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` needs linked
-   * order: the first such call on the map costs O(n), once, and the view's ends cost what the
-   * map's cost, amortised.
+   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` (in access order
+   * without `key` or `equivalence`, other than `size` and `isEmpty`) needs linked order: the first
+   * such call on the map costs O(n), once, and the view's ends cost what the map's cost, amortised.
    *
    * @returns A new view, tagged `LinkedHashMapKeySet`.
    *
@@ -885,9 +892,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * entry is a member when its key is present with an equal value; removing it removes the
    * mapping; adding throws `UnsupportedOperationError`. Each call returns a new view.
    *
-   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` needs linked
-   * order: the first such call on the map costs O(n), once, and the view's ends cost what the
-   * map's cost, amortised.
+   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` (in access order
+   * without `key` or `equivalence`, other than `size` and `isEmpty`) needs linked order: the first
+   * such call on the map costs O(n), once, and the view's ends cost what the map's cost, amortised.
    *
    * @returns A new view, tagged `LinkedHashMapEntrySet`.
    *
@@ -906,9 +913,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * and `removeIf` every matching mapping; adding throws `UnsupportedOperationError`. The view
    * equals only itself. Each call returns a new view.
    *
-   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` needs linked
-   * order: the first such call on the map costs O(n), once, and the view's ends cost what the
-   * map's cost, amortised.
+   * Time: O(1). A call through the view other than `size`, `isEmpty` and `has` (in access order
+   * without `key` or `equivalence`, other than `size` and `isEmpty`) needs linked order: the first
+   * such call on the map costs O(n), once, and the view's ends cost what the map's cost, amortised.
    *
    * @returns A new view, tagged `LinkedHashMapValues`.
    *
@@ -924,8 +931,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
   /**
    * Returns a live iterator over the keys in order.
    *
-   * Time: O(1) to create; O(1) per step, amortised over the steps and the changes made while it
-   * is open.
+   * Time: O(1) to create (in access order without `key` or `equivalence`, the first call that
+   * needs linked records costs O(n), once); O(1) per step, amortised over the steps and the
+   * changes made while it is open.
    *
    * @returns A new iterator.
    *
@@ -941,8 +949,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
   /**
    * Returns a live iterator over the values in order.
    *
-   * Time: O(1) to create; O(1) per step, amortised over the steps and the changes made while it
-   * is open.
+   * Time: O(1) to create (in access order without `key` or `equivalence`, the first call that
+   * needs linked records costs O(n), once); O(1) per step, amortised over the steps and the
+   * changes made while it is open.
    *
    * @returns A new iterator.
    *
@@ -958,8 +967,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
   /**
    * Returns a live iterator over a new `[key, value]` array per mapping, in order.
    *
-   * Time: O(1) to create; O(1) per step, amortised over the steps and the changes made while it
-   * is open.
+   * Time: O(1) to create (in access order without `key` or `equivalence`, the first call that
+   * needs linked records costs O(n), once); O(1) per step, amortised over the steps and the
+   * changes made while it is open.
    *
    * @returns A new iterator.
    *
@@ -997,8 +1007,9 @@ export class LinkedHashMap<K, V> implements SequencedMap<K, V> {
    * Returns a live iterator over a new `[key, value]` array per mapping, in order, as `entries()`
    * does. `new Map(linkedHashMap)` copies the map this way.
    *
-   * Time: O(1) to create; O(1) per step, amortised over the steps and the changes made while it
-   * is open.
+   * Time: O(1) to create (in access order without `key` or `equivalence`, the first call that
+   * needs linked records costs O(n), once); O(1) per step, amortised over the steps and the
+   * changes made while it is open.
    *
    * @returns A new iterator.
    *

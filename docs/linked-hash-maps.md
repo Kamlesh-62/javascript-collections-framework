@@ -222,22 +222,23 @@ JSON.stringify(
 
 ## Cost
 
-| Operation                                                                        | Time                                                                          |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `get`, `getOrDefault`, `has`, `set`, `put`, `delete`, `remove`, `replace`        | O(1) average, plus one `key` or `hash` call                                   |
-| `putFirst`, `putLast`                                                            | O(1) amortised average, plus the calls                                        |
-| `getOrInsert`, `getOrInsertComputed`, `compute`, `computeIfPresent`, `merge`     | O(1) average, plus the calls                                                  |
-| `firstEntry`, `lastEntry`, `pollFirstEntry`, `pollLastEntry`, view ends          | O(1) amortised average, no user calls                                         |
-| an access move                                                                   | O(1), no user calls                                                           |
-| each eviction, and so each insertion into a map with `maxSize`                   | O(1) amortised average, no user calls                                         |
-| delivering `e` evictions                                                         | O(e), plus the `onEvict` calls                                                |
-| `reversed()`, creating a view                                                    | O(1)                                                                          |
-| iteration step, cursor `next`                                                    | O(1) amortised over the steps and the changes made while the iterator is open |
-| `putAll`, the constructor, `from`                                                | O(m) average for `m` pairs                                                    |
-| `putAll` into a map with `maxSize`                                               | O(m) amortised average, plus the calls                                        |
-| `replaceAll`, `forEach`, `containsValue`, `toString`, `toJSON`, `equals`, `copy` | O(n)                                                                          |
-| view `removeIf`, `removeAll`, `retainAll`                                        | O(n + m) average, plus the calls                                              |
-| `clear`                                                                          | O(1) with `equivalence`; one native `clear`                                   |
+| Operation                                                                        | Time                                                                                            |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `get`, `has`, `set`, `delete`                                                    | O(1) average, plus one `key` or `hash` call                                                     |
+| `getOrDefault`, `put`, `remove`, `replace`                                       | O(1) average, plus one `key` or `hash` call; O(1) amortised average in access order (see below) |
+| `putFirst`, `putLast`                                                            | O(1) amortised average, plus the calls                                                          |
+| `getOrInsert`, `getOrInsertComputed`, `compute`, `computeIfPresent`, `merge`     | O(1) average, plus the calls; O(1) amortised average in access order (see below)                |
+| `firstEntry`, `lastEntry`, `pollFirstEntry`, `pollLastEntry`, view ends          | O(1) amortised average, no user calls                                                           |
+| an access move                                                                   | O(1), no user calls                                                                             |
+| each eviction, and so each insertion into a map with `maxSize`                   | O(1) amortised average, no user calls                                                           |
+| delivering `e` evictions                                                         | O(e), plus the `onEvict` calls                                                                  |
+| `reversed()`, creating a view                                                    | O(1)                                                                                            |
+| iteration step, cursor `next`                                                    | O(1) amortised over the steps and the changes made while the iterator is open                   |
+| `putAll`, the constructor, `from`                                                | O(m) average for `m` pairs                                                                      |
+| `putAll` into a map with `maxSize` or in access order                            | O(m) amortised average, plus the calls                                                          |
+| `replaceAll`, `forEach`, `containsValue`, `toString`, `toJSON`, `equals`, `copy` | O(n)                                                                                            |
+| view `removeIf`, `removeAll`, `retainAll`                                        | O(n + m) average, plus the calls                                                                |
+| `clear`                                                                          | O(1) with `equivalence`; one native `clear`                                                     |
 
 A map without the `key`, `equivalence` or `accessOrder` option keeps its mappings in a native `Map`
 until the first call that needs linked order: `putFirst`, `putLast` of a present key, `lastEntry`,
@@ -245,6 +246,14 @@ until the first call that needs linked order: `putFirst`, `putLast` of a present
 `valueCollection()` other than `size`, `isEmpty` and `has`. That call costs O(n), once in the map's
 life, which is why the rows above that can make it are amortised; everything else then runs on
 linked records as before.
+
+A map with `accessOrder: true` and neither `key` nor `equivalence` likewise keeps its mappings in a
+compact form until the first call on it other than `get`, `has`, `set`, `put` (unless both
+`maxSize` and `onEvict` are given), `delete`, `size`, `isEmpty` and `clear`: any other method,
+iteration, an entry, or a call through `reversed()` or a view other than `size` and `isEmpty`. That
+call costs O(n), once, which is why the rows above marked "in access order" are amortised for such a
+map; `get`, `has`, `set` and `delete` keep their bounds. A map built with entries, or made by
+`copy`, starts in the linked form.
 
 With an `equivalence`, the same seeded buckets and collision behaviour as
 [`HashMap`](maps.md#cost) apply. Each mapping costs a little more memory than in a `HashMap`: it

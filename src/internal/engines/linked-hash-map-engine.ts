@@ -5,6 +5,7 @@ import type { SequencedMap } from '../../interfaces/sequenced-map'
 import { ChangeCounter } from '../revision'
 import { AbstractLinkedMap, type LinkedMapState } from '../skeletons/abstract-linked-map'
 import { ReversedLinkedHashMap } from '../views/reversed-linked-hash-map'
+import { AccessSlots } from './access-slots'
 import { EvictionQueue } from './eviction-queue'
 import type { HashEquality } from './hash-support'
 import { LinkedHashTable } from './linked-hash-table'
@@ -37,7 +38,7 @@ export class LinkedHashMapEngine<K, V> extends AbstractLinkedMap<K, V> {
    * @param facade - The public map, for identity, callbacks and `onEvict`.
    * @param settings - The options.
    * @param contents - The table to use, or the native `Map` of a map in the native layout; a new
-   *   empty one by default.
+   *   empty one by default (the slots of an access-ordered map with SameValueZero keys).
    */
   constructor(
     facade: SequencedMap<K, V>,
@@ -47,13 +48,17 @@ export class LinkedHashMapEngine<K, V> extends AbstractLinkedMap<K, V> {
     const { equality, accessOrder, maxSize, onEvict } = settings
     let flat: Map<K, V> | undefined
     let table: LinkedHashTable<K, V> | undefined
+    let slots: AccessSlots<K, V> | undefined
     if (contents instanceof LinkedHashTable) table = contents
     else if (contents !== undefined) flat = contents
-    else if (equality.kind === 'native' && !accessOrder) flat = new Map<K, V>()
-    else table = new LinkedHashTable<K, V>(equality, undefined, accessOrder)
+    else if (equality.kind !== 'native')
+      table = new LinkedHashTable<K, V>(equality, undefined, accessOrder)
+    else if (accessOrder) slots = new AccessSlots<K, V>()
+    else flat = new Map<K, V>()
     const state: LinkedMapState<K, V> = {
       flat,
       table,
+      slots,
       front: undefined,
       frontKey: MISSING,
       frontValue: undefined,
@@ -96,6 +101,11 @@ export class LinkedHashMapEngine<K, V> extends AbstractLinkedMap<K, V> {
     const settings = this.settings
     if (settings.equality.kind === 'native' && !settings.accessOrder) {
       return new LinkedHashMapEngine(facade, settings, new Map(this.entries()))
+    }
+    // A map in the slotted layout is copied into a new table, leaving its own layout as it is.
+    const slots = this.state.slots
+    if (slots !== undefined) {
+      return new LinkedHashMapEngine(facade, settings, slots.toTable(settings.equality))
     }
     return new LinkedHashMapEngine(facade, settings, this.table.copy(settings.equality))
   }

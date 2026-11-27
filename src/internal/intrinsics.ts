@@ -86,6 +86,12 @@ export const createWeakMap: <K extends object, V>() => WeakMap<K, V> = /*#__PURE
   return <K extends object, V>() => new Weak<K, V>()
 })()
 
+/** A new `Int32Array` of `length` zeros, built with the constructor captured at load. @internal */
+export const newInt32Array: (length: number) => Int32Array = /*#__PURE__*/ (() => {
+  const Int32 = Int32Array
+  return (length: number) => new Int32(length)
+})()
+
 /** `WeakMap.prototype.get(map, key)`. @internal */
 export const weakMapGet: <K extends object, V>(self: WeakMap<K, V>, key: K) => V | undefined =
   /*#__PURE__*/ (() => uncurry(WeakMap.prototype.get))() as never

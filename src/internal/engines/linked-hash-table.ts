@@ -19,6 +19,17 @@
 // table an explicit move gives the record a new origin. A forward iteration of an access-ordered
 // table remembers the origins it returned, so a mapping moved by an access is never returned twice.
 //
+// An access that no live walk can observe moves the record itself: while no `LinkedRecordIterator`
+// has ever been made on a table (`walked`), nothing holds a position in its order, so an access
+// relinks the same record at the back with a new sequence number and keeps its origin, saving a
+// record and a store write. Code that holds records across a call finds the mapping again through
+// `current`, and a record moved in place is still the current record of its mapping.
+//
+// For the same reason, an access-ordered table on the native store that has never been walked can
+// give the record of the mapping it evicts to the mapping it inserts (`recycleFirst`): nothing
+// outside a call holds a record, and code that holds one across a user callback checks for an
+// added or removed mapping before it uses the record again, and an insertion is one.
+//
 // A table can also be made from a native `Map` or `Set` that held the contents so far (see
 // flat-layout.ts): its records get the sequence numbers and origins 1…n, their rank in the native order,
 // and `promoted` is n. Since moves keep origins, a record whose origin lies in 1…n is a member that
@@ -38,26 +49,37 @@ import { type MapStore, MISSING, newMapStore } from './map-stores'
  * @internal
  */
 export interface LinkedRecord<K, V> {
-  readonly key: K
+  /** The key; changes only when `recycleFirst` gives the record to a new mapping. */
+  key: K
   value: V
   /** The `MapStore` handle of this key's mapping; the same across moves. */
-  readonly handle: unknown
+  handle: unknown
   /** The neighbours: current while linked, as they were at removal once unlinked. */
   prev: LinkedRecord<K, V>
   next: LinkedRecord<K, V>
   /** The order stamp: records are linked in ascending `seq`. */
-  readonly seq: number
+  seq: number
   /** The identity of the mapping across access moves: the `seq` of its last insertion or move. */
-  readonly origin: number
+  origin: number
   /** Whether the record is linked (false once removed or replaced by a move). */
   live: boolean
 }
 
+/**
+ * The sentinel: a record with the same fields, made in the same order as `link` makes them, so
+ * every link a move writes goes to objects of one shape.
+ */
 function newHead<K, V>(): LinkedRecord<K, V> {
-  const head = { seq: 0, origin: 0, live: false, handle: undefined } as unknown as LinkedRecord<
-    K,
-    V
-  >
+  const head = {
+    key: undefined,
+    value: undefined,
+    handle: undefined,
+    prev: undefined,
+    next: undefined,
+    seq: 0,
+    origin: 0,
+    live: false,
+  } as unknown as LinkedRecord<K, V>
   head.prev = head
   head.next = head
   return head
@@ -86,6 +108,8 @@ export class LinkedHashTable<K, V> {
   promoted = 0
   /** Whether mappings are moved by access, so forward iterations must remember what they returned. */
   readonly accessOrder: boolean
+  /** Whether a live walk has ever been made on this table; until then accesses move in place. */
+  walked = false
   private readonly store: MapStore<K, LinkedRecord<K, V>>
 
   /**
@@ -176,17 +200,65 @@ export class LinkedHashTable<K, V> {
 
   /**
    * Moves `record` to the back as an access: like `move`, but the new record keeps the mapping's
-   * origin, so an open forward iteration that returned it does not return it again. Returns
-   * `false`, changing nothing, when it is already last.
+   * origin, so an open forward iteration that returned it does not return it again. Before any walk
+   * of the table, the record itself moves. Returns `false`, changing nothing, when it is already
+   * last.
    */
   access(record: LinkedRecord<K, V>): boolean {
-    if (this.head.prev === record) return false
+    const head = this.head
+    const last = head.prev
+    if (last === record) return false
+    if (!this.walked) {
+      // No walk can be at the record: unlink it and link it again at the back, as the last record.
+      record.prev.next = record.next
+      record.next.prev = record.prev
+      record.prev = last
+      record.next = head
+      record.seq = ++this.high
+      last.next = record
+      head.prev = record
+      return true
+    }
     this.unlink(record)
     this.store.write(
       record.handle,
       this.link(record.key, record.value, record.handle, false, record.origin),
     )
     return true
+  }
+
+  /**
+   * Whether `recycleFirst` may be used: an access-ordered table on the native store that has never
+   * been walked.
+   */
+  get recyclable(): boolean {
+    return this.accessOrder && !this.walked && this.native !== undefined
+  }
+
+  /**
+   * Removes the first record's mapping and gives the record to a new mapping of `key` (absent,
+   * already normalised) at the back. Only while `recyclable`; the table must not be empty.
+   */
+  recycleFirst(key: K, value: V): LinkedRecord<K, V> {
+    const native = this.native as Map<K, LinkedRecord<K, V>>
+    const head = this.head
+    const record = head.next
+    native.delete(record.key)
+    head.next = record.next
+    record.next.prev = head
+    const last = head.prev
+    record.prev = last
+    record.next = head
+    last.next = record
+    head.prev = record
+    record.key = key
+    record.handle = key
+    record.value = value
+    const seq = ++this.high
+    record.seq = seq
+    record.origin = seq
+    native.set(key, record)
+    return record
   }
 
   /** Unlinks `record` and removes its mapping by stored entry, calling no user function. */
@@ -360,6 +432,7 @@ export class LinkedRecordIterator<K, V>
    */
   constructor(table: LinkedHashTable<K, V>, fromBack: boolean, boundary?: number) {
     super()
+    table.walked = true
     this.table = table
     this.fromBack = fromBack
     this.last = table.head

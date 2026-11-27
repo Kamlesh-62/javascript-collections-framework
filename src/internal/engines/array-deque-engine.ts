@@ -153,6 +153,40 @@ export class ArrayDequeEngine<E> extends AbstractDeque<E> {
     this.changes.structural()
   }
 
+  override addFirst(element: E): this {
+    this.prepend(element, 'addFirst')
+    return this
+  }
+
+  /** Checks `element`, then adds it at the front; the room check runs only when the buffer is full. */
+  private prepend(element: E, method: string): void {
+    if (element === null || element === undefined) requireElement(element, this, method)
+    const length = this.length
+    if (length === this.buffer.length) this.ensureRoom(1, this, method)
+    const buffer = this.buffer
+    const head = (this.head - 1) & (buffer.length - 1)
+    buffer[head] = element
+    this.head = head
+    this.length = length + 1
+    this.changes.structural()
+  }
+
+  override poll(): E | undefined {
+    return this.length === 0 ? undefined : this.takeFront()
+  }
+
+  override pop(): E | undefined {
+    const length = this.length
+    if (length === 0) return undefined
+    const buffer = this.buffer
+    const index = (this.head + length - 1) & (buffer.length - 1)
+    const element = buffer[index] as E
+    buffer[index] = undefined
+    this.length = length - 1
+    this.changes.structural()
+    return element
+  }
+
   insertBack(element: E, where: Where, method = ''): void {
     this.ensureRoom(1, where, method)
     this.buffer[(this.head + this.length) & (this.buffer.length - 1)] = element

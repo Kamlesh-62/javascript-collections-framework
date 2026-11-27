@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { MapNode, MapTree } from '../../src/internal/engines/map-tree'
 import {
   OrderedTree,
+  successor,
   TreeCursor,
   TreeIterator,
-  type TreeNode,
+  TreeNode,
 } from '../../src/internal/engines/ordered-tree'
 import { ChangeCounter } from '../../src/internal/revision'
 import { integer, seeded } from '../support/random'
@@ -230,5 +231,68 @@ describe('OrderedTree — locate and link, node makers, projection', () => {
     cursor.remove()
     expect(cursor.next()).toBe('#2')
     expect(checkShape(t)).toEqual([1, 2])
+  })
+})
+
+describe('OrderedTree plain descent', () => {
+  function natural<E>(): OrderedTree<E> {
+    return new OrderedTree<E>(undefined, new ChangeCounter())
+  }
+
+  it('finds and places numbers, NaN and -0 as the compared descent does [051 S1-AC5]', () => {
+    for (const n of [0, 1, 2, 5, 64, 4_096]) {
+      const random = seeded(n + 3)
+      const t = natural<number>()
+      for (let i = 0; i < n; i++) {
+        const r = random()
+        const value = r < 0.02 ? Number.NaN : integer(random, -n, n)
+        t.insert(value === 0 ? 0 : value, 'test', 0)
+      }
+      for (let q = 0; q < 300; q++) {
+        const r = random()
+        const value = r < 0.05 ? Number.NaN : r < 0.1 ? -0 : integer(random, -n - 1, n + 1)
+        if (!t.plain(value)) {
+          expect(t.root).toBe(null)
+          continue
+        }
+        expect(t.findPlain(value)).toBe(t.find(value, 'test', 0, false))
+        const placed = t.locatePlain(value)
+        const place = t.locate(value, 'test', 0)
+        expect(placed).toBe(place.node)
+      }
+    }
+  })
+
+  it('finds and places strings as the compared descent does, and links where it placed [051 S1-AC8]', () => {
+    const random = seeded(11)
+    const t = natural<string>()
+    t.insert('m', 'test', 0)
+    for (let i = 0; i < 2_000; i++) {
+      const value = `k${integer(random, 0, 900)}`
+      expect(t.plain(value)).toBe(true)
+      expect(t.findPlain(value)).toBe(t.find(value, 'test', 0, false))
+      if (t.locatePlain(value) === null) {
+        t.linkPlain(new TreeNode(value))
+        expect(t.find(value, 'test', 0, false)?.value).toBe(value)
+      }
+    }
+    const values: string[] = []
+    for (let node = t.first(); node !== null; node = successor(node)) values.push(node.value)
+    expect(values).toEqual([...new Set(values)].sort())
+    expect(t.count).toBe(values.length)
+  })
+
+  it('takes the plain descent only for natural order, a non-empty tree and the same plain kind [051 S1-AC8]', () => {
+    const empty = natural<unknown>()
+    expect(empty.plain(1)).toBe(false)
+    const numbers = natural<unknown>()
+    numbers.insert(1, 'test', 0)
+    expect(numbers.plain(2)).toBe(true)
+    expect(numbers.plain('2')).toBe(false)
+    expect(numbers.plain(null)).toBe(false)
+    expect(numbers.plain(new Date(1))).toBe(false)
+    const ordered = new OrderedTree<number>(ascending, new ChangeCounter())
+    ordered.insert(1, 'test', 0)
+    expect(ordered.plain(2)).toBe(false)
   })
 })

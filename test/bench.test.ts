@@ -201,6 +201,32 @@ describe('the benchmark cases', () => {
     expect(evict.library.run(undefined)).toBe(500)
   })
 
+  it('read access-order maps with the key option and with an equivalence, and set with maxSize and onEvict, against the native idiom [050 S4-AC1]', () => {
+    const cases = benchCases(lib, 1_000)
+    const row = (operation: string) => {
+      const c = cases.find((x) => x.collection === 'LinkedHashMap' && x.operation === operation)
+      if (c === undefined) throw new Error(`no LinkedHashMap ${operation} case`)
+      return c
+    }
+    const byKey = row('get in access order with the key option')
+    expect(byKey.native.name).toBe('Map get, delete and set by id')
+    expect(byKey.library.setup.toString()).toMatch(/accessOrder: true, key:/)
+    const byEquivalence = row('get in access order with an equivalence')
+    expect(byEquivalence.native.name).toBe('Map get, delete and set by id')
+    expect(byEquivalence.library.setup.toString()).toMatch(/accessOrder: true, equivalence:/)
+    for (const c of [byKey, byEquivalence]) {
+      expect(c.ops).toBe(1_000)
+      expect(c.library.run(c.library.setup())).toBe(c.native.run(c.native.setup()))
+    }
+    const evict = row('set new keys in access order with maxSize and onEvict')
+    expect(evict.native.name).toBe('Map set and delete the first key')
+    expect(evict.library.run.toString()).toMatch(/accessOrder: true[\s\S]*maxSize[\s\S]*onEvict/)
+    expect(evict.ops).toBe(1_000)
+    // Mappings kept plus mappings evicted: every key set once.
+    expect(evict.native.run(undefined)).toBe(1_000)
+    expect(evict.library.run(undefined)).toBe(1_000)
+  })
+
   it('read min(n, 10,000) distinct present keys in a seeded order in lookups, and OPS operations in updates [044 S1-AC2]', () => {
     expect(LOOKUPS).toBe(10_000)
     expect(OPS).toBe(1_000)

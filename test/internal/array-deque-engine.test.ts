@@ -156,3 +156,98 @@ describe('ArrayDequeEngine', () => {
     expect(bufferOf(deque).length).toBe(64)
   })
 })
+
+describe('ArrayDequeEngine at its limit', () => {
+  it('refuses every adder of a full deque and of its reversed view, adding nothing [051 S1-AC2]', () => {
+    const deque = engine(16)
+    for (let i = 0; i < 16; i++) deque.add(i)
+    const revision = deque.revision
+    const view = deque.reversed()
+    const calls: Array<[string, () => unknown]> = [
+      ['ArrayDeque.add', () => deque.add(16)],
+      ['ArrayDeque.push', () => deque.push(16)],
+      ['ArrayDeque.addLast', () => deque.addLast(16)],
+      ['ArrayDeque.addFirst', () => deque.addFirst(16)],
+      ['ReversedDeque.add', () => view.add(16)],
+      ['ReversedDeque.push', () => view.push(16)],
+      ['ReversedDeque.addLast', () => view.addLast(16)],
+      ['ReversedDeque.addFirst', () => view.addFirst(16)],
+      ['ArrayDeque.addAll', () => deque.addAll([16])],
+      ['ArrayDeque', () => deque.appendAll([16], 'ArrayDeque')],
+      ['ArrayDeque.from', () => deque.appendAll([16], 'ArrayDeque.from')],
+    ]
+    for (const [label, call] of calls) {
+      expect(call).toThrow(IllegalStateError)
+      expect(call).toThrow(`${label}: the deque cannot hold more than 16 elements`)
+    }
+    expect(deque.revision).toBe(revision)
+    expect(deque.toArray()).toEqual(Array.from({ length: 16 }, (_, i) => i))
+  })
+
+  it('refuses addAll with too little room for all its elements before adding any [051 S1-AC2]', () => {
+    const deque = engine(16)
+    for (let i = 0; i < 14; i++) deque.addFirst(i)
+    const contents = deque.toArray()
+    const revision = deque.revision
+    expect(() => deque.addAll([1, 2, 3])).toThrow(
+      'ArrayDeque.addAll: the deque cannot hold more than 16 elements',
+    )
+    expect(deque.toArray()).toEqual(contents)
+    expect(deque.revision).toBe(revision)
+    deque.addFirst(99)
+    deque.addFirst(98)
+    expect(() => deque.addFirst(97)).toThrow(
+      'ArrayDeque.addFirst: the deque cannot hold more than 16 elements',
+    )
+    expect(deque.size).toBe(16)
+  })
+
+  it('moves head and length by one and writes one slot per addFirst, pop, push and poll [051 S2-AC3]', () => {
+    const deque = engine()
+    deque.appendAll(
+      Array.from({ length: 1_000 }, (_, i) => i),
+      'ArrayDeque',
+    )
+    const headOf = () => (deque as unknown as { head: number }).head
+    const calls: Array<() => unknown> = [
+      () => deque.addFirst(-1),
+      () => deque.pop(),
+      () => deque.push(7),
+      () => deque.poll(),
+    ]
+    for (let round = 0; round < 50; round++) {
+      for (const call of calls) {
+        const before = bufferOf(deque).slice()
+        const head = headOf()
+        const size = deque.size
+        call()
+        const after = bufferOf(deque)
+        expect(after.length).toBe(before.length)
+        let written = 0
+        for (let i = 0; i < after.length; i++) if (!Object.is(after[i], before[i])) written++
+        expect(written).toBeLessThanOrEqual(1)
+        expect(Math.abs(deque.size - size)).toBe(1)
+        const mask = after.length - 1
+        expect([head, (head + 1) & mask, (head - 1) & mask]).toContain(headOf())
+      }
+    }
+  })
+
+  it('adds at the front and takes from the back of a deque built from n elements without growing its buffer [051 S2-AC3]', () => {
+    for (const n of [1_000, 100_000]) {
+      const deque = engine()
+      deque.appendAll(
+        Array.from({ length: n }, (_, i) => i),
+        'ArrayDeque',
+      )
+      const capacity = bufferOf(deque).length
+      for (let i = 0; i < 2 * n; i++) {
+        deque.addFirst(i)
+        deque.pop()
+      }
+      expect(bufferOf(deque).length).toBe(capacity)
+      expect(deque.size).toBe(n)
+      expect(outsideIsCleared(deque)).toBe(true)
+    }
+  })
+})

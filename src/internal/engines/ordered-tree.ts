@@ -6,6 +6,12 @@
 // recolouring) and removal never compare, so a comparator that throws, returns an invalid result
 // or changes the tree leaves it exactly as it was. Removal moves nodes rather than values, so a
 // node keeps its value for as long as it is in the tree and cursors can hold on to nodes.
+//
+// In natural order a tree holds values of one kind only, since a value that does not compare with
+// the stored ones is refused. So when the root and the value searched for are both numbers, or
+// both strings, every value in the tree is of that kind, no user code can run and no comparison
+// can fail: `findPlain` and `locatePlain` descend with `<` and `===`, in the order `compareNatural`
+// gives (`NaN` last and equal to itself, `-0` equal to `0`), one comparison per level as `find`.
 
 import { ConcurrentModificationError } from '../../errors/errors'
 import type { Comparator } from '../../functions/comparators'
@@ -151,6 +157,9 @@ export class OrderedTree<E> {
   readonly changes: ChangeCounter
   /** What the collection is called in messages: `set` or `map`. */
   private readonly noun: string
+  /** Where `locatePlain` found that a new node would hang: its parent and side. */
+  private plainParent: TreeNode<E> | null = null
+  private plainLeft = false
 
   constructor(order: Comparator<E> | undefined, changes: ChangeCounter, noun = 'set') {
     this.order = order
@@ -235,6 +244,64 @@ export class OrderedTree<E> {
   }
 
   /**
+   * Whether the plain descent applies to `value`: natural order, a non-empty tree, and `value` and
+   * the root both numbers or both strings.
+   */
+  plain(value: E): boolean {
+    const root = this.root
+    return this.order === undefined && root !== null && isPlainKind(value, root.value)
+  }
+
+  /** As `find` for a value `plain` accepts: the node equal to `value`, or `null`. */
+  findPlain(value: E): TreeNode<E> | null {
+    let node = this.root
+    while (node !== null) {
+      const other = node.value
+      if (value === other) return node
+      if (value < other) node = node.left
+      // biome-ignore lint/suspicious/noSelfCompare: `x !== x` is true only for NaN.
+      else if (other !== other) {
+        // `other` is NaN: equal to a NaN value, after every other number.
+        // biome-ignore lint/suspicious/noSelfCompare: as above.
+        if (value !== value) return node
+        node = node.left
+      } else node = node.right
+    }
+    return null
+  }
+
+  /**
+   * As `locate` for a value `plain` accepts: the node equal to `value`, or `null` after recording
+   * where a new node would hang, for `linkPlain`.
+   */
+  locatePlain(value: E): TreeNode<E> | null {
+    let parent: TreeNode<E> | null = null
+    let left = false
+    let node = this.root
+    while (node !== null) {
+      const other = node.value
+      if (value === other) return node
+      parent = node
+      if (value < other) left = true
+      // biome-ignore lint/suspicious/noSelfCompare: `x !== x` is true only for NaN.
+      else if (other !== other) {
+        // biome-ignore lint/suspicious/noSelfCompare: as above.
+        if (value !== value) return node
+        left = true
+      } else left = false
+      node = left ? node.left : node.right
+    }
+    this.plainParent = parent
+    this.plainLeft = left
+    return null
+  }
+
+  /** Links `added` where the last `locatePlain` (with no change since) said it hangs. */
+  linkPlain(added: TreeNode<E>): void {
+    this.linkAt(added, this.plainParent, this.plainLeft)
+  }
+
+  /**
    * The greatest node before `value` (`below`) or the least node after it, counting a node equal to
    * `value` when `inclusive`; one comparison per level.
    */
@@ -304,10 +371,13 @@ export class OrderedTree<E> {
    * rebalances. No comparisons, so nothing here can fail.
    */
   link(added: TreeNode<E>, place: Place<E>): void {
-    const parent = place.parent
+    this.linkAt(added, place.parent, place.left)
+  }
+
+  private linkAt(added: TreeNode<E>, parent: TreeNode<E> | null, left: boolean): void {
     added.parent = parent
     if (parent === null) this.root = added
-    else if (place.left) parent.left = added
+    else if (left) parent.left = added
     else parent.right = added
     this.count++
     this.fixAfterInsert(added)
