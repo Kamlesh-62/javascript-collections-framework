@@ -289,6 +289,8 @@ describe('linked hash table — access order', () => {
 
   it('moves a record to the back keeping its origin, and does nothing for the last record [014 S3-AC4]', () => {
     const table = accessOrdered([1, 2, 3])
+    // Once walked, an access replaces the record (before any walk it moves the record itself).
+    table.iterator(false)
     const two = rec(table, 2)
     expect(table.access(two)).toBe(true)
     expect(keys(table)).toEqual([1, 3, 2])
@@ -299,6 +301,44 @@ describe('linked hash table — access order', () => {
     expect(table.current(two)).toBe(moved)
     expect(table.access(moved)).toBe(false)
     expect(rec(table, 2)).toBe(moved)
+  })
+
+  it('moves the record itself before any walk, and replaces it once any walk has been made [050 S1-AC6]', () => {
+    const walks: Array<[string, (t: LinkedHashTable<number, string>) => unknown]> = [
+      ['a forward iterator', (t) => t.iterator(false)],
+      ['a backward iterator', (t) => t.iterator(true)],
+      ['a key iterator', (t) => t.keyIterator(false)],
+      ['a resumed walk', (t) => new LinkedRecordIterator(t, false, 0)],
+    ]
+    for (const [name, walk] of walks) {
+      const table = accessOrdered([1, 2, 3, 4])
+      expect(table.walked, name).toBe(false)
+      const two = rec(table, 2)
+      const origin = two.origin
+      const before = two.seq
+      expect(table.access(two), name).toBe(true)
+      expect(rec(table, 2), name).toBe(two)
+      expect(two.origin, name).toBe(origin)
+      expect(two.seq, name).toBeGreaterThan(before)
+      expect(table.current(two), name).toBe(two)
+      expect(keys(table), name).toEqual([1, 3, 4, 2])
+      expect(table.access(two), name).toBe(false)
+      walk(table)
+      expect(table.walked, name).toBe(true)
+      const one = rec(table, 1)
+      expect(table.access(one), name).toBe(true)
+      expect(rec(table, 1), name).not.toBe(one)
+      expect(one.live, name).toBe(false)
+      expect(keys(table), name).toEqual([3, 4, 2, 1])
+    }
+    // A copy starts unwalked.
+    const walked = accessOrdered([1, 2])
+    walked.iterator(false)
+    const copy = walked.copy(equality)
+    expect(copy.walked).toBe(false)
+    const first = rec(copy, 1)
+    copy.access(first)
+    expect(rec(copy, 1)).toBe(first)
   })
 
   it('never returns an accessed mapping twice on a forward walk, and visits an unvisited one at its new place [014 S3-AC4]', () => {

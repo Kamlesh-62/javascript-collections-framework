@@ -8,20 +8,30 @@
 
 import type { Comparator } from '../../functions/comparators'
 import type { ChangeCounter } from '../revision'
-import { OrderedTree, TreeNode } from './ordered-tree'
+import { OrderedTree, type TreeNode } from './ordered-tree'
 
 /**
  * A node of a map's tree: `value` is the key, `mapped` its value.
  *
  * @internal
  */
-export class MapNode<K, V> extends TreeNode<K> {
+export class MapNode<K, V> implements TreeNode<K> {
+  value: K
+  left: TreeNode<K> | null
+  right: TreeNode<K> | null
+  parent: TreeNode<K> | null
+  red: boolean
   mapped: V
   /** The epoch of the tree when the node was linked, or -1 once it is removed. */
   epoch: number
 
+  // Every field in one constructor, with no base class to call: a map makes one node per mapping.
   constructor(key: K, mapped: V, epoch: number) {
-    super(key)
+    this.value = key
+    this.left = null
+    this.right = null
+    this.parent = null
+    this.red = true
     this.mapped = mapped
     this.epoch = epoch
   }

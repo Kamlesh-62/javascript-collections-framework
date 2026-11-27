@@ -11,6 +11,7 @@ import { brandedHasInstance, QUEUE_BRAND } from '../internal/brand'
 import { describeValue, isIterable } from '../internal/checks'
 import { BinaryHeapEngine } from '../internal/engines/binary-heap-engine'
 import { equalsSymbol, type HashFunction, hashCodeSymbol } from '../internal/equality'
+import { arrayFrom } from '../internal/intrinsics'
 import { COLLECTION_BRAND, INSPECT } from '../internal/output'
 
 const PRIORITY_QUEUE_BRAND: unique symbol = /*#__PURE__*/ Symbol.for(
@@ -57,11 +58,12 @@ function readComparator<E>(options: object | undefined, where: string): Comparat
   return comparator as Comparator<E> | undefined
 }
 
-/** Reads every element of `elements` into a new array. */
+/**
+ * Reads every element of `elements` into a new array, through the iteration protocol as `for…of`
+ * does (with the engine's fast path for an array whose iteration is the built-in one).
+ */
 function readElements<E>(elements: Iterable<E>): E[] {
-  const items: E[] = []
-  for (const element of elements) items.push(element)
-  return items
+  return arrayFrom(elements)
 }
 
 /**

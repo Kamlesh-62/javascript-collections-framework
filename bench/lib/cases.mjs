@@ -59,6 +59,9 @@ export function benchCases(lib, size, seed = 41) {
     PriorityQueue,
     TreeMap,
     TreeSet,
+    equalsSymbol,
+    hashCodeSymbol,
+    valueEquivalence,
   } = lib
   const n = size
   const linear = n <= LINEAR_LIMIT
@@ -568,6 +571,21 @@ export function benchCases(lib, size, seed = 41) {
     },
   )
   const records = lookups.map((id) => ({ id }))
+  /** A key compared by `id` through the equality protocol, for `valueEquivalence`. */
+  class IdKey {
+    /** @param {number} id */
+    constructor(id) {
+      this.id = id
+    }
+    /** @param {unknown} other */
+    [equalsSymbol](other) {
+      return other instanceof IdKey && other.id === this.id
+    }
+    [hashCodeSymbol]() {
+      return this.id
+    }
+  }
+  const idKeys = lookups.map((id) => new IdKey(id))
   add(
     'HashMap',
     'get by value with the key option',
@@ -814,6 +832,110 @@ export function benchCases(lib, size, seed = 41) {
         let s = 0
         for (const q of lookups) s += m.get(q) ?? 0
         return s
+      },
+    },
+  )
+  add(
+    'LinkedHashMap',
+    'get in access order with the key option',
+    reads,
+    'Map get, delete and set by id',
+    {
+      setup: () => new Map(entries),
+      run: (m) => {
+        let s = 0
+        for (const r of records) {
+          const v = m.get(r.id)
+          if (v !== undefined) {
+            m.delete(r.id)
+            m.set(r.id, v)
+            s += v
+          }
+        }
+        return s
+      },
+    },
+    {
+      setup: () =>
+        new LinkedHashMap(
+          keys.map((k) => [{ id: k }, k + 1]),
+          { accessOrder: true, key: (/** @type {{ id: number }} */ r) => r.id },
+        ),
+      run: (m) => {
+        let s = 0
+        for (const r of records) s += m.get(r) ?? 0
+        return s
+      },
+    },
+  )
+  add(
+    'LinkedHashMap',
+    'get in access order with an equivalence',
+    reads,
+    'Map get, delete and set by id',
+    {
+      setup: () => new Map(entries),
+      run: (m) => {
+        let s = 0
+        for (const r of records) {
+          const v = m.get(r.id)
+          if (v !== undefined) {
+            m.delete(r.id)
+            m.set(r.id, v)
+            s += v
+          }
+        }
+        return s
+      },
+    },
+    {
+      setup: () =>
+        new LinkedHashMap(
+          keys.map((k) => [new IdKey(k), k + 1]),
+          { accessOrder: true, equivalence: valueEquivalence },
+        ),
+      run: (m) => {
+        let s = 0
+        for (const r of idKeys) s += m.get(r) ?? 0
+        return s
+      },
+    },
+  )
+  add(
+    'LinkedHashMap',
+    'set new keys in access order with maxSize and onEvict',
+    n,
+    'Map set and delete the first key',
+    {
+      setup: none,
+      run: () => {
+        const m = new Map()
+        const first = m.keys()
+        const cap = Math.max(1, n >> 1)
+        let evicted = 0
+        for (const k of keys) {
+          m.set(k, k)
+          if (m.size > cap) {
+            m.delete(first.next().value)
+            evicted++
+          }
+        }
+        return m.size + evicted
+      },
+    },
+    {
+      setup: none,
+      run: () => {
+        let evicted = 0
+        const m = new LinkedHashMap({
+          accessOrder: true,
+          maxSize: Math.max(1, n >> 1),
+          onEvict: () => {
+            evicted++
+          },
+        })
+        for (const k of keys) m.set(k, k)
+        return m.size + evicted
       },
     },
   )

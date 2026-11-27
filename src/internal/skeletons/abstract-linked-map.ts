@@ -16,6 +16,12 @@
 // always does. In the native layout a mapping's handle is its key; after the switch it is its
 // record. A call that runs user code finds its mapping again by key afterwards, in whatever layout
 // the map is in by then.
+//
+// A map with SameValueZero keys in access order starts in the slotted layout instead (`state.slots`,
+// see access-slots.ts). The map itself (not its reversed view) answers `get`, `has`, `set`,
+// `put` (without `onEvict`), `delete`, `size` and `clear` from the slots, with the same results,
+// moves, evictions and changes as the table gives; every other call reads `table`, which makes the
+// table from the slots first, once. No record exists while the slots do, so nothing can hold one.
 
 import { ConcurrentModificationError, NoSuchElementError } from '../../errors/errors'
 import type { Cursor } from '../../interfaces/collection'
@@ -25,6 +31,7 @@ import type { SequencedMap } from '../../interfaces/sequenced-map'
 import type { SequencedSet } from '../../interfaces/sequenced-set'
 import { isBranded, MAP_COLLECTION_BRAND, MAP_ENTRY_BRAND, SEQUENCED_MAP_BRAND } from '../brand'
 import { requireFunction } from '../checks'
+import type { AccessSlots } from '../engines/access-slots'
 import type { EvictionQueue } from '../engines/eviction-queue'
 import {
   ENTRIES,
@@ -83,6 +90,8 @@ export interface LinkedMapState<K, V> extends FlatLayout<Map<K, V>, K, V> {
   readonly onEvict: ((value: V, key: K, map: never) => void) | undefined
   /** The queue of evicted mappings, when both `maxSize` and `onEvict` are set. */
   readonly queue: EvictionQueue<K, V> | undefined
+  /** The slotted layout of an access-ordered map; `undefined` once the table is made. */
+  slots: AccessSlots<K, V> | undefined
 }
 
 /**
@@ -114,11 +123,16 @@ export abstract class AbstractLinkedMap<K, V>
   }
 
   /**
-   * Leaves the native layout for good, if it is still in it: makes the table from the native `Map`
-   * (O(n), once). Returns this map.
+   * Leaves the native or slotted layout for good, if it is still in one: makes the table from the
+   * native `Map` or the slots (O(n), once). Returns this map.
    */
   promote(): this {
     const state = this.state
+    const slots = state.slots
+    if (slots !== undefined) {
+      state.table = slots.toTable(state.equality)
+      state.slots = undefined
+    }
     const flat = state.flat
     if (flat !== undefined) {
       state.table = tableFromMap(flat, state.equality)
@@ -132,6 +146,11 @@ export abstract class AbstractLinkedMap<K, V>
   /** The native `Map` while the layout is native and this is the map, not its reversed view. */
   private flatOf(): Map<K, V> | undefined {
     return this.fromBack ? undefined : this.state.flat
+  }
+
+  /** The slots while the layout is slotted and this is the map, not its reversed view. */
+  private slotsOf(): AccessSlots<K, V> | undefined {
+    return this.fromBack ? undefined : this.state.slots
   }
 
   abstract override get owner(): SequencedMap<K, V>
@@ -151,7 +170,9 @@ export abstract class AbstractLinkedMap<K, V>
 
   get size(): number {
     const flat = this.flatOf()
-    return flat !== undefined ? flat.size : this.table.size
+    if (flat !== undefined) return flat.size
+    const slots = this.slotsOf()
+    return slots !== undefined ? slots.size : this.table.size
   }
 
   // ── Calls and handles ──
@@ -218,6 +239,7 @@ export abstract class AbstractLinkedMap<K, V>
    */
   relocate(handle: unknown, key: K, probe: unknown, where: string): unknown {
     const state = this.state
+    // An entry exists only once the table does, so `state.table` is set here.
     const table = state.table as LinkedHashTable<K, V>
     if (state.flat !== undefined || table.plain) return this.find(key, where)
     const current = table.current(handle as Entry<K, V>)
@@ -308,7 +330,11 @@ export abstract class AbstractLinkedMap<K, V>
 
   /** In access order, moves a present record to the map's back. */
   private touch(record: Entry<K, V>): void {
-    if (this.state.accessOrder && this.table.access(record)) this.changes.replaced()
+    // A record exists, so the layout is linked.
+    const state = this.state
+    if (state.accessOrder && (state.table as LinkedHashTable<K, V>).access(record)) {
+      this.changes.replaced()
+    }
   }
 
   /** Writes the value of a present record as a write of the key: an access in access order. */
@@ -330,10 +356,23 @@ export abstract class AbstractLinkedMap<K, V>
    * the map's front, never the record just made, until the bound holds.
    */
   private insert(key: K, probe: unknown, value: V, front: boolean): void {
+    const state = this.state
     const table = this.table
+    const { maxSize, queue } = state
+    if (maxSize !== undefined && !front && table.size >= maxSize && table.recyclable) {
+      // Full: the first mapping is evicted and its record holds the new one, at the back. The
+      // changes and the eviction are recorded as for an insertion followed by an eviction.
+      const victim = table.head.next
+      const evictedKey = victim.key
+      const evictedValue = victim.value
+      table.recycleFirst(key, value)
+      this.changes.structural()
+      this.changes.structural()
+      if (queue !== undefined) queue.push(evictedKey, evictedValue)
+      return
+    }
     const made = table.insert(key, probe, value, front)
     this.changes.structural()
-    const { maxSize, queue } = this.state
     if (maxSize === undefined) return
     while (table.size > maxSize) {
       let victim = table.head.next
@@ -360,12 +399,37 @@ export abstract class AbstractLinkedMap<K, V>
   }
 
   /**
-   * `writeKey` on a plain table without an eviction queue: one native read, then at most one
-   * native write (plus one removal per evicted mapping). Runs no user code.
+   * `writeKey` in the slotted layout, as `writePlain` on the table: the same move, insertion,
+   * eviction (the first mapping's slot holds the new one) and changes. Runs no user code; with an
+   * eviction queue, the caller makes it one call.
+   */
+  private writeSlots(slots: AccessSlots<K, V>, key: K, value: V): unknown {
+    const normalised = normalise(key)
+    const slot = slots.find(normalised)
+    const changes = this.changes
+    if (slot !== undefined) {
+      const old = slots.valueAt(slot)
+      changes.replaced()
+      if (slots.write(slot, value)) changes.replaced()
+      return old
+    }
+    const { maxSize, queue } = this.state
+    if (maxSize !== undefined && slots.size >= maxSize) {
+      // Recorded as an insertion followed by an eviction.
+      slots.recycleFirst(normalised, value, queue)
+      changes.structural()
+    } else slots.add(normalised, value)
+    changes.structural()
+    return MISSING
+  }
+
+  /**
+   * `writeKey` on a plain table: one native read, then at most one native write (plus one removal
+   * per evicted mapping). Runs no user code; with an eviction queue, the caller makes it one call.
    */
   private writePlain(key: K, value: V): unknown {
     const normalised = normalise(key)
-    const found = this.table.findPlain(normalised)
+    const found = (this.state.table as LinkedHashTable<K, V>).findPlain(normalised)
     if (found !== undefined) return this.write(found, value)
     this.insert(normalised, normalised, value, this.fromBack)
     return MISSING
@@ -395,11 +459,20 @@ export abstract class AbstractLinkedMap<K, V>
   // ── Reading ──
 
   override get(key: K): V | undefined {
-    const flat = this.flatOf()
-    if (flat !== undefined) return flat.get(key)
-    const table = this.table
-    if (table.plain && this.state.queue === undefined) {
-      // No user code runs and no eviction can follow: read the record directly.
+    const state = this.state
+    const flat = state.flat
+    if (flat !== undefined && !this.fromBack) return flat.get(key)
+    const slots = state.slots
+    if (slots !== undefined && !this.fromBack) {
+      const slot = slots.find(normalise(key))
+      if (slot === undefined) return undefined
+      if (slots.access(slot)) this.changes.replaced()
+      return slots.valueAt(slot)
+    }
+    const table = state.table !== undefined ? state.table : this.table
+    if (table.plain) {
+      // No user code runs and a read never evicts, so no eviction queue has to wrap it: read the
+      // record directly.
       const record = table.findPlain(normalise(key))
       if (record === undefined) return undefined
       this.touch(record)
@@ -427,6 +500,8 @@ export abstract class AbstractLinkedMap<K, V>
   override has(key: K): boolean {
     const flat = this.flatOf()
     if (flat !== undefined) return flat.has(key)
+    const slots = this.slotsOf()
+    if (slots !== undefined) return slots.find(normalise(key)) !== undefined
     const table = this.table
     if (table.plain && this.state.queue === undefined)
       return table.findPlain(normalise(key)) !== undefined
@@ -490,10 +565,58 @@ export abstract class AbstractLinkedMap<K, V>
 
   set(key: K, value: V): this {
     const flat = this.flatOf()
-    if (flat !== undefined) this.setFlatCall(flat, key, value)
-    else if (this.plainWrites) this.writePlain(key, value)
-    else this.call(() => this.writeKey(key, value, this.at('set')))
+    if (flat !== undefined) {
+      this.setFlatCall(flat, key, value)
+      return this
+    }
+    // The slotted layout without an eviction queue writes directly: the shortest path for the
+    // engine to inline.
+    const slots = this.slotsOf()
+    if (slots !== undefined && this.state.queue === undefined) this.writeSlots(slots, key, value)
+    else this.setLinked(key, value)
     return this
+  }
+
+  /** `set` in the linked layout. */
+  private setLinked(key: K, value: V): void {
+    const state = this.state
+    const slots = this.slotsOf()
+    if (slots !== undefined) {
+      this.setSlots(slots, key, value)
+      return
+    }
+    const table = state.table !== undefined ? state.table : this.table
+    if (!table.plain) {
+      this.call(() => this.writeKey(key, value, this.at('set')))
+      return
+    }
+    const queue = state.queue
+    if (queue === undefined) {
+      this.writePlain(key, value)
+      return
+    }
+    // `EvictionQueue.run` without a closure: the evictions are delivered when the call ends.
+    queue.enter()
+    try {
+      this.writePlain(key, value)
+    } catch (error) {
+      queue.leave(true)
+      throw error
+    }
+    queue.leave(false)
+  }
+
+  /** `set` in the slotted layout with an eviction queue, as one call: evictions are delivered when it ends. */
+  private setSlots(slots: AccessSlots<K, V>, key: K, value: V): void {
+    const queue = this.state.queue as EvictionQueue<K, V>
+    queue.enter()
+    try {
+      this.writeSlots(slots, key, value)
+    } catch (error) {
+      queue.leave(true)
+      throw error
+    }
+    queue.leave(false)
   }
 
   put(key: K, value: V): V | undefined {
@@ -502,6 +625,11 @@ export abstract class AbstractLinkedMap<K, V>
       const previous = flat.get(key)
       this.setFlatCall(flat, key, value)
       return previous
+    }
+    const slots = this.slotsOf()
+    if (slots !== undefined && this.state.queue === undefined) {
+      const previous = this.writeSlots(slots, key, value)
+      return previous === MISSING ? undefined : (previous as V)
     }
     const old = this.plainWrites
       ? this.writePlain(key, value)
@@ -579,6 +707,12 @@ export abstract class AbstractLinkedMap<K, V>
   delete(key: K): boolean {
     const flat = this.flatOf()
     if (flat !== undefined) return this.deleteFlat(flat, key)
+    const slots = this.slotsOf()
+    if (slots !== undefined) {
+      if (!slots.remove(normalise(key))) return false
+      this.changes.structural()
+      return true
+    }
     return this.removeKey(key, this.at('delete')) !== MISSING
   }
 
@@ -801,6 +935,14 @@ export abstract class AbstractLinkedMap<K, V>
       flat.clear()
       this.state.frontKey = MISSING
       this.changes.structural()
+      return
+    }
+    const slots = this.slotsOf()
+    if (slots !== undefined) {
+      if (slots.size > 0) {
+        slots.clear()
+        this.changes.structural()
+      }
       return
     }
     if (this.table.size === 0) return

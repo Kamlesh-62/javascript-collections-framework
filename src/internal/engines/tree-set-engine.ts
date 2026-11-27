@@ -1,5 +1,10 @@
 // The engine behind `TreeSet`: the whole ordered tree, in ascending order. The public class holds
 // one engine and delegates to it, so nothing here reaches the published types.
+//
+// `add`, `has` and `delete` take the tree's plain descent when it applies (natural order, a
+// non-empty tree, the element and the stored elements all numbers or all strings): no user code
+// runs and nothing can fail, so no label is made. Every other element, and every view, takes the
+// general path of `AbstractSortedSet`.
 
 import type { Comparator } from '../../functions/comparators'
 import type { SortedSet } from '../../interfaces/sorted-set'
@@ -7,7 +12,7 @@ import { requireElement } from '../checks'
 import { ChangeCounter } from '../revision'
 import { AbstractSortedSet, type Bound } from '../skeletons/abstract-sorted-set'
 import { ReversedView, SubSetView } from '../views/tree-set-views'
-import { OrderedTree } from './ordered-tree'
+import { OrderedTree, TreeNode } from './ordered-tree'
 
 /**
  * A sorted set over a red-black tree.
@@ -36,6 +41,32 @@ export class TreeSetEngine<E> extends AbstractSortedSet<E> {
 
   comparator(): Comparator<E> | undefined {
     return this.tree.order
+  }
+
+  override add(element: E): this {
+    const tree = this.tree
+    if (!tree.plain(element)) return super.add(element)
+    if (tree.locatePlain(element) === null) {
+      tree.linkPlain(new TreeNode((element as unknown) === 0 ? (0 as E) : element))
+      this.changes.structural()
+    }
+    return this
+  }
+
+  override has(element: E): boolean {
+    const tree = this.tree
+    if (!tree.plain(element)) return super.has(element)
+    return tree.findPlain(element) !== null
+  }
+
+  override delete(element: E): boolean {
+    const tree = this.tree
+    if (!tree.plain(element)) return super.delete(element)
+    const node = tree.findPlain(element)
+    if (node === null) return false
+    tree.remove(node)
+    this.changes.structural()
+    return true
   }
 
   reversed(): SortedSet<E> {

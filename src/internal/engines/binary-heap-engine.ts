@@ -4,6 +4,11 @@
 // Every repair of the heap is planned before it is written: the comparator only ever sees the heap
 // as it was before the call, and an error it throws (or a change it makes to the queue) leaves the
 // array untouched.
+//
+// A queue in natural order whose elements are all numbers, or all strings, is a plain heap: two
+// such values compare without running user code and without throwing, so nothing can interrupt a
+// repair or change the queue during one. Its `add`, `poll` and build sift in place with `<`, making
+// the same comparisons in the same order as the planned repairs, so the comparison bounds hold.
 
 import { ConcurrentModificationError } from '../../errors/errors'
 import type { Comparator } from '../../functions/comparators'
@@ -19,6 +24,24 @@ import { AbstractCollection } from '../skeletons/abstract-collection'
 
 /** Where the former last element went when an element was removed from inside the heap. */
 type Moved = 'none' | 'down' | 'stayed' | 'up'
+
+/** The kind of a plain heap's elements: `MIXED` when the heap is empty, has a comparator, or holds
+ * anything other than only numbers or only strings. */
+const MIXED = 0
+const NUMBERS = 1
+const STRINGS = 2
+
+/** The plain kind of `value`: `NUMBERS`, `STRINGS` or `MIXED`. */
+function plainKindOf(value: unknown): number {
+  const type = typeof value
+  return type === 'number' ? NUMBERS : type === 'string' ? STRINGS : MIXED
+}
+
+/** Natural order of two numbers as a test: `a` before `b`, with `NaN` after every other number. */
+function numberBefore(a: number, b: number): boolean {
+  // biome-ignore lint/suspicious/noSelfCompare: `x === x` is false only for NaN.
+  return a < b || (b !== b && a === a)
+}
 
 /** A fail-fast iterator over the heap array in index order. */
 class HeapIterator<E> extends FailFastIterator<E> {
@@ -122,6 +145,8 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
 
   protected readonly iterationMode = 'fail-fast' as const
   private heap: E[] = []
+  /** `NUMBERS` or `STRINGS` while the queue is a plain heap of that kind, else `MIXED`. */
+  private kind = MIXED
   private readonly order: Comparator<E> | undefined
   private readonly facade: Queue<E>
 
@@ -275,8 +300,17 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
 
   /** Replaces the contents of a new, empty queue with `items`, checked and ordered. */
   build(items: E[], where: string): void {
-    for (let i = 0; i < items.length; i++) requireElement(items[i], where)
-    this.heapify(items, where, this.changes.structure)
+    const kind = this.order === undefined && items.length > 0 ? plainKindOf(items[0]) : MIXED
+    let plain = kind !== MIXED
+    for (let i = 1; plain && i < items.length; i++) plain = typeof items[i] === typeof items[0]
+    if (plain) {
+      if (kind === NUMBERS) heapifyNumbers(items as unknown as number[])
+      else heapifyStrings(items as unknown as string[])
+      this.kind = kind
+    } else {
+      for (let i = 0; i < items.length; i++) requireElement(items[i], where)
+      this.heapify(items, where, this.changes.structure)
+    }
     this.heap = items
     if (items.length > 0) this.changes.structural()
   }
@@ -284,12 +318,35 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
   /** Fills a new, empty queue with a copy of `source`'s array, which is already a heap. */
   copyFrom(source: BinaryHeapEngine<E>): void {
     this.heap = source.heap.slice()
+    this.kind = source.kind
     if (this.heap.length > 0) this.changes.structural()
   }
 
   // ── Adding ──
 
   add(element: E): this {
+    const heap = this.heap
+    const kind = this.kind
+    if (kind === NUMBERS && typeof element === 'number') {
+      insertNumber(heap as unknown as number[], element)
+      this.changes.structural()
+      return this
+    }
+    if (kind === STRINGS && typeof element === 'string') {
+      insertString(heap as unknown as string[], element)
+      this.changes.structural()
+      return this
+    }
+    if (heap.length === 0 && this.order === undefined) {
+      const first = plainKindOf(element)
+      if (first !== MIXED) {
+        // A number or a string compares with itself, so the self-check of a lone element passes.
+        heap.push(element)
+        this.kind = first
+        this.changes.structural()
+        return this
+      }
+    }
     this.insert(element, this.addSite)
     return this
   }
@@ -311,6 +368,10 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
     else if (this.order === undefined) this.compare(x, x, where, expected)
     this.heap.push(x)
     this.applyUp(x, length, to)
+    // The first element of a queue in natural order sets its kind; a later one of another kind (it
+    // passed the comparisons, so it is neither a number nor a string here) makes it mixed.
+    if (length === 0) this.kind = this.order === undefined ? plainKindOf(x) : MIXED
+    else if (this.kind !== plainKindOf(x)) this.kind = MIXED
     this.changes.structural()
   }
 
@@ -327,6 +388,15 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
     const top = heap[0] as E
     if (length === 1) {
       heap.pop()
+      this.kind = MIXED
+      this.changes.structural()
+      return top
+    }
+    const kind = this.kind
+    if (kind !== MIXED) {
+      const x = heap.pop() as E
+      if (kind === NUMBERS) siftDownNumbers(heap as unknown as number[], x as unknown as number)
+      else siftDownStrings(heap as unknown as string[], x as unknown as string)
       this.changes.structural()
       return top
     }
@@ -347,6 +417,7 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
     const last = heap.length - 1
     if (index === last) {
       heap.pop()
+      if (last === 0) this.kind = MIXED
       this.changes.structural()
       return 'none'
     }
@@ -393,12 +464,14 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
     const where = `${this.className}.${method}`
     if (kept.length > 1) this.heapify(kept, where, this.changes.structure)
     this.heap = kept
+    if (kept.length === 0) this.kind = MIXED
     this.changes.structural()
   }
 
   override clear(): void {
     if (this.heap.length === 0) return
     this.heap = []
+    this.kind = MIXED
     this.changes.structural()
   }
 
@@ -418,5 +491,102 @@ export class BinaryHeapEngine<E> extends AbstractCollection<E> {
 
   override equals(other: unknown): boolean {
     return other === this || other === this.facade
+  }
+}
+
+// ── Plain heaps ──
+//
+// Each sift compares as the planned repairs do: going down, the right child with the left, then the
+// smaller child with the element sinking; going up, the element rising with each parent. Numbers and
+// strings each have their own loops, so every comparison site sees one type.
+
+/** Adds `x` from a new slot at the end, moving each parent it is before one level down. */
+function insertNumber(heap: number[], x: number): void {
+  let i = heap.length
+  while (i > 0) {
+    const parent = (i - 1) >> 1
+    const p = heap[parent] as number
+    if (!numberBefore(x, p)) break
+    heap[i] = p
+    i = parent
+  }
+  heap[i] = x
+}
+
+function insertString(heap: string[], x: string): void {
+  let i = heap.length
+  while (i > 0) {
+    const parent = (i - 1) >> 1
+    const p = heap[parent] as string
+    if (!(x < p)) break
+    heap[i] = p
+    i = parent
+  }
+  heap[i] = x
+}
+
+/** Places `x` from the hole at the root, moving the smaller child up while it is before `x`. */
+function siftDownNumbers(heap: number[], x: number): void {
+  siftNumbers(heap, x, 0, heap.length)
+}
+
+function siftDownStrings(heap: string[], x: string): void {
+  siftStrings(heap, x, 0, heap.length)
+}
+
+function siftNumbers(heap: number[], x: number, from: number, length: number): void {
+  let i = from
+  for (;;) {
+    let child = 2 * i + 1
+    if (child >= length) break
+    let c = heap[child] as number
+    const right = child + 1
+    if (right < length) {
+      const r = heap[right] as number
+      if (numberBefore(r, c)) {
+        child = right
+        c = r
+      }
+    }
+    if (!numberBefore(c, x)) break
+    heap[i] = c
+    i = child
+  }
+  heap[i] = x
+}
+
+function siftStrings(heap: string[], x: string, from: number, length: number): void {
+  let i = from
+  for (;;) {
+    let child = 2 * i + 1
+    if (child >= length) break
+    let c = heap[child] as string
+    const right = child + 1
+    if (right < length) {
+      const r = heap[right] as string
+      if (r < c) {
+        child = right
+        c = r
+      }
+    }
+    if (!(c < x)) break
+    heap[i] = c
+    i = child
+  }
+  heap[i] = x
+}
+
+/** Orders `items` into a heap in place, bottom-up. */
+function heapifyNumbers(items: number[]): void {
+  const length = items.length
+  for (let start = (length >> 1) - 1; start >= 0; start--) {
+    siftNumbers(items, items[start] as number, start, length)
+  }
+}
+
+function heapifyStrings(items: string[]): void {
+  const length = items.length
+  for (let start = (length >> 1) - 1; start >= 0; start--) {
+    siftStrings(items, items[start] as string, start, length)
   }
 }

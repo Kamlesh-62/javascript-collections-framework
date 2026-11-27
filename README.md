@@ -93,7 +93,7 @@ code written against an interface such as `List`, `Queue` or `Deque` works with 
 | LRU map                                            | Yes: `LinkedHashMap`                                | No                         | Yes: `LRUMap`, `LRUCache`    | No                                                     | No                                      |
 | Runtime dependencies                               | 0                                                   | —                          | 1                            | 0                                                      | 0 or 1 (priority-queue depends on heap) |
 | TypeScript types                                   | Bundled                                             | Built in                   | Bundled                      | Bundled                                                | Bundled                                 |
-| Sorted map, else priority queue, min + gzip        | 12.2 kB (`TreeMap`), 5.6 kB (`PriorityQueue`)       | 0                          | 2.7 kB, Heap (no sorted map) | 3.4 kB, OrderedMap                                     | 1.7 kB, PriorityQueue                   |
+| Sorted map, else priority queue, min + gzip        | 12.5 kB (`TreeMap`), 6.0 kB (`PriorityQueue`)       | 0                          | 2.7 kB, Heap (no sorted map) | 3.4 kB, OrderedMap                                     | 1.7 kB, PriorityQueue                   |
 
 Checked on 2026-11-19 against [mnemonist](https://www.npmjs.com/package/mnemonist) 0.40.8,
 [js-sdsl](https://www.npmjs.com/package/js-sdsl) 4.4.2,
@@ -102,10 +102,10 @@ Checked on 2026-11-19 against [mnemonist](https://www.npmjs.com/package/mnemonis
 and [@datastructures-js/linked-list](https://www.npmjs.com/package/@datastructures-js/linked-list)
 6.1.4. Sizes are one export bundled alone, minified and gzipped, the way the
 [size table](docs/performance.md#bundle-size) measures this library. Importing every export
-at once: 37.5 kB (whole package).
+at once: 39.5 kB (whole package).
 
 <!-- readme-chart:start -->
-[![Bar chart of other libraries' median operations per second relative to javascript-collections-framework at 100,000 elements, on a log scale centred on 1×; another library's median is higher in 16 of 24 rows.](https://raw.githubusercontent.com/Kamlesh-62/javascript-collections-framework/main/docs/images/benchmarks.svg)](https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#compared-with-other-libraries)
+[![Bar chart of other libraries' median operations per second relative to javascript-collections-framework at 100,000 elements, on a log scale centred on 1×; another library's median is higher in 6 of 24 rows.](https://raw.githubusercontent.com/Kamlesh-62/javascript-collections-framework/main/docs/images/benchmarks.svg)](https://github.com/Kamlesh-62/javascript-collections-framework/blob/main/docs/performance.md#compared-with-other-libraries)
 <!-- readme-chart:end -->
 
 When another choice is better:
