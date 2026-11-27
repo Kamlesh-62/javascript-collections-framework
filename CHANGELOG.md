@@ -1,5 +1,30 @@
 # javascript-collections-framework
 
+## 0.2.0
+
+### Minor Changes
+
+- 341c5de: Faster `LinkedHashMap` and `LinkedHashSet` without the `key`, `equivalence` or `accessOrder` option: such a collection keeps its contents in a native `Map` or `Set` while it is only added to, read, deleted from and iterated from the front, so those operations cost about what the native ones cost. The first call that needs linked order (`putFirst`, `putLast` of a present key, `lastEntry`, `pollLastEntry`, `addFirst`, `addLast` of a member, `getLast`, `removeLast`, any call through `reversed()`, and map view calls other than `size`, `isEmpty` and `has`) moves the collection to linked records once, in O(n). Results, errors and live iteration are unchanged, including for iterators, cursors and entries open across that call.
+
+  The documented bounds change accordingly, a breaking change that ships as a minor release before 1.0: the ends, `putFirst`, `putLast`, `addFirst`, `addLast`, the view and reversed-view operations, and each eviction of a map with `maxSize` (and so its inserting methods) are now O(1) amortised, or O(1) amortised average where they were O(1) average. The size budgets of `LinkedHashMap` (12,736 bytes gzipped) and `LinkedHashSet` (9,408) and of the whole package (38,144) are raised for the native layout, which adds about 1.5 kB and 0.8 kB gzipped to the two classes.
+- e987b3c: Faster `PriorityQueue`, access-ordered `LinkedHashMap`, `ArrayDeque`, `LinkedList`, `TreeMap` and `TreeSet`, with the same results, errors, iteration and comparison counts as before.
+  - `PriorityQueue` without a comparator builds, adds and polls faster while its elements are all numbers or all strings, with the same number of comparisons.
+  - `LinkedHashMap` with `accessOrder: true` made empty (and without `key` or `equivalence`) reads, writes and evicts faster through `get`, `has`, `set` and `delete`, also with `maxSize` and `onEvict`.
+  - `ArrayDeque.addFirst`, `pop` and `poll`, and `LinkedList.add`, `addLast`, `push`, `addFirst`, `poll` and `pop`, are faster.
+  - `TreeMap.get`, `getOrDefault`, `has`, `set`, `put`, `putAll` and `delete`, and `TreeSet.add`, `has` and `delete`, are faster while every key is a number, or every key a string, in natural order, with the same number of comparisons.
+
+  The documented bounds of some `LinkedHashMap` operations change, which is why this is a minor release: a map with `accessOrder: true` and neither `key` nor `equivalence`, made empty (not from entries or by `copy`), keeps its mappings in a compact form until the first call on it other than `get`, `has`, `set`, `put` (unless both `maxSize` and `onEvict` are given), `delete`, `size`, `isEmpty` and `clear`. That call costs O(n), once, so for such a map `getOrDefault`, `put` with `maxSize` and `onEvict`, `remove`, `replace`, `getOrInsert`, `getOrInsertComputed`, `compute`, `computeIfPresent`, `merge`, `putAll`, creating an iterator and the calls through views and `reversed()` are now documented as amortised. `get`, `has`, `set` and `delete` keep their bounds.
+
+  Bundle size (min + gzip) grows: `LinkedHashMap` by 1,019 B, `PriorityQueue` by 408 B, `TreeMap` by 310 B, `TreeSet` by 260 B, `LinkedHashSet` by 163 B, `ArrayDeque` by 80 B, `LinkedList` by 36 B, and the whole package by 2,025 B. The size budgets of `PriorityQueue` and `LinkedHashMap` are raised to match.
+
+### Patch Changes
+
+- ede4cfa: The README's `<script>` snippet now names the published version with its SHA-384 integrity hash, so it can be copied as it is. Each release also gets a GitHub release with its changelog, the install command and that snippet.
+- 54cdefd: Faster reads, writes and iteration for hash maps and sets, and faster natural-order comparisons in sorted collections and priority queues, with no change in behaviour. A `HashMap` without the `key` or `equivalence` option now reads, writes and deletes with one call to its native `Map` where one suffices and iterates the native `Map` directly; `LinkedHashMap` and `LinkedHashSet` look a key up once; two numbers or two strings are compared without classifying them. Lists and deques build their error messages only when an error is thrown, and default hash collections skip the guard they need only around user callbacks.
+- 034956a: The README now opens with what JavaScript lacks — a sorted map, a priority queue and object keys compared by value — and shows each in one short example, followed by links to try it in the browser, the recipes and the benchmarks. The package description and keywords on npm name the structures it provides.
+- 54166a3: The README links runnable recipes for common tasks: the k largest values of a stream, merging sorted arrays, the maximum of each sliding window, an LRU cache, a booking calendar that rejects overlaps, the shortest path on a grid, a running median, the most recent distinct items, and the events inside a time range. Each recipe states its collection and time complexity, prints its results with the exact output in a comment, and opens in StackBlitz. No change to the package's code.
+- 35ceed7: Faster linked lists, linked hash maps and sets, construction from input, array deque growth, indexed list reads and value-keyed hash map lookups; no behaviour changes.
+
 ## 0.1.1
 
 ### Patch Changes

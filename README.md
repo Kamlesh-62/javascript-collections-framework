@@ -47,8 +47,8 @@ bun add javascript-collections-framework
 Or without a build step:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@0.1.1/dist/index.iife.js"
-        integrity="sha384-PObd63FV1OrX53vTeW7oXwFogfgzC0o7u8jwCe/0FgR0dY4HiPfRNb00G5XGHPLP" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/javascript-collections-framework@0.2.0/dist/index.iife.js"
+        integrity="sha384-NIHveBN5M28h7ISXDEpd3Je0gdtQul3REEShFOvzYtYaaZEhhgjTfSjDPypLbvxK" crossorigin="anonymous"></script>
 ```
 
 ## More examples
