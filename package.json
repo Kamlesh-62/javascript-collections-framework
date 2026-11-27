@@ -123,10 +123,10 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
-    "@biomejs/biome": "2.6.6",
+    "@biomejs/biome": "2.6.8",
     "@changesets/cli": "3.0.3",
     "@types/node": "26.6.6",
-    "@vitest/coverage-v8": "5.1.0",
+    "@vitest/coverage-v8": "5.1.1",
     "acorn": "8.19.0",
     "publint": "0.3.25",
     "tsdown": "0.23.7",
@@ -136,7 +136,7 @@
     "typescript-5.4": "npm:typescript@5.4.5",
     "typescript-5.9": "npm:typescript@5.9.3",
     "typescript-7.0": "npm:typescript@7.0.2",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   },
   "packageManager": "pnpm@11.28.9+sha512.35421cea2720eca3f5ad722b67e8ef18f4d3cd4745ed2fcfeb0dc288d4e9437fad3870d91ee6e83f268f0f6f7e0f62723317b19617bb45ee4333172ef51159f8",
   "devEngines": {
