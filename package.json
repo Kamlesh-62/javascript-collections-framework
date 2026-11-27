@@ -1,6 +1,6 @@
 {
   "name": "javascript-collections-framework",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Sorted maps and sets, priority queues, deques, LRU maps, and value-keyed maps and sets for JavaScript and TypeScript, with zero dependencies.",
   "keywords": [
     "collections",
